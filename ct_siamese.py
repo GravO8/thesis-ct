@@ -1,13 +1,12 @@
 import sys, torch, torchio
-sys.path.append("../CT-loader")
-sys.path.append("../CT-MIL")
 sys.path.append("../utils")
-from ct_loader_torchio import CT_loader
+sys.path.append("../models")
+from utils.ct_loader_torchio import CT_loader
 from torch.utils.data import DataLoader
-from siamese_model import SiameseNet
-from resnet3d import ResNet3D
-from trainer import Trainer
-from losses import SupConLoss
+from models.siamese_model import SiameseNet
+from models.resnet3d import ResNet3D
+from utils.trainer import Trainer
+from utils.losses import SupConLoss
 
 
 class SiameseTrainer(Trainer):

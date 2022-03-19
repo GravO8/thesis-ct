@@ -1,9 +1,10 @@
 import sys, torch, torchio, os, json
-sys.path.append("../CT-loader")
-from ct_loader_torchio import CT_loader
-from mil_model import MIL_nn, Ilse_attention, Ilse_gated_attention, Mean, Max
-from trainer import Trainer
-from resnet import ResNet
+sys.path.append("../utils")
+sys.path.append("../models")
+from utils.ct_loader_torchio import CT_loader
+from models.mil_model import MIL_nn, Ilse_attention, Ilse_gated_attention, Mean, Max
+from utils.trainer import Trainer
+from models.resnet import ResNet
 
 # To check the number of GPUs and their usage, use:
 # nvidia-smi

@@ -1,6 +1,5 @@
 import sys, torch, time, json, os
 import sklearn.metrics as metrics
-sys.path.append("../utils")
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
 from torch.utils.data import DataLoader
