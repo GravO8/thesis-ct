@@ -1,7 +1,6 @@
 import sys, torch, torchio
 sys.path.append("..")
 from utils.ct_loader_torchio import CT_loader
-from torch.utils.data import DataLoader
 from models.siamese_model import SiameseNet
 from models.resnet3d import ResNet3D
 from utils.trainer import SiameseTrainer
@@ -12,7 +11,7 @@ if __name__ == "__main__":
     home        = not torch.cuda.is_available()
     if home:
         NUM_WORKERS     = 0
-        DATA_DIR        = "../../data/gravo"
+        DATA_DIR        = "../../../data/gravo"
         HAS_BOTH_SCAN_TYPES     = True
         BALANCE_TEST_SET        = not False ###############################################
         BALANCE_TRAIN_SET       = False

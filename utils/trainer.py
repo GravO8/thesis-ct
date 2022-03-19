@@ -3,8 +3,8 @@ import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
 from torch.utils.data import DataLoader
-from pytorchtools import EarlyStopping, Logger
-from losses import SupConLoss
+from .pytorchtools import EarlyStopping, Logger
+from .losses import SupConLoss
 from enum import Enum
 from abc import ABC, abstractmethod
 
@@ -69,7 +69,7 @@ class Trainer(ABC):
         with open(f"{self.model_name}/summary.json", "w") as f:
             json.dump(dict, f, indent = 4)
             
-    def set_loaders(self, train, validation):
+    def set_loaders(self, train, validation, test):
         '''
         TODO
         '''
