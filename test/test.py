@@ -1,8 +1,6 @@
 import json, os, torch, torchio, sys
 import sklearn.metrics as metrics
-sys.path.append("../CT-loader")
-sys.path.append("../CT-siamese")
-sys.path.append("../utils")
+sys.path.append("..")
 from ct_loader_torchio import CT_loader
 from siamese_model import SiameseNet
 from ct_siamese import SiameseTrainer

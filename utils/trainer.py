@@ -308,3 +308,35 @@ class Trainer(ABC):
     @abstractmethod
     def evaluate_brain(self, subjects, verbose = False):
         pass
+
+
+class MILTrainer(Trainer):
+    def evaluate_brain(self, subjects, verbose = False):
+        '''
+        TODO
+        '''
+        scan    = subjects["ct"][torchio.DATA]
+        y       = subjects["prognosis"].float()
+        if self.cuda:
+            scan = scan.cuda()
+        y_prob, y_pred, _   = self.model(scan)
+        y_prob              = torch.clamp(y_prob, min = 1e-5, max = 1.-1e-5)
+        loss                = self.loss_fn(y_prob.cpu(), y)
+        error               = 1. - y_pred.cpu().eq(y).float()
+        if verbose:
+            self.trace_fn(f" - True label: {float(y)}. Predicted: {float(y_pred)}. Probability: {round(float(y_prob), 4)}")
+        return loss, error
+
+
+class SiameseTrainer(Trainer):
+    def evaluate_brain(self, subjects, verbose = False):
+        '''
+        TODO
+        '''
+        scans       = subjects["ct"][torchio.DATA]
+        if self.cuda:
+            scans   = scans.cuda()
+        msp         = scans.shape[2]//2             # midsagittal plane
+        hemisphere1 = scans[:,:,:msp,:,:]           # shape = (B,C,x,y,z)
+        hemisphere2 = scans[:,:,msp:,:,:].flip(2)   # B - batch; C - channels
+        return self.model(hemisphere1, hemisphere2)

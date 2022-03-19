@@ -1,9 +1,8 @@
 import sys, torch, torchio, os, json
-sys.path.append("../utils")
-sys.path.append("../models")
+sys.path.append("..")
 from utils.ct_loader_torchio import CT_loader
 from models.mil_model import MIL_nn, Ilse_attention, Ilse_gated_attention, Mean, Max
-from utils.trainer import Trainer
+from utils.trainer import MILTrainer
 from models.resnet import ResNet
 
 # To check the number of GPUs and their usage, use:
@@ -11,28 +10,6 @@ from models.resnet import ResNet
 # To check processes running, use:
 # top 
 # htop
-class MILTrainer(Trainer):
-    def evaluate_brain(self, subjects, verbose = False):
-        '''
-        TODO
-        '''
-        scan    = subjects["ct"][torchio.DATA]
-        y       = subjects["prognosis"].float()
-        if self.cuda:
-            scan = scan.cuda()
-        y_prob, y_pred, _   = self.model(scan)
-        y_prob              = torch.clamp(y_prob, min = 1e-5, max = 1.-1e-5)
-        loss                = self.loss_fn(y_prob.cpu(), y)
-        error               = 1. - y_pred.cpu().eq(y).float()
-        if verbose:
-            self.trace_fn(f" - True label: {float(y)}. Predicted: {float(y_pred)}. Probability: {round(float(y_prob), 4)}")
-        return loss, error
-        
-    def test(self):
-        '''
-        TODO
-        '''
-        os.system(f"python3 test.py {self.model_name}")
         
         
 class NLL:

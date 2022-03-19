@@ -1,23 +1,12 @@
 import sys, torch, torchio
-sys.path.append("../utils")
-sys.path.append("../models")
+sys.path.append("..")
 from utils.ct_loader_torchio import CT_loader
 from torch.utils.data import DataLoader
 from models.siamese_model import SiameseNet
 from models.resnet3d import ResNet3D
-from utils.trainer import Trainer
+from utils.trainer import SiameseTrainer
 from utils.losses import SupConLoss
 
-
-class SiameseTrainer(Trainer):
-    def evaluate_brain(self, subjects, verbose = False):
-        scans       = subjects["ct"][torchio.DATA]
-        if self.cuda:
-            scans   = scans.cuda()
-        msp         = scans.shape[2]//2             # midsagittal plane
-        hemisphere1 = scans[:,:,:msp,:,:]           # shape = (B,C,x,y,z)
-        hemisphere2 = scans[:,:,msp:,:,:].flip(2)   # B - batch; C - channels
-        return self.model(hemisphere1, hemisphere2)
 
 if __name__ == "__main__":
     home        = not torch.cuda.is_available()
