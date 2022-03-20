@@ -1,4 +1,4 @@
-import json, os, sys
+import json, os, torch, sys
 sys.path.append("..")
 from utils.ct_loader_torchio import CT_loader
 from models.siamese_model import SiameseNet
@@ -8,42 +8,7 @@ from utils.trainer import SiameseTrainer, MILTrainer
 from models.resnet import ResNet
 
 
-def get_dir_contents(dir):
-    '''
-    TODO
-    '''
-    json_file, weights = None, None
-    for file in os.listdir(dir):
-        if file.endswith("json") and "summary" in file:
-            json_file = f"{dir}/{file}"
-        elif file.endswith("pt"):
-            weights = f"{dir}/{file}"
-    return json_file, weights
-
-
-def load_model(run_info, home):
-    '''
-    TODO
-    '''
-    model_info = run_info["model"]
-    if model_info["type"] == "MIL":
-        specs   = model_info["specs"]
-        f       = load_encoder(specs["f"])
-        sigma   = load_sigma(specs["sigma"])
-        model   = MIL_nn(f = f, sigma = sigma)
-    elif model_info["type"] == "SiameseNet":
-        specs   = model_info["specs"]
-        encoder = load_3d_encoder(specs["encoder"])
-        mlp     = load_siamese_mlp(specs["mlp"])
-        model   = SiameseNet(encoder = encoder, **mlp)
-    else:
-        assert False
-    if not home:
-        model.cuda()
-    return model
-    
-    
-def load_sigma(sigma):
+def load_sigma(sigma: dict):
     '''
     TODO
     '''
@@ -61,7 +26,7 @@ def load_sigma(sigma):
         assert False
 
 
-def load_3d_encoder(encoder_info):
+def load_3d_encoder(encoder_info: dict):
     '''
     TODO
     '''
@@ -76,7 +41,7 @@ def load_3d_encoder(encoder_info):
                     normalization   = normalization)
 
 
-def load_encoder(f):
+def load_encoder(f: dict):
     '''
     TODO
     '''
@@ -107,37 +72,93 @@ def load_siamese_mlp(mlp_info):
     return {"mlp_layers": mlp_layers, "dropout": dropout, "return_features": return_features}
 
 
-def load_trainer(run_info, home):
-    '''
-    TODO
-    '''
-    ct_loader_info = run_info["ct_loader"]
-    ct_loader = CT_loader("gravo.csv", 
-                            ct_type                 = ct_loader_info["ct_type"],
-                            has_both_scan_types     = ct_loader_info["has_both_scan_types"] == "True",
-                            binary_label            = ct_loader_info["binary_label"] == "True",
-                            random_seed             = int(ct_loader_info["random_seed"]),
-                            balance_test_set        = ct_loader_info["balance_test_set"] == "True",
-                            balance_train_set       = ct_loader_info["balance_train_set"] == "True",
-                            augment_factor          = float(ct_loader_info["augment_factor"]),
-                            validation_size         = float(ct_loader_info["validation_size"]),
-                            data_dir                = "../../../data/gravo" if home else "/media/avcstorage/gravo")
-    model_type = run_info["model"]["type"]
-    if model_type == "MIL":
-        trainer = MIL_trainer(ct_loader, batch_size = 32, num_workers = 1 if home else 8)
-    elif model_type == "SiameseNet":
-        trainer = SiameseTrainer(ct_loader, batch_size = 32, num_workers = 1 if home else 8)
-    else:
-        assert False, f"load_trainer: Unknown model type {model_type}"
-    mode = ct_loader_info["mode"]
-    if mode == "SINGLE":
-        trainer.single(train_size = float(ct_loader_info["train_size"]))
-    elif mode == "KFOLD":
-        k       = int(ct_loader_info["k"])
-        fold    = int(ct_loader_info["fold"])
-        trainer.k_fold(k = k)
-        for _ in range(fold-1): # -1 because trainer.k_fold already loads the first fold
-            trainer.next_fold()
-    else:
-        assert False, f"load_trainer: Unknown ct loader mode {mode}"
-    return trainer
+
+class Reload:
+    def __init__(self, dir):
+        '''
+        TODO
+        '''
+        self.dir    = dir
+        self.cuda   = torch.cuda.is_available()
+        self.load_run_info()
+        
+    def get_model_name(self):
+        return self.dir.split("-fold")[0] if "fold" in self.dir else self.dir
+        
+    def load_run_info(self):
+        '''
+        TODO
+        '''
+        with open(f"{self.dir}/summary.json", "r") as f:
+            self.run_info = json.load(f)
+            
+    def get_weights(self):
+        '''
+        TODO
+        '''
+        return [filename for filename in os.listdir(self.dir) if filename.endswith(".pt")]
+            
+    def load_model(self, load_weights = True):
+        '''
+        TODO
+        '''
+        model_info = self.run_info["model"]
+        if model_info["type"] == "MIL":
+            specs   = model_info["specs"]
+            f       = load_encoder(specs["f"])
+            sigma   = load_sigma(specs["sigma"])
+            model   = MIL_nn(f = f, sigma = sigma)
+        elif model_info["type"] == "SiameseNet":
+            specs   = model_info["specs"]
+            encoder = load_3d_encoder(specs["encoder"])
+            mlp     = load_siamese_mlp(specs["mlp"])
+            model   = SiameseNet(encoder = encoder, **mlp)
+        else:
+            assert False
+        if self.cuda:
+            model.cuda()
+        if load_weights:
+            weights = self.get_weights()
+            assert len(weights) > 0, "Reload.load_model: no weights found. Use load_weights=False or train the model first"
+            if len(weights) > 1:
+                print(f"Reload.load_model: more than one weights file found. Using {weights[0]}.")
+            if self.cuda:
+                model.load_state_dict( torch.load(weights[0], map_location = torch.device("cpu")) )
+            else:
+                model.load_state_dict( torch.load(weights[0]) )
+        return model
+
+    def load_trainer(self):
+        '''
+        TODO
+        '''
+        ct_loader_info = self.run_info["ct_loader"]
+        ct_loader = CT_loader("gravo.csv", 
+                                ct_type                 = ct_loader_info["ct_type"],
+                                has_both_scan_types     = ct_loader_info["has_both_scan_types"] == "True",
+                                binary_label            = ct_loader_info["binary_label"] == "True",
+                                random_seed             = int(ct_loader_info["random_seed"]),
+                                balance_test_set        = ct_loader_info["balance_test_set"] == "True",
+                                balance_train_set       = ct_loader_info["balance_train_set"] == "True",
+                                augment_factor          = float(ct_loader_info["augment_factor"]),
+                                validation_size         = float(ct_loader_info["validation_size"]),
+                                data_dir                = "/media/avcstorage/gravo" if self.cuda else "../../../data/gravo")
+        model_type = self.run_info["model"]["type"]
+        if model_type == "MIL":
+            trainer = MIL_trainer(ct_loader, batch_size = 32, num_workers = 8 if self.cuda else 1)
+        elif model_type == "SiameseNet":
+            trainer = SiameseTrainer(ct_loader, batch_size = 32, num_workers = 8 if self.cuda else 1)
+        else:
+            assert False, f"load_trainer: Unknown model type {model_type}"
+        mode = ct_loader_info["mode"]
+        if mode == "SINGLE":
+            trainer.single(train_size = float(ct_loader_info["train_size"]))
+        elif mode == "KFOLD":
+            k       = int(ct_loader_info["k"])
+            fold    = int(ct_loader_info["fold"])
+            trainer.k_fold(k = k)
+            for _ in range(fold-1): # -1 because trainer.k_fold already loads the first fold
+                trainer.next_fold()
+        else:
+            assert False, f"Reload.load_trainer: Unknown ct loader mode {mode}"
+        return trainer
