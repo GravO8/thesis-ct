@@ -301,7 +301,7 @@ class Trainer(ABC):
             else:
                 _, y_pred   = self.evaluate_brain(scans, verbose = verbose)
             ys.extend( list(y) )
-            y_preds.extend( list(y_pred) )
+            y_preds.extend( y_pred.tolist() )
         auc         = metrics.roc_auc_score  (y_true = ys, y_score = y_preds)
         accur       = metrics.accuracy_score (y_true = ys, y_pred = y_preds)
         recall      = metrics.recall_score   (y_true = ys, y_pred = y_preds)

@@ -123,9 +123,9 @@ def load_trainer(run_info):
                             data_dir                = "../../../data/gravo" if home else "/media/avcstorage/gravo")
     model_type = run_info["model"]["type"]
     if model_type == "MIL":
-        trainer = MIL_trainer(ct_loader)
+        trainer = MIL_trainer(ct_loader, batch_size = 32, num_workers = 1 if home else 8)
     elif model_type == "SiameseNet":
-        trainer = SiameseTrainer(ct_loader)
+        trainer = SiameseTrainer(ct_loader, batch_size = 32, num_workers = 1 if home else 8)
     else:
         assert False, f"load_trainer: Unknown model type {model_type}"
     mode = ct_loader_info["mode"]
