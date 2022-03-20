@@ -1,13 +1,12 @@
 import json, os, torch, torchio, sys
 import sklearn.metrics as metrics
 sys.path.append("..")
-from ct_loader_torchio import CT_loader
-from siamese_model import SiameseNet
-from ct_siamese import SiameseTrainer
-from mil_model import MIL_nn, Ilse_attention, Ilse_gated_attention, Mean, Max
-from resnet3d import ResNet3D
-from ct_mil import MILTrainer
-from resnet import ResNet
+from utils.ct_loader_torchio import CT_loader
+from models.siamese_model import SiameseNet
+from models.mil_model import MIL_nn, Ilse_attention, Ilse_gated_attention, Mean, Max
+from models.resnet3d import ResNet3D
+from utils.trainer import SiameseTrainer, MILTrainer
+from models.resnet import ResNet
 
 
 def load_encoder(f):
@@ -121,7 +120,7 @@ def load_trainer(run_info):
                             balance_train_set       = ct_loader_info["balance_train_set"] == "True",
                             augment_factor          = float(ct_loader_info["augment_factor"]),
                             validation_size         = float(ct_loader_info["validation_size"]),
-                            data_dir                = "../../data/gravo" if home else "/media/avcstorage/gravo")
+                            data_dir                = "../../../data/gravo" if home else "/media/avcstorage/gravo")
     model_type = run_info["model"]["type"]
     if model_type == "MIL":
         trainer = MIL_trainer(ct_loader)
@@ -156,11 +155,13 @@ def test(dir_name: str):
     else:
         model.load_state_dict( torch.load(weights_file) )
     trainer     = load_trainer(run_info)
-    model_name  = dir_name.split("-")[0] if "-" in dir_name else dir_name
+    model_name  = dir_name.split("-fold")[0] if "fold" in dir_name else dir_name
     trainer.test(model, model_name)
 
 
 home = not torch.cuda.is_available()
 if __name__ == "__main__":
-    test("SiameseNet-3.1.-fold1of5")
-    
+    test("SiameseNet-3.34.-fold1of5")
+    test("SiameseNet-2.37.-fold1of5")
+    test("SiameseNet-3.44.-fold1of5")
+    # test("SiameseNet-3.1.-fold1of5")

@@ -2,7 +2,8 @@ import torch
 
 class SiameseNet(torch.nn.Module):
     def __init__(self, encoder: torch.nn.Module, dropout: float = None, 
-        mlp_layers: list = [518, 128], return_features: bool = False):
+        mlp_layers: list = [512, 128], return_features: bool = False, 
+        legacy: bool = False):
         '''
         TODO
         '''
@@ -13,9 +14,27 @@ class SiameseNet(torch.nn.Module):
         self.dropout            = dropout
         self.mlp_layers         = mlp_layers
         self.return_features    = return_features
-        self.mlp                = self.get_mlp()
+        if legacy:
+            if dropout is None:
+                self.mlp    = torch.nn.Sequential(  torch.nn.LazyLinear(512),
+                                                    torch.nn.GELU(),
+                                                    torch.nn.Linear(512, 256),
+                                                    torch.nn.GELU(),
+                                                    torch.nn.Linear(256, 1),
+                                                    torch.nn.Sigmoid())
+            else:
+                self.mlp    = torch.nn.Sequential(  torch.nn.LazyLinear(512),
+                                                    torch.nn.GELU(),
+                                                    torch.nn.Dropout(p = dropout),
+                                                    torch.nn.Linear(512, 256),
+                                                    torch.nn.GELU(),
+                                                    torch.nn.Dropout(p = dropout),
+                                                    torch.nn.Linear(256, 1),
+                                                    torch.nn.Sigmoid())
+        else:
+            self.set_mlp()
                                             
-    def get_mlp(self):
+    def set_mlp(self):
         '''
         TODO
         '''

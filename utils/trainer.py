@@ -1,4 +1,4 @@
-import sys, torch, time, json, os
+import sys, torch, torchio, time, json, os
 import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
@@ -122,7 +122,7 @@ class Trainer(ABC):
         '''
         self.optimizer_args = args
         
-    def assert_start(self):
+    def assert_start(self, model: torch.nn.Module):
         '''
         TODO
         '''
@@ -132,7 +132,7 @@ class Trainer(ABC):
         else:
             assert not model.return_features, "Trainer.train: model can only return features for loss SupCon"
             
-    def load_model(self, model_name: str):
+    def load_model(self, model: torch.nn.Module, model_name: str):
         '''
         TODO
         '''
@@ -142,6 +142,9 @@ class Trainer(ABC):
             self.model.cuda()
             
     def load_trace_fn(self):
+        '''
+        TODO
+        '''
         if self.trace_fn == "log":
             logger      = Logger(f"{self.model_name}/log.txt")
             self.trace  = lambda s: logger.log(s)
@@ -152,8 +155,8 @@ class Trainer(ABC):
         '''
         TODO
         '''
-        self.assert_start()
-        self.load_model(model_name)
+        self.assert_start(model)
+        self.load_model(model, model_name)
         if not os.path.isdir(self.model_name):
             os.mkdir(self.model_name)
         self.weights = f"{self.model_name}/weights.pt"
@@ -246,13 +249,13 @@ class Trainer(ABC):
         val_error      /= len(self.validation_loader)
         return val_loss, val_error
         
-    def compute_loss_error(self, subjects, verbose = False, validate = False):
+    def compute_loss_error(self, subjects, verbose: bool = False, validate: bool = False):
         '''
         TODO
         '''
-        y = subjects["prognosis"].float()
+        scans, y = self.get_batch(subjects)
         if self.supcon:
-            features    = self.evaluate_brain(subjects, verbose = verbose)
+            features    = self.evaluate_brain(scans, verbose = verbose)
             loss        = self.loss_fn(features, y)
             features    = features.detach().cpu().numpy()
             if not validate:
@@ -260,7 +263,7 @@ class Trainer(ABC):
             y_prob  = self.knn.predict_proba(features)
             y_pred  = torch.tensor(self.knn.predict(features))
         else:
-            y_prob, y_pred  = self.evaluate_brain(subjects, verbose = verbose)
+            y_prob, y_pred  = self.evaluate_brain(scans, verbose = verbose)
             y_prob          = torch.clamp(y_prob, min = 1e-5, max = 1.-1e-5)
             loss            = self.loss_fn(y_prob.cpu(), y)
         error = (1. - y_pred.cpu().eq(y).float()).sum()/len(y)
@@ -268,22 +271,29 @@ class Trainer(ABC):
             for i in range(len(y)):
                 self.trace(f" - True label: {int(y[i])}. Predicted: {int(y_pred[i])}. Probability: {round(float(y_prob[i]), 4)}")
         return loss, error
+    
+    def get_batch(self, subjects):
+        '''
+        TODO
+        '''
+        scans   = subjects["ct"][torchio.DATA]
+        y       = subjects["prognosis"].float()
+        if self.cuda:
+            scans = scans.cuda()
+        return scans, y
         
     def test(self, model: torch.nn.Module, model_name: str, verbose = True):
         '''
         TODO
         '''
-        self.assert_start()
-        self.load_model(model_name)
+        self.assert_start(model)
+        self.load_model(model, model_name)
         self.load_trace_fn()
         if self.supcon:
             self.init_knn() #TODO
         ys, y_preds = [], []
         for subjects in self.test_loader:
-            scans   = subjects["ct"][torchio.DATA]
-            y       = subjects["prognosis"].float()
-            if self.cuda:
-                scans = scans.cuda()
+            scans, y = self.get_batch(subjects)
             if self.supcon:
                 features    = self.evaluate_brain(scans, verbose = verbose)
                 features    = features.detach().cpu().numpy()
@@ -306,14 +316,15 @@ class Trainer(ABC):
             json.dump(scores, f, indent = 4) 
 
     @abstractmethod
-    def evaluate_brain(self, subjects, verbose = False):
+    def evaluate_brain(self, subjects, verbose: bool = False):
         pass
 
 
 class MILTrainer(Trainer):
-    def evaluate_brain(self, subjects, verbose = False):
+    def evaluate_brain(self, subjects, verbose: bool = False):
         '''
         TODO
+        DEPRECATED!
         '''
         scan    = subjects["ct"][torchio.DATA]
         y       = subjects["prognosis"].float()
@@ -329,13 +340,10 @@ class MILTrainer(Trainer):
 
 
 class SiameseTrainer(Trainer):
-    def evaluate_brain(self, subjects, verbose = False):
+    def evaluate_brain(self, scans, verbose: bool = False):
         '''
         TODO
         '''
-        scans       = subjects["ct"][torchio.DATA]
-        if self.cuda:
-            scans   = scans.cuda()
         msp         = scans.shape[2]//2             # midsagittal plane
         hemisphere1 = scans[:,:,:msp,:,:]           # shape = (B,C,x,y,z)
         hemisphere2 = scans[:,:,msp:,:,:].flip(2)   # B - batch; C - channels
