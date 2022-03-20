@@ -127,8 +127,8 @@ class Reload:
             else:
                 model.load_state_dict( torch.load(weights[0]) )
         return model
-
-    def load_trainer(self):
+        
+    def load_ct_loader(self):
         '''
         TODO
         '''
@@ -143,13 +143,20 @@ class Reload:
                                 augment_factor          = float(ct_loader_info["augment_factor"]),
                                 validation_size         = float(ct_loader_info["validation_size"]),
                                 data_dir                = "/media/avcstorage/gravo" if self.cuda else "../../../data/gravo")
+        return ct_loader, ct_loader_info
+
+    def load_trainer(self):
+        '''
+        TODO
+        '''
+        ct_loader, ct_loader_info = self.load_ct_loader()
         model_type = self.run_info["model"]["type"]
         if model_type == "MIL":
             trainer = MIL_trainer(ct_loader, batch_size = 32, num_workers = 8 if self.cuda else 1)
         elif model_type == "SiameseNet":
             trainer = SiameseTrainer(ct_loader, batch_size = 32, num_workers = 8 if self.cuda else 1)
         else:
-            assert False, f"load_trainer: Unknown model type {model_type}"
+            assert False, f"Reload.load_trainer: Unknown model type {model_type}"
         mode = ct_loader_info["mode"]
         if mode == "SINGLE":
             trainer.single(train_size = float(ct_loader_info["train_size"]))
