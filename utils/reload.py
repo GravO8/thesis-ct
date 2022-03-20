@@ -72,6 +72,25 @@ def load_siamese_mlp(mlp_info):
     return {"mlp_layers": mlp_layers, "dropout": dropout, "return_features": return_features}
 
 
+def load_optimizer(optimizer_info: dict, optimizer_args: dict = {}):
+    '''
+    TODO
+    '''
+    if "Adam" in optimizer_info["name"]:
+        optimizer = torch.optim.Adam
+    else:
+        assert False, f"load_optimizer: Unknown optimizer {optimizer_info['name']}"
+    for arg in ["lr", "betas", "weight_decay", "eps"]:
+        optimizer_args[arg] = optimizer_args[arg] if arg in optimizer_args else optimizer_info[arg]
+    return optimizer, optimizer_args
+    
+
+def load_loss(loss_str):
+    if "BCELoss" in loss_str:
+        return torch.nn.BCELoss(reduction = "mean")
+    else:
+        assert False, f"load_loss: Unknown loss {loss_str}"
+
 
 class Reload:
     def __init__(self, dir):
@@ -144,20 +163,36 @@ class Reload:
                                 validation_size         = float(ct_loader_info["validation_size"]),
                                 data_dir                = "/media/avcstorage/gravo" if self.cuda else "../../../data/gravo")
         return ct_loader, ct_loader_info
-
-    def load_trainer(self):
+        
+    def init_trainer(self, ct_loader, epochs: int, patience: int):
         '''
         TODO
         '''
-        ct_loader, ct_loader_info = self.load_ct_loader()
-        model_type = self.run_info["model"]["type"]
+        optimizer, optimizer_args = load_optimizer( self.run_info["optimizer"] )
+        model_type   = self.run_info["model"]["type"]
+        trainer_args = {"optimizer"         = optimizer,
+                        "optimizer_args"    = optimizer_args,
+                        "trace_fn"          = "log" if self.cuda else "print",
+                        "num_workers"       = 8 if self.cuda else 1,
+                        "batch_size"        = self.run_info["train"]["batch_size"],
+                        "loss"              = load_loss(self.run_info["loss_fn"]),
+                        "epochs"            = epochs,
+                        "patience"          = patience}
         if model_type == "MIL":
-            trainer = MIL_trainer(ct_loader, batch_size = 32, num_workers = 8 if self.cuda else 1)
+            trainer = MIL_trainer(ct_loader, **trainer_args)
         elif model_type == "SiameseNet":
-            trainer = SiameseTrainer(ct_loader, batch_size = 32, num_workers = 8 if self.cuda else 1)
+            trainer = SiameseTrainer(ct_loader, **trainer_args)
         else:
             assert False, f"Reload.load_trainer: Unknown model type {model_type}"
-        mode = ct_loader_info["mode"]
+        return init_trainer
+
+    def load_trainer(self, epochs: int = 0, patience: int = 0, optimizer_args: dict = {}):
+        '''
+        TODO
+        '''
+        ct_loader, ct_loader_info   = self.load_ct_loader()
+        trainer                     = self.init_trainer(ct_loader, epochs, patience)
+        mode                        = ct_loader_info["mode"]
         if mode == "SINGLE":
             trainer.single(train_size = float(ct_loader_info["train_size"]))
         elif mode == "KFOLD":
