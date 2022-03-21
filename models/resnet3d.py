@@ -17,7 +17,7 @@ class ResNet3D(torch.nn.Module):
     dropout: float = None, normalization = "batch"):
         super(ResNet3D, self).__init__()
         assert "resnet" in version
-        assert normalization in ("batch", "layer")
+        assert normalization in ("batch", "layer", "group")
         self.version        = version
         self.in_channels    = in_channels
         self.n_features     = n_features
@@ -90,6 +90,10 @@ class ResNet3D(torch.nn.Module):
                                             track_running_stats = layer.track_running_stats)
             elif self.normalization == "layer":
                 return LayerNorm()
+            elif self.normalization == "group":
+                if layer.num_features % 16 == 0:
+                    return torch.nn.GroupNorm(16, layer.num_features)
+                return torch.nn.GroupNorm(8, layer.num_features)
         elif isinstance(layer, torch.nn.ReLU):
             return layer
         elif isinstance(layer, torch.nn.MaxPool2d):
