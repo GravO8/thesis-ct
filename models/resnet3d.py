@@ -1,4 +1,4 @@
-import timm, torch
+import timm, torch, torchvision
 
 
 class LayerNorm(torch.nn.Module):
@@ -13,17 +13,18 @@ class LayerNorm(torch.nn.Module):
 
 
 class ResNet3D(torch.nn.Module):
-    def __init__(self, version: str = "resnet18", in_channels = 1, n_features = "same",
-    dropout: float = None, normalization = "batch"):
+    def __init__(self, version: str = "resnet18", in_channels = 1, n_features = "same", dropout = None,
+    drop_block_rate: float = None, normalization = "batch"):
         super(ResNet3D, self).__init__()
         assert "resnet" in version
         assert normalization in ("batch", "layer", "group")
-        self.version        = version
-        self.in_channels    = in_channels
-        self.n_features     = n_features
-        self.dropout        = dropout
-        self.normalization  = normalization
-        self.layers         = torch.nn.ModuleList( self.to_layer_list() )
+        self.version            = version
+        self.in_channels        = in_channels
+        self.n_features         = n_features
+        self.dropout            = dropout
+        self.drop_block_rate    = drop_block_rate
+        self.normalization      = normalization
+        self.layers             = torch.nn.ModuleList( self.to_layer_list() )
         if n_features == "same":
             self.layers[-1] = torch.nn.Identity()
         elif isinstance(self.n_features, int) or self.n_features.isnumeric():
@@ -39,7 +40,9 @@ class ResNet3D(torch.nn.Module):
         layers_len  = {}
         depth       = 0
         first       = True
-        for layer in timm.create_model(self.version, in_chans = self.in_channels).modules():
+        for layer in timm.create_model(self.version, 
+                                        in_chans = self.in_channels,
+                                        drop_block_rate = self.drop_block_rate).modules():
             if first:
                 layers_len[0]   = len(layer._modules)
                 layers[0]       = []
@@ -114,6 +117,8 @@ class ResNet3D(torch.nn.Module):
             return torch.nn.AvgPool3d(kernel_size   = 3,
                                     stride          = 2,
                                     padding         = 1)
+        elif isinstance(layer, timm.models.layers.drop.DropBlock2d):
+            return torchvision.ops.DropBlock3d()
         else:
             assert False, f"ResNet3D.layer_to_3D: Unknown layer {layer}"
 
@@ -162,8 +167,8 @@ class ResidualBlock3D(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    r = ResNet3D(version = "resnet34", normalization = "layer")
-    print(r)
+    r = ResNet3D(version = "resnet34", normalization = "layer", drop_block_rate = .2)
+    # print(r)
     sample = torch.rand(2,1,45,180,91)
     r(sample)
     # print( timm.create_model("resnet50d") )

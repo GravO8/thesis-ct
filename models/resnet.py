@@ -42,8 +42,6 @@ class ResNet(nn.Module):
             assert False
     def forward(self, x):
         return self.resnet(x)
-    def __repr__(self):
-        return f"{self.version}({'pretrained' if self.pretrained else 'scratch'},{'identity' if self.n_features == 'same' else self.n_features})"
     def to_dict(self):
         return {"version": self.version, 
                 "pretrained": self.pretrained, 
