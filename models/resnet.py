@@ -9,15 +9,14 @@ class Identity(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, version: str = "resnet50d", pretrained: bool = True, 
+    def __init__(self, version: str = "resnet50d", pretrained: bool = False, 
         n_features = "same", freeze = False, drop_block_rate: float = 0.0, 
         drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d):
         super(ResNet, self).__init__()
         if freeze:
             assert pretrained, "ResNet.__init__: frozen model requires pretrained=True"
         if pretrained:
-            assert normalization == "batch", "ResNet.__init__: pretrained model requires default (batch) normalization"
-            assert (dropout_block_rate != 0.0) and (drop_rate != 0.0), "ResNet.__init__: pretrained model can't use dropout"
+            assert (drop_block_rate != 0.0) and (drop_rate != 0.0), "ResNet.__init__: pretrained model can't use dropout"
         self.version        = version
         self.pretrained     = pretrained
         self.n_features     = n_features
@@ -28,9 +27,9 @@ class ResNet(nn.Module):
         self.resnet             = timm.create_model(version, 
                                                     pretrained = pretrained, 
                                                     in_chans = 1,
-                                                    drop_block_rate = dropout_block_rate,
+                                                    drop_block_rate = drop_block_rate,
                                                     drop_rate = drop_rate,
-                                                    normalization = normalization)
+                                                    norm_layer = normalization)
         if self.freeze:
             for param in self.resnet.parameters():
                 param.requires_grad = False
@@ -53,7 +52,9 @@ class ResNet(nn.Module):
 
 
 if __name__ == "__main__":
-    resnet = ResNet()
-    print(resnet)
+    r = ResNet("resnet34", drop_block_rate = .2)
+    # print(r)
+    sample = torch.rand(2,1,91,180)
+    r(sample)
     # for param in resnet.parameters():
     #     print( param.requires_grad )

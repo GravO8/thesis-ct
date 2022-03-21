@@ -1,4 +1,5 @@
-import timm, torch, torchvision
+import timm, torch
+from torchvision.ops import drop_block
 
 
 class LayerNorm(torch.nn.Module):
@@ -13,8 +14,8 @@ class LayerNorm(torch.nn.Module):
 
 
 class ResNet3D(torch.nn.Module):
-    def __init__(self, version: str = "resnet18", in_channels = 1, n_features = "same", dropout = None,
-    drop_block_rate: float = None, normalization = "batch"):
+    def __init__(self, version: str = "resnet34", in_channels = 1, n_features = "same", dropout = None,
+    drop_block_rate: float = 0.0, normalization = "batch"):
         super(ResNet3D, self).__init__()
         assert "resnet" in version
         assert normalization in ("batch", "layer", "group")
@@ -66,7 +67,7 @@ class ResNet3D(torch.nn.Module):
         if name == "Sequential":
             return torch.nn.Sequential( *layers )
         elif (name == "BasicBlock") or (name == "Bottleneck"):
-            block = ResidualBlock3D( layers )
+            block = ResidualBlock3D(layers)
             if self.dropout is None:
                 return block
             else:
@@ -118,7 +119,7 @@ class ResNet3D(torch.nn.Module):
                                     stride          = 2,
                                     padding         = 1)
         elif isinstance(layer, timm.models.layers.drop.DropBlock2d):
-            return torchvision.ops.DropBlock3d()
+            return drop_block.DropBlock3d(p = layer.drop_prob, block_size = layer.block_size)
         else:
             assert False, f"ResNet3D.layer_to_3D: Unknown layer {layer}"
 
@@ -141,6 +142,11 @@ class ResNet3D(torch.nn.Module):
 class ResidualBlock3D(torch.nn.Module):
     def __init__(self, layers):
         super(ResidualBlock3D, self).__init__()
+        if isinstance(layers[-1], drop_block.DropBlock3d):
+            self.dropblock  = layers[-1]
+            layers          = layers[:-1]
+        else:
+            self.dropblock = None
         n_layers = len(layers)
         if (n_layers == 7) or (n_layers == 10): 
             # 7 and 10 layers for Basic and Bottleneck blocks, respectively
@@ -153,7 +159,7 @@ class ResidualBlock3D(torch.nn.Module):
             self.activation = layers[-1]
             layers = layers[:-1]
         else:
-            assert False, f"ResidualBlock3D.__init__:invalid number of layers {n_layers} for residual block"
+            assert False, f"ResidualBlock3D.__init__: invalid number of layers {n_layers} for residual block"
         self.layers = torch.nn.ModuleList(layers)
         
     def forward(self, x):
@@ -163,12 +169,14 @@ class ResidualBlock3D(torch.nn.Module):
         if self.downsample is not None:
             shortcut = self.downsample(shortcut)
         x += shortcut
-        return self.activation(x)
+        x = self.activation(x)
+        if self.dropblock is not None:
+            x = self.dropblock(x)
+        return x
 
 
 if __name__ == "__main__":
-    r = ResNet3D(version = "resnet34", normalization = "layer", drop_block_rate = .2)
+    r = ResNet3D(version = "resnet152", normalization = "layer", drop_block_rate = 0.1)
     # print(r)
     sample = torch.rand(2,1,45,180,91)
     r(sample)
-    # print( timm.create_model("resnet50d") )
