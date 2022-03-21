@@ -10,16 +10,27 @@ class Identity(nn.Module):
 
 class ResNet(nn.Module):
     def __init__(self, version: str = "resnet50d", pretrained: bool = True, 
-        n_features = "same", freeze = False):
+        n_features = "same", freeze = False, drop_block_rate: float = 0.0, 
+        drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d):
         super(ResNet, self).__init__()
-        assert not freeze or (freeze and pretrained)
-        self.version    = version
-        self.pretrained = pretrained
-        self.n_features = n_features
-        self.freeze     = freeze
-        self.resnet     = timm.create_model(version, 
-                                        pretrained = pretrained, 
-                                        in_chans = 1)
+        if freeze:
+            assert pretrained, "ResNet.__init__: frozen model requires pretrained=True"
+        if pretrained:
+            assert normalization == "batch", "ResNet.__init__: pretrained model requires default (batch) normalization"
+            assert (dropout_block_rate != 0.0) and (drop_rate != 0.0), "ResNet.__init__: pretrained model can't use dropout"
+        self.version        = version
+        self.pretrained     = pretrained
+        self.n_features     = n_features
+        self.freeze         = freeze
+        self.drop_block_rate    = drop_block_rate
+        self.drop_rate          = drop_rate
+        self.normalization      = normalization.__class__.__name__
+        self.resnet             = timm.create_model(version, 
+                                                    pretrained = pretrained, 
+                                                    in_chans = 1,
+                                                    drop_block_rate = dropout_block_rate,
+                                                    drop_rate = drop_rate,
+                                                    normalization = normalization)
         if self.freeze:
             for param in self.resnet.parameters():
                 param.requires_grad = False
@@ -37,7 +48,10 @@ class ResNet(nn.Module):
         return {"version": self.version, 
                 "pretrained": self.pretrained, 
                 "n_features": self.n_features,
-                "freeze": self.freeze}
+                "freeze": self.freeze,
+                "drop_block_rate": self.drop_block_rate,
+                "drop_rate": self.drop_rate,
+                "normalization": self.normalization}
 
 
 if __name__ == "__main__":
