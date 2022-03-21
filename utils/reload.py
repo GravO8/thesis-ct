@@ -115,7 +115,7 @@ class Reload:
         '''
         TODO
         '''
-        return [filename for filename in os.listdir(self.dir) if filename.endswith(".pt")]
+        return [f"{self.dir}/{filename}" for filename in os.listdir(self.dir) if filename.endswith(".pt")]
             
     def load_model(self, load_weights = True):
         '''
@@ -170,21 +170,21 @@ class Reload:
         '''
         optimizer, optimizer_args = load_optimizer( self.run_info["optimizer"] )
         model_type   = self.run_info["model"]["type"]
-        trainer_args = {"optimizer"         = optimizer,
-                        "optimizer_args"    = optimizer_args,
-                        "trace_fn"          = "log" if self.cuda else "print",
-                        "num_workers"       = 8 if self.cuda else 1,
-                        "batch_size"        = self.run_info["train"]["batch_size"],
-                        "loss"              = load_loss(self.run_info["loss_fn"]),
-                        "epochs"            = epochs,
-                        "patience"          = patience}
+        trainer_args = {"optimizer":        optimizer,
+                        "optimizer_args":   optimizer_args,
+                        "trace_fn":         "log" if self.cuda else "print",
+                        "num_workers":      8 if self.cuda else 1,
+                        "batch_size":       self.run_info["train"]["batch_size"],
+                        "loss_fn":          load_loss(self.run_info["loss_fn"]),
+                        "epochs":           epochs,
+                        "patience":         patience}
         if model_type == "MIL":
             trainer = MIL_trainer(ct_loader, **trainer_args)
         elif model_type == "SiameseNet":
             trainer = SiameseTrainer(ct_loader, **trainer_args)
         else:
             assert False, f"Reload.load_trainer: Unknown model type {model_type}"
-        return init_trainer
+        return trainer
 
     def load_trainer(self, epochs: int = 0, patience: int = 0, optimizer_args: dict = {}):
         '''

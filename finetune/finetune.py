@@ -8,7 +8,9 @@ def finetune(dir: str):
     '''
     reload      = Reload(dir = dir)
     model       = reload.load_model(load_weights = True)
-    trainer     = reload.load_trainer(epochs = 100, patience = 100, {"lr": 0.00001})
+    trainer     = reload.load_trainer(epochs = 100, 
+                                    patience = 100, 
+                                    optimizer_args = {"lr": 0.00001})
     model_name  = reload.get_model_name()
     trainer.train(model, model_name)
 
