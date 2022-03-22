@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # loss_fn        = SupConLoss()
     loss_fn        = torch.nn.BCELoss(reduction = "mean")
     optimizer      = torch.optim.Adam
-    optimizer_args = {"lr": 0.0005, "betas": (0.9, 0.999), "weight_decay": 10e-5}
+    optimizer_args = {"betas": (0.9, 0.999)}
     trainer        = SiameseTrainer(ct_loader, optimizer, loss_fn, 
                                 trace_fn    = "print" if home else "log",
                                 batch_size  = BATCH_SIZE,
@@ -47,7 +47,7 @@ if __name__ == "__main__":
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
     MODEL_NAME     = "SiameseNet-4.{}."
-    VERSION        = "resnet50d"
+    VERSION        = "resnet50"
     k              = 5
     trainer.k_fold(k)
     for fold in range(k):

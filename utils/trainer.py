@@ -18,7 +18,7 @@ class Trainer(ABC):
     def __init__(self, ct_loader, loss_fn = torch.nn.BCELoss(reduction = "mean"), 
     optimizer: torch.optim.Optimizer = torch.optim.Adam, trace_fn: str = "log", 
     batch_size: int = 32, num_workers: int = 0, epochs: int = 75, patience: int = 20, 
-    optimizer_args: dict = None):
+    optimizer_args: dict = {}):
         '''
         Input:  trace_fn, string either "print" or "log"
                 TODO
@@ -38,6 +38,7 @@ class Trainer(ABC):
         self.supcon         = isinstance(self.loss_fn, SupConLoss)
         if self.supcon:
             self.knn = KNNClassifier(n_neighbors = 5, max_window_size = 2000)
+            assert self.batch_size > 1, "Trainer.__init__: Supervised Contrastive loss requires a batch sizer > 0."
         
     def json_summary(self):
         '''
@@ -161,15 +162,12 @@ class Trainer(ABC):
             os.mkdir(self.model_name)
         self.weights = f"{self.model_name}/weights.pt"
         self.load_trace_fn()
-        if self.optimizer_args is None:
-            self.train_optimizer = self.optimizer(self.model.parameters())
-        else:
-            self.train_optimizer = self.optimizer(self.model.parameters(), **self.optimizer_args)
-        self.writer     = SummaryWriter(self.model_name)
-        early_stopping  = EarlyStopping(patience    = self.patience, 
-                                        verbose     = True, 
-                                        path        = self.weights,
-                                        trace_func  = self.trace)
+        self.train_optimizer    = self.optimizer(self.model.parameters(), **self.optimizer_args)
+        self.writer             = SummaryWriter(self.model_name)
+        early_stopping          = EarlyStopping(patience    = self.patience, 
+                                                verbose     = True, 
+                                                path        = self.weights,
+                                                trace_func  = self.trace)
         self.json_summary()
         self.time_start = time.time()
         self.trace(f"Using {'cuda' if self.cuda else 'CPU'} device")
@@ -229,8 +227,8 @@ class Trainer(ABC):
             self.train_optimizer.step()       # adjust learning weights
             train_loss  += float(loss)
             train_error += float(error)
-        train_loss             /= len(self.train_loader)
-        train_error            /= len(self.train_loader)
+        train_loss  /= len(self.train_loader)
+        train_error /= len(self.train_loader)
         return train_loss, train_error
     
     def validate_epoch(self):

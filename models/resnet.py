@@ -1,16 +1,10 @@
 import timm, torch
 import torch.nn as nn
 
-class Identity(nn.Module):
-    def __init__(self):
-        super(Identity, self).__init__()
-    def forward(self, x):
-        return x
-
 
 class ResNet(nn.Module):
-    def __init__(self, version: str = "resnet50d", pretrained: bool = False, 
-        n_features = "same", freeze = False, drop_block_rate: float = 0.0, 
+    def __init__(self, version: str = "resnet50", pretrained: bool = False, 
+        n_features = "same", freeze: bool = False, drop_block_rate: float = 0.0, 
         drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d):
         super(ResNet, self).__init__()
         if freeze:
@@ -34,7 +28,7 @@ class ResNet(nn.Module):
             for param in self.resnet.parameters():
                 param.requires_grad = False
         if n_features == "same":
-            self.resnet.fc = Identity()
+            self.resnet.fc = nn.torch.Identity()
         elif isinstance(n_features, int) or n_features.isnumeric():
             self.resnet.fc = nn.LazyLinear(int(n_features))
         else:
@@ -48,7 +42,7 @@ class ResNet(nn.Module):
                 "freeze": self.freeze,
                 "drop_block_rate": self.drop_block_rate,
                 "drop_rate": self.drop_rate,
-                "normalization": self.normalization}
+                "normalization": self.normalization.__class__.__name__}
 
 
 if __name__ == "__main__":

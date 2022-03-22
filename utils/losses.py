@@ -10,6 +10,15 @@ import torch
 import torch.nn as nn
 
 
+class NLL:
+    def __init__(self):
+        pass
+    def __call__(self, Y_prob, Y):
+        return -1. * (Y * torch.log(Y_prob) + (1. - Y) * torch.log(1. - Y_prob))  # negative log bernoulli
+    def __repr__(self):
+        return "negative log bernoulli"
+
+
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
     It also supports the unsupervised contrastive loss in SimCLR"""
