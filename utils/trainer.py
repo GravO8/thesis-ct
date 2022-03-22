@@ -319,14 +319,14 @@ class Trainer(ABC):
 
 
 class MILTrainer(Trainer):
-    def __init__(self, kwargs):
-        super(MILTrainer, self, **kwargs).__init__()
-        assert self.batch_size == 1, "MILTrainer.__init__: MIL training requires batch_size = 1"
-        
-    def evaluate_brain(self, scan, verbose: bool = False):
+    def evaluate_brain(self, scans, verbose: bool = False):
         '''
         TODO
         '''
+        print(scans.shape)
+        scans   = scans.unbind(dim = 0)
+        print(scans.shape)
+        1/0
         shp     = scan.shape
         # (B, W, H, Z) where B is batch size
         scan    = scan.reshape(shp[0], shp[2], shp[3], shp[4])

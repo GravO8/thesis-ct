@@ -1,8 +1,7 @@
 import timm, torch
-import torch.nn as nn
 
 
-class ResNet(nn.Module):
+class ResNet(torch.nn.Module):
     def __init__(self, version: str = "resnet50", pretrained: bool = False, 
         n_features = "same", freeze: bool = False, drop_block_rate: float = 0.0, 
         drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d):
@@ -28,7 +27,7 @@ class ResNet(nn.Module):
             for param in self.resnet.parameters():
                 param.requires_grad = False
         if n_features == "same":
-            self.resnet.fc = nn.torch.Identity()
+            self.resnet.fc = torch.nn.Identity()
         elif isinstance(n_features, int) or n_features.isnumeric():
             self.resnet.fc = nn.LazyLinear(int(n_features))
         else:

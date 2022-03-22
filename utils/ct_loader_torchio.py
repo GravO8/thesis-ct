@@ -100,7 +100,7 @@ def data_distribution(train, validation, test):
     return distr
     
 
-class CT_loader:
+class CTLoader:
     def __init__(self, table_data_file: str, ct_type: str, binary_label: bool = True, 
         has_both_scan_types: bool = False, balance_test_set: bool = True, 
         random_seed: int = None, balance_train_set: bool = False, 
@@ -147,8 +147,9 @@ class CT_loader:
             ct_type = os.path.join(self.data_dir, self.ct_type)
         label   = int(row["rankin-3m"])
         scan    = row["idProcessoLocal"]
+        path    = os.path.join(ct_type, f"{scan}.nii")
         subject = torchio.Subject(
-                ct  = torchio.ScalarImage(os.path.join(ct_type,f"{scan}.nii")),
+                ct  = torchio.ScalarImage(path),
                 prognosis = label)
         return subject
         

@@ -1,8 +1,8 @@
 import torch
 
 class MLP(torch.nn.Module):
-    def __init__(layers_list: list = [512, 128], dropout: float = None, return_features: bool = False, 
-    n_out: int = 1, hidden_activation = torch.nn.GELU()):
+    def __init__(self, layers_list: list = [512, 128], dropout: float = None, 
+    return_features: bool = False, n_out: int = -1, hidden_activation = torch.nn.GELU()):
         '''
         TODO
         '''
@@ -12,6 +12,8 @@ class MLP(torch.nn.Module):
         self.return_features    = return_features
         self.n_out              = n_out
         self.hidden_activation  = hidden_activation
+        if not self.return_features:
+            assert self.n_out != -1, "MLP.__init__: set the number of output values with the 'n_out' parameter"
         self.set_mlp()
         
     def set_mlp(self):
@@ -51,4 +53,4 @@ class MLP(torch.nn.Module):
                 "dropout": self.dropout,
                 "return_features": self.return_features,
                 "n_out": self.n_out,
-                "hidden_activation": self.hidden_activation}
+                "hidden_activation": self.hidden_activation.__class__.__name__}

@@ -12,6 +12,7 @@ class MILNet(nn.Module):
         self.f          = f
         self.sigma      = sigma
         self.g          = g
+        self.return_features = self.g.return_features
     def forward(self, x):
         h       = self.f(x)         # instances encoding
         z, a    = self.sigma(h)     # MIL pooling obtains the bag encoding
