@@ -162,14 +162,12 @@ class ResidualBlock3D(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    r = ResNet3D(version = "resnet34")
-    # , drop_block_rate = 0.1)
-    # , drop_rate = .8)
+    r = ResNet3D(version = "resnet18", drop_block_rate = 0.1, drop_rate = .8, normalization = "group")
     # , normalization = "layer", drop_block_rate = 0.1)
     # print(r)
     # sample = torch.rand(2,1,45*2,180//3,91)
     # sample = torch.rand(2,1,45*2,180,91)
     # r(sample)
     from torchsummary import summary
-    summary(r, (1, 45, 180, 91))
+    summary(r, (1, 45*2, 180, 91))
     

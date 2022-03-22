@@ -17,7 +17,7 @@ class TrainerMode(Enum):
 class Trainer(ABC):
     def __init__(self, ct_loader, loss_fn = torch.nn.BCELoss(reduction = "mean"), 
     optimizer: torch.optim.Optimizer = torch.optim.Adam, trace_fn: str = "log", 
-    batch_size: int = 1, num_workers: int = 0, epochs: int = 75, patience: int = 20, 
+    batch_size: int = 32, num_workers: int = 0, epochs: int = 75, patience: int = 20, 
     optimizer_args: dict = None):
         '''
         Input:  trace_fn, string either "print" or "log"
@@ -321,22 +321,22 @@ class Trainer(ABC):
 
 
 class MILTrainer(Trainer):
-    def evaluate_brain(self, subjects, verbose: bool = False):
+    def __init__(self, kwargs):
+        super(MILTrainer, self, **kwargs).__init__()
+        assert self.batch_size == 1, "MILTrainer.__init__: MIL training requires batch_size = 1"
+        
+    def evaluate_brain(self, scan, verbose: bool = False):
         '''
         TODO
-        DEPRECATED!
         '''
-        scan    = subjects["ct"][torchio.DATA]
-        y       = subjects["prognosis"].float()
-        if self.cuda:
-            scan = scan.cuda()
-        y_prob, y_pred, _   = self.model(scan)
-        y_prob              = torch.clamp(y_prob, min = 1e-5, max = 1.-1e-5)
-        loss                = self.loss_fn(y_prob.cpu(), y)
-        error               = 1. - y_pred.cpu().eq(y).float()
-        if verbose:
-            self.trace_fn(f" - True label: {float(y)}. Predicted: {float(y_pred)}. Probability: {round(float(y_prob), 4)}")
-        return loss, error
+        shp     = scan.shape
+        # (B, W, H, Z) where B is batch size
+        scan    = scan.reshape(shp[0], shp[2], shp[3], shp[4])
+        # (Z, B, W, H) where B is actually the number of channels now and Z the batch size
+        scan    = scan.permute((3,0,1,2))
+        # filter slices that have mostly 0s
+        scan    = scan[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
+        return self.model(scan)
 
 
 class SiameseTrainer(Trainer):

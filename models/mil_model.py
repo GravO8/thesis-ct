@@ -2,28 +2,30 @@
 # https://github.com/AMLab-Amsterdam/AttentionDeepMIL/blob/master/model.py
 import torch
 import torch.nn as nn
+from .mlp import MLP
 
 
 class MIL_nn(nn.Module):
-    def __init__(self, f: nn.Module, sigma: nn.Module):
+    def __init__(self, f: nn.Module, sigma: nn.Module, g: MLP):
         super(MIL_nn, self).__init__()
         # CNN input is NCHW
-        self.f      = f
-        self.sigma  = sigma
-        self.g      = nn.Sequential(nn.LazyLinear(1), nn.Sigmoid())
+        self.f          = f
+        self.sigma      = sigma
+        self.g          = g
     def forward(self, x):
-        shp     = x.shape                                   # (1, 1, 91, 109, 91) = (B, N, W, H, Z)
-        x       = x.reshape(shp[0], shp[2], shp[3], shp[4]) # (B, W, H, Z) where B is batch size
-        x       = x.permute((3,0,1,2))                      # (Z, B, W, H) where B is actually the number of channels 
-                                                            # now and Z the batch size
-        x       = x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
-        h       = self.f(x)                                 # instances encoding
-        z, a    = self.sigma(h)                             # MIL pooling obtains the bag encoding
-        y_prob  = self.g(z).squeeze()
-        y_pred  = torch.ge(y_prob, 0.5).float()
-        return y_prob, y_pred, a
+        h       = self.f(x)         # instances encoding
+        z, a    = self.sigma(h)     # MIL pooling obtains the bag encoding
+        out     = self.g(z)
+        if not self.g.return_features:
+            y_prob  = out.squeeze()
+            y_pred  = torch.ge(y_prob, 0.5).float()
+            return y_prob, y_pred
+        return out
     def to_dict(self):
-        return {"type": "MIL", "specs": {"f": self.f.to_dict(), "sigma": str(self.sigma)}}
+        return {"type": "MIL", 
+                "specs": {"f": self.f.to_dict(), 
+                          "sigma": str(self.sigma),
+                          "g": self.g.to_dict()}}
         
         
 class Ilse_attention(nn.Module):
@@ -41,7 +43,8 @@ class Ilse_attention(nn.Module):
         return z, a
     def __repr__(self):
         return f"Ilse_attention({self.L})"
-        
+
+
 class Ilse_gated_attention(nn.Module):
     def __init__(self, L: int = 128):
         super(Ilse_gated_attention, self).__init__()
