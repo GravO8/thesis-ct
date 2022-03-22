@@ -5,9 +5,9 @@ import torch.nn as nn
 from .mlp import MLP
 
 
-class MIL_nn(nn.Module):
+class MILNet(nn.Module):
     def __init__(self, f: nn.Module, sigma: nn.Module, g: MLP):
-        super(MIL_nn, self).__init__()
+        super(MILNet, self).__init__()
         # CNN input is NCHW
         self.f          = f
         self.sigma      = sigma
@@ -28,9 +28,9 @@ class MIL_nn(nn.Module):
                           "g": self.g.to_dict()}}
         
         
-class Ilse_attention(nn.Module):
+class IlseAttention(nn.Module):
     def __init__(self, L: int = 128):
-        super(Ilse_attention, self).__init__()
+        super(IlseAttention, self).__init__()
         self.L          = L  # size of the MLP bottleneck
         self.attention  = nn.Sequential( nn.LazyLinear(L),
                                          nn.Tanh(),
@@ -42,12 +42,12 @@ class Ilse_attention(nn.Module):
         z = torch.mm(a, h)
         return z, a
     def __repr__(self):
-        return f"Ilse_attention({self.L})"
+        return f"IlseAttention({self.L})"
 
 
-class Ilse_gated_attention(nn.Module):
+class IlseGatedAttention(nn.Module):
     def __init__(self, L: int = 128):
-        super(Ilse_gated_attention, self).__init__()
+        super(IlseGatedAttention, self).__init__()
         self.L              = L  # size of the MLP bottleneck
         self.attention_V    = nn.Sequential(nn.LazyLinear(L),nn.Tanh())
         self.attention_U    = nn.Sequential(nn.LazyLinear(L),nn.Sigmoid())
@@ -61,7 +61,7 @@ class Ilse_gated_attention(nn.Module):
         z = torch.mm(a, h)
         return z, a
     def __repr__(self):
-        return f"Ilse_gated_attention({self.L})"
+        return f"IlseGatedAttention({self.L})"
         
         
 class Mean(nn.Module):
