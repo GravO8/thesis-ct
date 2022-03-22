@@ -25,7 +25,7 @@ class ResNet3D(torch.nn.Module):
         self.dropout            = dropout
         self.drop_block_rate    = drop_block_rate
         self.normalization      = normalization
-        self.layers             = torch.nn.ModuleList( self.to_layer_list() )
+        self.layers             = self.convert_to_3D()
         if n_features == "same":
             self.layers[-1] = torch.nn.Identity()
         elif isinstance(self.n_features, int) or self.n_features.isnumeric():
@@ -35,47 +35,29 @@ class ResNet3D(torch.nn.Module):
         for layer in self.layers:
             x = layer(x)
         return x
-        
-    def to_layer_list(self):
-        layers      = {}
-        layers_len  = {}
-        depth       = 0
-        first       = True
-        for layer in timm.create_model(self.version, 
-                                        in_chans = self.in_channels,
-                                        drop_block_rate = self.drop_block_rate).modules():
-            if first:
-                layers_len[0]   = len(layer._modules)
-                layers[0]       = []
-                first           = False
-            elif len(layer._modules) > 0:
-                depth              += 1
-                layers[depth]       = [layer.__class__.__name__]
-                layers_len[depth]   = len(layer._modules)
-            else:
-                layers[depth].append( self.layer_to_3D(layer) )
-                layers_len[depth] -= 1
-            while (layers_len[depth] == 0) and (depth != 0):
-                layers[depth-1].append( self.create_multi_layer(layers[depth]) )
-                layers_len[depth-1] -= 1
-                layers[depth]        = []
-                depth               -= 1
-        return layers[0]
+    
+    def convert_to_3D(self):
+        model_2d = timm.create_model(self.version, 
+                                    in_chans = self.in_channels,
+                                    drop_block_rate = self.drop_block_rate)
+        return self.get_children( model_2d )
+    
+    def get_children(self, model: torch.nn.Module):
+        # Adapted from: https://stackoverflow.com/a/65112132
+        if list(model.children()) == []:
+            return self.layer_to_3D(model)
+        return self.create_multi_layer(model)
 
-    def create_multi_layer(self, layers):
-        name, layers = layers[0], layers[1:]
-        if name == "Sequential":
+    def create_multi_layer(self, model: torch.nn.Module):
+        layers  = [self.get_children(child) for child in list(model.children())]
+        name    = model.__class__.__name__
+        if (name == "Sequential") or (name == "ResNet"):
             return torch.nn.Sequential( *layers )
         elif (name == "BasicBlock") or (name == "Bottleneck"):
-            block = ResidualBlock3D(layers)
-            if self.dropout is None:
-                return block
-            else:
-                return torch.nn.Sequential(block, torch.nn.Dropout(p = self.dropout))
+            return ResidualBlock3D(layers)
         elif name == "SelectAdaptivePool2d":
             return torch.nn.Sequential( *layers[::-1] )
-        else:
-            assert False, f"ResNet3D.create_multi_layer: Unknown multiple layer: {name}"
+        assert False, f"ResNet3D.create_multi_layer: Unknown multiple layer: {name}"
             
     def layer_to_3D(self, layer):
         if isinstance(layer, torch.nn.Conv2d):
@@ -176,7 +158,8 @@ class ResidualBlock3D(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    r = ResNet3D(version = "resnet152", normalization = "layer", drop_block_rate = 0.1)
+    r = ResNet3D(version = "resnet34", drop_block_rate = 0.1)
+    # , normalization = "layer", drop_block_rate = 0.1)
     # print(r)
     sample = torch.rand(2,1,45,180,91)
-    r(sample)
+    # r(sample)
