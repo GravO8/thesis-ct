@@ -14,27 +14,32 @@ class LayerNorm(torch.nn.Module):
 
 
 class ResNet3D(torch.nn.Module):
-    def __init__(self, version: str = "resnet34", in_channels = 1, n_features = "same", dropout = None,
-    drop_block_rate: float = 0.0, normalization = "batch"):
+    def __init__(self, version: str = "resnet34", in_channels = 1, n_features = "same", 
+    drop_rate: float = 0.0, drop_block_rate: float = 0.0, normalization = "batch"):
         super(ResNet3D, self).__init__()
         assert "resnet" in version
         assert normalization in ("batch", "layer", "group")
         self.version            = version
         self.in_channels        = in_channels
         self.n_features         = n_features
-        self.dropout            = dropout
+        self.drop_rate          = drop_rate
         self.drop_block_rate    = drop_block_rate
         self.normalization      = normalization
         self.layers             = self.convert_to_3D()
+        self.layers, self.fc    = self.layers[:-1], self.layers[-1]
         if n_features == "same":
-            self.layers[-1] = torch.nn.Identity()
+            self.fc = torch.nn.Identity()
         elif isinstance(self.n_features, int) or self.n_features.isnumeric():
-            self.layers[-1] = torch.nn.LazyLinear(int(self.n_features))
+            self.fc = torch.nn.LazyLinear(int(self.n_features))
+        else:
+            assert False
     
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
-        return x
+        # if self.drop_rate != 0.0:
+        #     x = torch.nn.functional.dropout(x, p = float(self.drop_rate))
+        return self.fc(x)
     
     def convert_to_3D(self):
         model_2d = timm.create_model(self.version, 
@@ -102,8 +107,7 @@ class ResNet3D(torch.nn.Module):
                                     padding         = 1)
         elif isinstance(layer, timm.models.layers.drop.DropBlock2d):
             return drop_block.DropBlock3d(p = layer.drop_prob, block_size = layer.block_size)
-        else:
-            assert False, f"ResNet3D.layer_to_3D: Unknown layer {layer}"
+        assert False, f"ResNet3D.layer_to_3D: Unknown layer {layer}"
 
     def print_layer_list(self, l, d = 0):
         for e in l:
@@ -158,8 +162,14 @@ class ResidualBlock3D(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    r = ResNet3D(version = "resnet34", drop_block_rate = 0.1)
+    r = ResNet3D(version = "resnet34")
+    # , drop_block_rate = 0.1)
+    # , drop_rate = .8)
     # , normalization = "layer", drop_block_rate = 0.1)
     # print(r)
-    sample = torch.rand(2,1,45,180,91)
+    # sample = torch.rand(2,1,45*2,180//3,91)
+    # sample = torch.rand(2,1,45*2,180,91)
     # r(sample)
+    from torchsummary import summary
+    summary(r, (1, 45, 180, 91))
+    

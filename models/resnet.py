@@ -52,9 +52,11 @@ class ResNet(nn.Module):
 
 
 if __name__ == "__main__":
-    r = ResNet("resnet34", drop_block_rate = .2)
+    r = ResNet("resnet34", drop_rate = .1)
     # print(r)
-    sample = torch.rand(2,1,91,180)
-    r(sample)
+    from torchsummary import summary
+    # sample = torch.rand(2,1,91,180)
+    summary(r, (1,91,180))
+    # r(sample)
     # for param in resnet.parameters():
     #     print( param.requires_grad )
