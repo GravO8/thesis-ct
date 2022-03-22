@@ -261,9 +261,10 @@ class Trainer(ABC):
             y_prob  = self.knn.predict_proba(features)
             y_pred  = torch.tensor(self.knn.predict(features))
         else:
-            y_prob, y_pred  = self.evaluate_brain(scans, verbose = verbose)
-            y_prob          = torch.clamp(y_prob, min = 1e-5, max = 1.-1e-5)
-            loss            = self.loss_fn(y_prob.cpu(), y)
+            y_prob  = self.evaluate_brain(scans, verbose = verbose)
+            y_prob  = torch.squeeze().clamp(y_prob, min = 1e-5, max = 1.-1e-5)
+            y_pred  = torch.ge(y_prob, 0.5).float()
+            loss    = self.loss_fn(y_prob.cpu(), y)
         error = (1. - y_pred.cpu().eq(y).float()).sum()/len(y)
         if verbose:
             for i in range(len(y)):
@@ -323,18 +324,15 @@ class MILTrainer(Trainer):
         '''
         TODO
         '''
-        print(scans.shape)
-        scans   = scans.unbind(dim = 0)
-        print(scans.shape)
-        1/0
-        shp     = scan.shape
-        # (B, W, H, Z) where B is batch size
-        scan    = scan.reshape(shp[0], shp[2], shp[3], shp[4])
-        # (Z, B, W, H) where B is actually the number of channels now and Z the batch size
-        scan    = scan.permute((3,0,1,2))
-        # filter slices that have mostly 0s
-        scan    = scan[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
-        return self.model(scan)
+        out = []
+        for scan in scans.unbind(dim = 0):
+            shp     = scan.shape
+            # (Z, B, W, H) where B is actually the number of channels now and Z the batch size
+            scan    = scan.permute((3,0,1,2))
+            # filter slices that have mostly 0s
+            scan    = scan[[i for i in range(scan.shape[0]) if torch.count_nonzero(scan[i,:,:,:] > 0) > 100]]
+            out.append( self.model(scan) )
+        return torch.stack(out, dim = 0) 
 
 
 class SiameseTrainer(Trainer):

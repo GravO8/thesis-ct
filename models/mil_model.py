@@ -16,12 +16,7 @@ class MILNet(nn.Module):
     def forward(self, x):
         h       = self.f(x)         # instances encoding
         z, a    = self.sigma(h)     # MIL pooling obtains the bag encoding
-        out     = self.g(z)
-        if not self.g.return_features:
-            y_prob  = out.squeeze()
-            y_pred  = torch.ge(y_prob, 0.5).float()
-            return y_prob, y_pred
-        return out
+        return self.g(z)
     def to_dict(self):
         return {"type": "MIL", 
                 "specs": {"f": self.f.to_dict(), 

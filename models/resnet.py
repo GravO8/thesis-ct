@@ -4,7 +4,7 @@ import timm, torch
 class ResNet(torch.nn.Module):
     def __init__(self, version: str = "resnet50", pretrained: bool = False, 
         n_features = "same", freeze: bool = False, drop_block_rate: float = 0.0, 
-        drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d):
+        drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d, in_channels: float = 1):
         super(ResNet, self).__init__()
         if freeze:
             assert pretrained, "ResNet.__init__: frozen model requires pretrained=True"
@@ -19,7 +19,7 @@ class ResNet(torch.nn.Module):
         self.normalization      = normalization.__class__.__name__
         self.resnet             = timm.create_model(version, 
                                                     pretrained = pretrained, 
-                                                    in_chans = 1,
+                                                    in_chans = in_channels,
                                                     drop_block_rate = drop_block_rate,
                                                     drop_rate = drop_rate,
                                                     norm_layer = normalization)

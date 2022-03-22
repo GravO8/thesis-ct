@@ -36,12 +36,7 @@ class SiameseNet(torch.nn.Module):
         encoding1   = self.encoder(x1)
         encoding2   = self.encoder(x2)
         diff        = torch.abs(encoding1 - encoding2)
-        out         = self.mlp( diff )
-        if not self.mlp.return_features:
-            y_prob  = out.squeeze()
-            y_pred  = torch.ge(y_prob, 0.5).float()
-            return y_prob, y_pred
-        return out
+        return self.mlp( diff )
         
     def to_dict(self):
         return {"type": "SiameseNet", 
