@@ -1,6 +1,6 @@
 import sys, torch, torchio
 sys.path.append("..")
-from utils.ct_loader_torchio import CT_loader
+from utils.ct_loader_torchio import CTLoader
 from models.siamese_model import SiameseNet
 from models.resnet3d import ResNet3D
 from utils.trainer import SiameseTrainer
@@ -27,7 +27,8 @@ if __name__ == "__main__":
     PATIENCE        = 40
     EPOCHS          = 300
     BATCH_SIZE      = 32
-    ct_loader       = CT_loader("gravo.csv", "NCCT", 
+    CT_TYPE         = "NCCT"
+    ct_loader       = CTLoader("gravo.csv", CT_TYPE,
                             has_both_scan_types     = HAS_BOTH_SCAN_TYPES,
                             binary_label            = True,
                             random_seed             = 0,
@@ -40,32 +41,38 @@ if __name__ == "__main__":
     loss_fn        = torch.nn.BCELoss(reduction = "mean")
     optimizer      = torch.optim.Adam
     optimizer_args = {"betas": (0.9, 0.999)}
-    trainer        = SiameseTrainer(ct_loader, optimizer, loss_fn, 
+    trainer        = SiameseTrainer(ct_loader, 
+                                optimizer   = optimizer, 
+                                loss_fn     = loss_fn, 
                                 trace_fn    = "print" if home else "log",
                                 batch_size  = BATCH_SIZE,
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "SiameseNet-4.{}."
-    VERSION        = "resnet50"
-    k              = 5
-    trainer.k_fold(k)
-    for fold in range(k):
-        i = 1
-        for lr in (.001, .0001, .00001):
-            for weight_decay in (0.01, 0.001, 0.0001):
-                for d1,d2 in ((.1, .5), (.1, .8), (.5, .5), (None, None)):
-                    model_name                      = MODEL_NAME.format(i)
-                    model                           = SiameseNet(encoder = ResNet3D(version = VERSION, 
-                                                                                    dropout = d1,
-                                                                                    normalization = "layer"), 
-                                                                dropout = d2)
-                                                                # return_features = True)
-                    optimizer_args["lr"]            = lr
-                    optimizer_args["weight_decay"]  = weight_decay
-                    trainer.set_optimizer_args(optimizer_args)
-                    trainer.train(model, model_name)
-                    i += 1
-        trainer.next_fold()
-    
-        
+    MODEL_NAME     = "SiameseNet-7.{}."
+    VERSION        = "resnet34"
+    i              = 0
+    START          = 1
+    skip           = True
+          
+    trainer.single(train_size = .8)
+    for lr in (0.001, 0.0005, 0.0001):
+        for weight_decay in (0.01, 0.001, 0.0001):
+            for d1,d2 in ((.0, .0), (.1, .1), (.5, .5), (.8, .8)):
+                i += 1
+                if i == START:
+                    skip = False
+                if skip:
+                    continue
+                model_name = MODEL_NAME.format(i)
+                model      = SiameseNet(encoder = ResNet3D(version = VERSION, 
+                                                            drop_block_rate = d1,
+                                                            drop_rate = d1,
+                                                            normalization = "group"),
+                                        mlp_layers = [512, 128],
+                                        dropout = d2)
+                                        # return_features = True)
+                optimizer_args["lr"]            = lr
+                optimizer_args["weight_decay"]  = weight_decay
+                trainer.set_optimizer_args(optimizer_args)
+                trainer.train(model, model_name)

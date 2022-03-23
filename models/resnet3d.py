@@ -19,6 +19,8 @@ class ResNet3D(torch.nn.Module):
         super(ResNet3D, self).__init__()
         assert "resnet" in version
         assert normalization in ("batch", "layer", "group")
+        assert 0 <= drop_rate < 1
+        assert 0 <= drop_block_rate < 1
         self.version            = version
         self.in_channels        = in_channels
         self.n_features         = n_features
@@ -37,8 +39,8 @@ class ResNet3D(torch.nn.Module):
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
-        # if self.drop_rate != 0.0:
-        #     x = torch.nn.functional.dropout(x, p = float(self.drop_rate))
+        if self.drop_rate != 0.0:
+            x = torch.nn.functional.dropout(x, p = float(self.drop_rate))
         return self.fc(x)
     
     def convert_to_3D(self):
@@ -108,21 +110,13 @@ class ResNet3D(torch.nn.Module):
         elif isinstance(layer, timm.models.layers.drop.DropBlock2d):
             return drop_block.DropBlock3d(p = layer.drop_prob, block_size = layer.block_size)
         assert False, f"ResNet3D.layer_to_3D: Unknown layer {layer}"
-
-    def print_layer_list(self, l, d = 0):
-        for e in l:
-            if isinstance(e, list):
-                print(" "*d, end = "")
-                print(f"{e[0]}({len(e[1:])})")
-                self.print_layer_list(e[1:], d + 4)
-            else:
-                print(" "*d, end = "")
-                print(e)
     
     def to_dict(self):
-        return {"version": self.version, "n_features": self.n_features, 
-            "dropout": "no" if self.dropout is None else self.dropout,
-            "normalization": self.normalization}
+        return {"version": self.version, 
+                "n_features": self.n_features,
+                "drop_rate": self.drop_rate,
+                "drop_block_rate": self.drop_block_rate,
+                "normalization": self.normalization}
 
     
 class ResidualBlock3D(torch.nn.Module):
@@ -150,7 +144,7 @@ class ResidualBlock3D(torch.nn.Module):
         
     def forward(self, x):
         shortcut = x
-        for layer in self.layers[:-1]:
+        for layer in self.layers:
             x = layer(x)
         if self.downsample is not None:
             shortcut = self.downsample(shortcut)

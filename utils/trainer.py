@@ -261,8 +261,8 @@ class Trainer(ABC):
             y_prob  = self.knn.predict_proba(features)
             y_pred  = torch.tensor(self.knn.predict(features))
         else:
-            y_prob  = self.evaluate_brain(scans, verbose = verbose)
-            y_prob  = torch.squeeze().clamp(y_prob, min = 1e-5, max = 1.-1e-5)
+            y_prob  = self.evaluate_brain(scans, verbose = True)
+            y_prob  = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5)
             y_pred  = torch.ge(y_prob, 0.5).float()
             loss    = self.loss_fn(y_prob.cpu(), y)
         error = (1. - y_pred.cpu().eq(y).float()).sum()/len(y)
@@ -298,7 +298,9 @@ class Trainer(ABC):
                 features    = features.detach().cpu().numpy()
                 y_pred      = self.knn.predict( features )
             else:
-                _, y_pred   = self.evaluate_brain(scans, verbose = verbose)
+                y_prob  = self.evaluate_brain(scans, verbose = verbose)
+                y_prob  = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5)
+                y_pred  = torch.ge(y_prob, 0.5).float()
             ys.extend( list(y) )
             y_preds.extend( y_pred.tolist() )
         auc         = metrics.roc_auc_score  (y_true = ys, y_score = y_preds)

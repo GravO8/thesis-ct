@@ -12,6 +12,7 @@ class SiameseNet(torch.nn.Module):
         if dropout is not None:
             assert len(mlp_layers) > 0, "SiameseNet.__init__: dropout can only be used in the MLP layers"
         self.encoder = encoder # CNN input is NCZHW
+        self.return_features = return_features
         if legacy:
             if dropout is None:
                 self.mlp    = torch.nn.Sequential(  torch.nn.LazyLinear(512),

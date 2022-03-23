@@ -80,7 +80,7 @@ if __name__ == "__main__":
                                                     freeze = False,
                                                     in_channels = 1),
                                         sigma = sigma,
-                                        g = MLP(layers_list = [256], 
+                                        g = MLP([256], 
                                                 dropout = d2, 
                                                 return_features = False, 
                                                 n_out = 1))

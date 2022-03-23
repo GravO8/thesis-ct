@@ -1,10 +1,11 @@
 import torch
 
 class MLP(torch.nn.Module):
-    def __init__(self, layers_list: list = [512, 128], dropout: float = None, 
+    def __init__(self, layers_list: list, dropout: float = None, 
     return_features: bool = False, n_out: int = -1, hidden_activation = torch.nn.GELU()):
         '''
         TODO
+        layers_list: list of integers
         '''
         super(MLP, self).__init__()
         self.layers_list        = layers_list
