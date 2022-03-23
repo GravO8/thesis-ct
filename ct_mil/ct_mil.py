@@ -88,6 +88,3 @@ if __name__ == "__main__":
                     optimizer_args["weight_decay"]  = weight_decay
                     trainer.set_optimizer_args(optimizer_args)
                     trainer.train(model, model_name)
-                    i += 1
-    
-        

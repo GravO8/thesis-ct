@@ -49,7 +49,7 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "SiameseNet-7.{}."
+    MODEL_NAME     = "SiameseNet-8.{}."
     VERSION        = "resnet34"
     i              = 0
     START          = 1
@@ -69,8 +69,8 @@ if __name__ == "__main__":
                                                             drop_rate = d1,
                                                             normalization = "group"),
                                         mlp_layers = [512, 128],
-                                        dropout = d2)
-                                        # return_features = True)
+                                        dropout = d2,
+                                        return_features = True)
                 optimizer_args["lr"]            = lr
                 optimizer_args["weight_decay"]  = weight_decay
                 trainer.set_optimizer_args(optimizer_args)
