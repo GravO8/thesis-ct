@@ -33,7 +33,7 @@ if __name__ == "__main__":
     
     PATIENCE        = 40
     EPOCHS          = 300
-    BATCH_SIZE      = 32
+    BATCH_SIZE      = 16
     CT_TYPE         = "NCCT"
     ct_loader       = CTLoader("gravo.csv", CT_TYPE, 
                             has_both_scan_types     = HAS_BOTH_SCAN_TYPES,

@@ -1,4 +1,4 @@
-import sys, torch, torchio, time, json, os
+import sys, torch, torchio, time, json, numpy, os
 import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
@@ -258,14 +258,14 @@ class Trainer(ABC):
             features    = features.detach().cpu().numpy()
             if not validate:
                 self.knn.partial_fit(features, y)
-            y_prob  = self.knn.predict_proba(features)
-            y_pred  = torch.tensor(self.knn.predict(features))
+            y_prob  = self.knn.predict_proba(features)[:,1]
         else:
-            y_prob  = self.evaluate_brain(scans, verbose = True)
-            y_prob  = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5)
-            y_pred  = torch.ge(y_prob, 0.5).float()
-            loss    = self.loss_fn(y_prob.cpu(), y)
-        error = (1. - y_pred.cpu().eq(y).float()).sum()/len(y)
+            y_prob  = self.evaluate_brain(scans, verbose = verbose)
+            y_prob  = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
+            loss    = self.loss_fn(y_prob, y)
+            y_prob  = y_prob.detach().numpy() 
+        y_pred = (y_prob > .5).astype(int)
+        error = (1. - numpy.equal(y_pred, y.cpu().numpy()).astype(int)).sum()/len(y)
         if verbose:
             for i in range(len(y)):
                 self.trace(f" - True label: {int(y[i])}. Predicted: {int(y_pred[i])}. Probability: {round(float(y_prob[i]), 4)}")
