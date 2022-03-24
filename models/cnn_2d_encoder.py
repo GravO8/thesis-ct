@@ -1,23 +1,23 @@
 import timm, torch
 
 
-class ResNet(torch.nn.Module):
-    def __init__(self, version: str = "resnet50", pretrained: bool = False, 
+class CNN2DEncoder(torch.nn.Module):
+    def __init__(self, cnn_name: str = "resnet50", pretrained: bool = False, 
         n_features = "same", freeze: bool = False, drop_block_rate: float = 0.0, 
         drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d, in_channels: float = 1):
-        super(ResNet, self).__init__()
+        super(CNN2DEncoder, self).__init__()
         if freeze:
-            assert pretrained, "ResNet.__init__: frozen model requires pretrained=True"
+            assert pretrained, "CNN2DEncoder.__init__: frozen model requires pretrained=True"
         if pretrained:
-            assert (drop_block_rate != 0.0) and (drop_rate != 0.0), "ResNet.__init__: pretrained model can't use dropout"
-        self.version        = version
+            assert (drop_block_rate != 0.0) and (drop_rate != 0.0), "CNN2DEncoder.__init__: pretrained model can't use dropout"
+        self.cnn_name       = cnn_name
         self.pretrained     = pretrained
         self.n_features     = n_features
         self.freeze         = freeze
         self.drop_block_rate    = drop_block_rate
         self.drop_rate          = drop_rate
         self.normalization      = normalization.__class__.__name__
-        self.resnet             = timm.create_model(version, 
+        self.resnet             = timm.create_model(cnn_name, 
                                                     pretrained = pretrained, 
                                                     in_chans = in_channels,
                                                     drop_block_rate = drop_block_rate,
@@ -35,7 +35,7 @@ class ResNet(torch.nn.Module):
     def forward(self, x):
         return self.resnet(x)
     def to_dict(self):
-        return {"version": self.version, 
+        return {"cnn_name": self.cnn_name, 
                 "pretrained": self.pretrained, 
                 "n_features": self.n_features,
                 "freeze": self.freeze,
@@ -45,7 +45,7 @@ class ResNet(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    r = ResNet("resnet34", drop_rate = .1)
+    r = CNN2DEncoder("resnet34", drop_rate = .1)
     # print(r)
     from torchsummary import summary
     # sample = torch.rand(2,1,91,180)

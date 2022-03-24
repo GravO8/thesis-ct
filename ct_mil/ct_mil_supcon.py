@@ -1,10 +1,10 @@
 import sys, torch, torchio, os, json
 sys.path.append("..")
 from utils.ct_loader_torchio import CTLoader
+from models.cnn_2d_encoder import CNN2DEncoder
 from timm.models.layers import GroupNorm
 from models.mil_model import MILNet, IlseAttention, IlseGatedAttention, Mean, Max
 from utils.trainer import MILTrainer
-from models.resnet import ResNet
 from utils.losses import SupConLoss
 from models.mlp import MLP
 
@@ -74,7 +74,8 @@ if __name__ == "__main__":
                     if skip:
                         continue
                     model_name  = MODEL_NAME.format(i)
-                    model       = MILNet(f = ResNet(drop_block_rate = d1, 
+                    model       = MILNet(f = CNN2DEncoder(version = VERSION,
+                                                    drop_block_rate = d1, 
                                                     drop_rate = d1,
                                                     normalization = GroupNorm,
                                                     pretrained = False,
