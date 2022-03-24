@@ -37,8 +37,7 @@ if __name__ == "__main__":
                             augment_factor          = AUGMENT_FACTOR,
                             validation_size         = 0.1,
                             data_dir                = DATA_DIR)
-    # loss_fn        = SupConLoss()
-    loss_fn        = torch.nn.BCELoss(reduction = "mean")
+    loss_fn        = SupConLoss()
     optimizer      = torch.optim.Adam
     optimizer_args = {"betas": (0.9, 0.999)}
     trainer        = SiameseTrainer(ct_loader, 

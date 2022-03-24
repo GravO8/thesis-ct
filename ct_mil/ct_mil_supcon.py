@@ -81,7 +81,7 @@ if __name__ == "__main__":
                                                     freeze = False,
                                                     in_channels = 1),
                                         sigma = sigma,
-                                        g = MLP([256, 128], 
+                                        g = MLP([512, 128], 
                                                 dropout = d2,
                                                 return_features = True,
                                                 n_out = -1))

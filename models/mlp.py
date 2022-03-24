@@ -47,7 +47,10 @@ class MLP(torch.nn.Module):
         self.mlp = torch.nn.Sequential( *layers )
         
     def forward(self, x):
-        return self.mlp(x)
+        out = self.mlp(x)
+        if self.return_features:
+            return torch.nn.functional.normalize(out, p = 2, dim = 1)
+        return out
         
     def to_dict(self):
         return {"layers_list": self.layers_list,
