@@ -15,7 +15,8 @@ class LayerNorm(torch.nn.Module):
 
 class ResNet3D(torch.nn.Module):
     def __init__(self, version: str = "resnet34", in_channels = 1, n_features = "same", 
-    drop_rate: float = 0.0, drop_block_rate: float = 0.0, normalization = "batch"):
+    drop_rate: float = 0.0, drop_block_rate: float = 0.0, normalization = "batch",
+    remove_first_maxpool: bool = False):
         super(ResNet3D, self).__init__()
         assert "resnet" in version
         assert normalization in ("batch", "layer", "group")
@@ -27,6 +28,7 @@ class ResNet3D(torch.nn.Module):
         self.drop_rate          = drop_rate
         self.drop_block_rate    = drop_block_rate
         self.normalization      = normalization
+        self.remove_first_maxpool = remove_first_maxpool
         self.layers             = self.convert_to_3D()
         self.layers, self.fc    = self.layers[:-1], self.layers[-1]
         if n_features == "same":
@@ -58,7 +60,11 @@ class ResNet3D(torch.nn.Module):
     def create_multi_layer(self, model: torch.nn.Module):
         layers  = [self.get_children(child) for child in list(model.children())]
         name    = model.__class__.__name__
-        if (name == "Sequential") or (name == "ResNet"):
+        if name == "Sequential":
+            return torch.nn.Sequential( *layers )
+        if name == "ResNet":
+            if self.remove_first_maxpool:
+                del layers[3]
             return torch.nn.Sequential( *layers )
         elif (name == "BasicBlock") or (name == "Bottleneck"):
             return ResidualBlock3D(layers)
@@ -116,7 +122,8 @@ class ResNet3D(torch.nn.Module):
                 "n_features": self.n_features,
                 "drop_rate": self.drop_rate,
                 "drop_block_rate": self.drop_block_rate,
-                "normalization": self.normalization}
+                "normalization": self.normalization,
+                "remove_first_maxpool": self.remove_first_maxpool}
 
     
 class ResidualBlock3D(torch.nn.Module):
@@ -163,5 +170,5 @@ if __name__ == "__main__":
     # sample = torch.rand(2,1,45*2,180,91)
     # r(sample)
     from torchsummary import summary
-    summary(r, (1, 45*2, 180, 91))
+    summary(r, (1, 45, 180, 91))
     

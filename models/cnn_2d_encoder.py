@@ -46,10 +46,10 @@ class CNN2DEncoder(torch.nn.Module):
 
 if __name__ == "__main__":
     r = CNN2DEncoder("resnet34", drop_rate = .1)
-    # print(r)
-    from torchsummary import summary
+    print(r.resnet)
+    # from torchsummary import summary
     # sample = torch.rand(2,1,91,180)
-    summary(r, (1,91,180))
+    # summary(r, (1,91,180))
     # r(sample)
     # for param in resnet.parameters():
     #     print( param.requires_grad )
