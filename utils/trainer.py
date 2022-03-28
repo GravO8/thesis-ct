@@ -128,6 +128,12 @@ class Trainer(ABC):
         TODO
         '''
         assert self.mode is not None, "Trainer.train: call methods 'single' or 'k_fold' first."
+        self.assert_supcon(model)
+        
+    def assert_supcon(self, model):
+        '''
+        TODO
+        '''
         if self.supcon:
             assert model.return_features, "Trainer.train: model must return features for loss SupCon"
         else:
@@ -282,6 +288,24 @@ class Trainer(ABC):
             scans = scans.cuda()
         return scans, y
         
+    def init_knn(self):
+        '''
+        TODO
+        assumes model is loaded
+        Resets the KNN and loads the examples from the train and val sets into 
+        this classifier 
+        '''
+        self.assert_supcon(model)
+        self.knn = KNNClassifier(n_neighbors = 5, max_window_size = 2000)
+        for subjects in self.train_loader:
+            scans, y = self.get_batch(subjects)
+            features = self.evaluate_brain(scans, verbose = False)
+            self.knn.partial_fit(features, y)
+        for subjects in self.validation_loader:
+            scans, y = self.get_batch(subjects)
+            features = self.evaluate_brain(scans, verbose = False)
+            self.knn.partial_fit(features, y)
+        
     def test(self, model: torch.nn.Module, model_name: str, verbose = True):
         '''
         TODO
@@ -290,7 +314,7 @@ class Trainer(ABC):
         self.load_model(model, model_name)
         self.load_trace_fn()
         if self.supcon:
-            self.init_knn() #TODO
+            self.init_knn()
         ys, y_preds = [], []
         for subjects in self.test_loader:
             scans, y = self.get_batch(subjects)
