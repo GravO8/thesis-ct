@@ -48,7 +48,7 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "SiameseNet-8.{}."
+    MODEL_NAME     = "SiameseNet-9.{}."
     VERSION        = "resnet34"
     i              = 0
     START          = 1
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     trainer.single(train_size = .8)
     for lr in (0.001, 0.0005, 0.0001):
         for weight_decay in (0.01, 0.001, 0.0001):
-            for d1,d2 in ((.0, .0), (.1, .1), (.5, .5), (.8, .8)):
+            for d1,d2 in ((.2, .2), (.5, .5), (.8, .8), (.9, .9)):
                 i += 1
                 if i == START:
                     skip = False
@@ -66,6 +66,8 @@ if __name__ == "__main__":
                 model_name = MODEL_NAME.format(i)
                 model      = SiameseNet(encoder = ResNet3D(version = VERSION,
                                                             drop_rate = d1,
+                                                            drop_block_rate = d1,
+                                                            remove_first_maxpool = True,
                                                             normalization = "group"),
                                         mlp_layers = [512, 128],
                                         dropout = d2,

@@ -32,13 +32,23 @@ def load_3d_encoder(encoder_info: dict):
     '''
     version         = encoder_info["version"]
     n_features      = encoder_info["n_features"]
-    dropout         = encoder_info["dropout"]
-    dropout         = None if dropout == "no" else float(dropout)
     normalization   = encoder_info["normalization"]
-    return ResNet3D(version         = version, 
-                    n_features      = n_features, 
-                    dropout         = dropout,
-                    normalization   = normalization)
+    try:
+        dropout     = None if dropout == "no" else float(dropout)
+        return ResNet3D(version         = version, 
+                        n_features      = n_features, 
+                        dropout         = dropout,
+                        normalization   = normalization)
+    except:
+        drop_rate               = encoder_info["drop_rate"]
+        drop_block_rate         = float(encoder_info["drop_block_rate"])
+        remove_first_maxpool    = float(encoder_info["remove_first_maxpool"])
+        return ResNet3D(version                 = version,
+                        n_features              = n_features,
+                        drop_rate               = drop_rate,
+                        drop_block_rate         = drop_block_rate,
+                        normalization           = normalization,
+                        remove_first_maxpool    = remove_first_maxpool)
 
 
 def load_encoder(f: dict):
@@ -65,11 +75,22 @@ def load_siamese_mlp(mlp_info):
     '''
     TODO
     '''
-    mlp_layers      = list(mlp_info["mlp_layers"])
     dropout         = mlp_info["dropout"]
-    dropout         = None if dropout == "no" else float(dropout)
     return_features = mlp_info["return_features"] == "True"
-    return {"mlp_layers": mlp_layers, "dropout": dropout, "return_features": return_features}
+    try:
+        mlp_layers  = list(mlp_info["mlp_layers"])
+        dropout     = None if dropout == "no" else float(dropout)
+        return {"mlp_layers": mlp_layers, "dropout": dropout, 
+        "return_features": return_features}
+    except:
+        layers = mlp_info["layers_list"]
+        activation = mlp_info["hidden_activation"]
+        if activation == "GELU":
+            activation = torch.nn.GELU()
+        else:
+            assert False, f"load_siamese_mlp: Unknown activation {activation}"
+        return {"layers_list": mlp_layers, "dropout": dropout, 
+        "return_features": return_features, "hidden_activation": activation}
 
 
 def load_optimizer(optimizer_info: dict, optimizer_args: dict = {}):

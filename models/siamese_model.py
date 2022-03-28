@@ -3,7 +3,7 @@ from .mlp import MLP
 
 class SiameseNet(torch.nn.Module):
     def __init__(self, encoder: torch.nn.Module, dropout: float = None, 
-        mlp_layers: list = [512, 128], return_features: bool = False, 
+        mlp_layers: list = [512, 128, 1], return_features: bool = False, 
         legacy: bool = False):
         '''
         TODO
@@ -31,7 +31,7 @@ class SiameseNet(torch.nn.Module):
                                                     torch.nn.Linear(256, 1),
                                                     torch.nn.Sigmoid())
         else:
-            self.mlp = MLP(mlp_layers, dropout = dropout, return_features = return_features, n_out = 1)
+            self.mlp = MLP(mlp_layers, dropout = dropout, return_features = return_features)
     
     def forward(self, x1, x2):
         encoding1   = self.encoder(x1)
