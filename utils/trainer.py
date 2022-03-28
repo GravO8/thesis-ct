@@ -167,7 +167,8 @@ class Trainer(ABC):
         early_stopping          = EarlyStopping(patience    = self.patience, 
                                                 verbose     = True, 
                                                 path        = self.weights,
-                                                trace_func  = self.trace)
+                                                trace_func  = self.trace,
+                                                delta       = .000001)
         self.json_summary()
         self.time_start = time.time()
         self.trace(f"Using {'cuda' if self.cuda else 'CPU'} device")
