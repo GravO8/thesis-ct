@@ -1,4 +1,4 @@
-import sys
+import sys, torch
 sys.path.append("..")
 from utils.reload import Reload
     
@@ -15,7 +15,7 @@ def test(dir: str):
 
 
 if __name__ == "__main__":
-    test("SiameseNet-3.34.-fold1of5")
-    test("SiameseNet-2.37.-fold1of5")
-    test("SiameseNet-3.44.-fold1of5")
-    # test("SiameseNet-3.1.-fold1of5")
+    torch.cuda.set_device(2)
+    test("SiameseNet-8.12.")
+    test("SiameseNet-8.20.")
+    test("SiameseNet-8.31.")

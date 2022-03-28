@@ -1,11 +1,12 @@
 import json, os, torch, sys
 sys.path.append("..")
-from utils.ct_loader_torchio import CT_loader
+from utils.ct_loader_torchio import CTLoader
 from models.siamese_model import SiameseNet
-from models.mil_model import MIL_nn, Ilse_attention, Ilse_gated_attention, Mean, Max
+from models.mil_model import MILNet, IlseAttention, IlseGatedAttention, Mean, Max
 from models.resnet3d import ResNet3D
 from utils.trainer import SiameseTrainer, MILTrainer
 from models.resnet import ResNet
+from utils.losses import SupConLoss
 
 
 def load_sigma(sigma: dict):
@@ -34,15 +35,15 @@ def load_3d_encoder(encoder_info: dict):
     n_features      = encoder_info["n_features"]
     normalization   = encoder_info["normalization"]
     try:
-        dropout     = None if dropout == "no" else float(dropout)
+        dropout     = None if encoder_info["dropout"] == "no" else float(dropout)
         return ResNet3D(version         = version, 
                         n_features      = n_features, 
                         dropout         = dropout,
                         normalization   = normalization)
     except:
-        drop_rate               = encoder_info["drop_rate"]
+        drop_rate               = float(encoder_info["drop_rate"])
         drop_block_rate         = float(encoder_info["drop_block_rate"])
-        remove_first_maxpool    = float(encoder_info["remove_first_maxpool"])
+        remove_first_maxpool    = encoder_info["remove_first_maxpool"]
         return ResNet3D(version                 = version,
                         n_features              = n_features,
                         drop_rate               = drop_rate,
@@ -76,7 +77,7 @@ def load_siamese_mlp(mlp_info):
     TODO
     '''
     dropout         = mlp_info["dropout"]
-    return_features = mlp_info["return_features"] == "True"
+    return_features = mlp_info["return_features"]
     try:
         mlp_layers  = list(mlp_info["mlp_layers"])
         dropout     = None if dropout == "no" else float(dropout)
@@ -89,8 +90,8 @@ def load_siamese_mlp(mlp_info):
             activation = torch.nn.GELU()
         else:
             assert False, f"load_siamese_mlp: Unknown activation {activation}"
-        return {"layers_list": mlp_layers, "dropout": dropout, 
-        "return_features": return_features, "hidden_activation": activation}
+        return {"layers_list": layers, "dropout": dropout, 
+        "return_features": return_features}
 
 
 def load_optimizer(optimizer_info: dict, optimizer_args: dict = {}):
@@ -109,6 +110,8 @@ def load_optimizer(optimizer_info: dict, optimizer_args: dict = {}):
 def load_loss(loss_str):
     if "BCELoss" in loss_str:
         return torch.nn.BCELoss(reduction = "mean")
+    elif "SupConLoss" in loss_str:
+        return SupConLoss()
     else:
         assert False, f"load_loss: Unknown loss {loss_str}"
 
@@ -173,7 +176,7 @@ class Reload:
         TODO
         '''
         ct_loader_info = self.run_info["ct_loader"]
-        ct_loader = CT_loader("gravo.csv", 
+        ct_loader = CTLoader("gravo.csv", 
                                 ct_type                 = ct_loader_info["ct_type"],
                                 has_both_scan_types     = ct_loader_info["has_both_scan_types"] == "True",
                                 binary_label            = ct_loader_info["binary_label"] == "True",
