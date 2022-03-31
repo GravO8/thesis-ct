@@ -104,7 +104,8 @@ class CTLoader:
     def __init__(self, table_data_file: str, ct_type: str, binary_label: bool = True, 
         has_both_scan_types: bool = False, balance_test_set: bool = True, 
         random_seed: int = None, balance_train_set: bool = False, 
-        augment_factor: float = 1., data_dir: str = None, validation_size: float = 0.2):
+        augment_factor: float = 1., data_dir: str = None, validation_size: float = 0.2,
+        other_labels: list = []):
         '''
         Input:  table_data_file, string with a path to a csv file
                 ct_type, a string ct_type, a string, either "NCCT" or "CTA"
@@ -258,3 +259,18 @@ class CTLoader:
             return first_set, second_set
         else:
             assert False, "split_set: NOT IMPLEMENTED"
+
+
+if __name__ == "__main__":
+    TABLE_DATA  = "gravo.csv"
+    DATA_DIR    = "../../../data/gravo"
+    ct_loader   = CTLoader(TABLE_DATA, "NCCT", 
+                        balance_test_set    = True,
+                        balance_train_set   = False,
+                        data_dir            = DATA_DIR)
+                        
+    train, validation, test = ct_loader.subject_dataset()
+    test_loader = torch.utils.data.DataLoader(test, 
+                            batch_size  = 2, 
+                            num_workers = 0,
+                            pin_memory  = torch.cuda.is_available())

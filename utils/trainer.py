@@ -34,8 +34,10 @@ class Trainer(ABC):
         self.epochs         = epochs
         self.patience       = patience
         self.optimizer_args = optimizer_args
-        self.mode           = None
         self.supcon         = isinstance(self.loss_fn, SupConLoss)
+        self.mode           = None
+        self.model          = None
+        self.model_name     = None
         if self.supcon:
             self.knn = KNNClassifier(n_neighbors = 5, max_window_size = 2000)
             assert self.batch_size > 1, "Trainer.__init__: Supervised Contrastive loss requires a batch sizer > 0."
@@ -123,13 +125,6 @@ class Trainer(ABC):
         '''
         self.optimizer_args = args
         
-    def assert_start(self, model: torch.nn.Module):
-        '''
-        TODO
-        '''
-        assert self.mode is not None, "Trainer.train: call methods 'single' or 'k_fold' first."
-        self.assert_supcon(model)
-        
     def assert_supcon(self, model):
         '''
         TODO
@@ -139,16 +134,29 @@ class Trainer(ABC):
         else:
             assert not model.return_features, "Trainer.train: model can only return features for loss SupCon"
             
-    def load_model(self, model: torch.nn.Module, model_name: str):
+    def assert_model_loaded(self):
         '''
         TODO
         '''
+        assert self.model is not None, "Trainer.assert_model_loaded: call method 'set_model' first"
+        assert self.model_name is not None, "Trainer.assert_model_loaded: call method 'set_model' first"
+            
+    def set_model(self, model: torch.nn.Module, model_name: str):
+        '''
+        TODO
+        '''
+        assert self.mode is not None, "Trainer.train: call method 'single' or 'k_fold' first"
+        self.assert_supcon(model)
         self.model      = model
         self.model_name = model_name if self.mode == TrainerMode.SINGLE else f"{model_name}-fold{self.fold}of{self.k}"
         if self.cuda:
             self.model.cuda()
+        self.set_trace_fn()
+        if not os.path.isdir(self.model_name):
+            os.mkdir(self.model_name)
+        self.weights = f"{self.model_name}/weights.pt"
             
-    def load_trace_fn(self):
+    def set_trace_fn(self):
         '''
         TODO
         '''
@@ -158,16 +166,11 @@ class Trainer(ABC):
         else:
             self.trace = print
         
-    def train(self, model: torch.nn.Module, model_name: str):
+    def train(self):
         '''
         TODO
         '''
-        self.assert_start(model)
-        self.load_model(model, model_name)
-        if not os.path.isdir(self.model_name):
-            os.mkdir(self.model_name)
-        self.weights = f"{self.model_name}/weights.pt"
-        self.load_trace_fn()
+        self.assert_model_loaded()
         self.train_optimizer    = self.optimizer(self.model.parameters(), **self.optimizer_args)
         self.writer             = SummaryWriter(self.model_name)
         early_stopping          = EarlyStopping(patience    = self.patience, 
@@ -307,13 +310,11 @@ class Trainer(ABC):
             features = features.detach().cpu().numpy()
             self.knn.partial_fit(features, y)
         
-    def test(self, model: torch.nn.Module, model_name: str, verbose = True):
+    def test(self, verbose = True):
         '''
         TODO
         '''
-        self.assert_start(model)
-        self.load_model(model, model_name)
-        self.load_trace_fn()
+        self.assert_model_loaded()
         if self.supcon:
             self.init_knn()
         ys, y_preds = [], []
@@ -341,6 +342,18 @@ class Trainer(ABC):
         scores = {"accuracy": accur, "AUC": auc, "recall": recall, "precision": precision}
         with open(f"{self.model_name}/scores-test.json", "w") as f:
             json.dump(scores, f, indent = 4) 
+            
+    def save_encodings(self, to_save = ["train", "validation"]):
+        '''
+        Saves the encodings of a given set to disk
+        TODO
+        '''
+        self.assert_model_loaded()
+        assert len(to_save) > 0, "Trainer.save_encodings: specify at least one set of examples"
+        assert len(to_save) <= 3, "Trainer.save_encodings: there are only 3 possible sets ('train','test' and 'validation')"
+        for i in range(len(to_save)):
+            to_save[i] = to_save[i].lower()
+            assert s in ("train", "test", "validation"), f"Trainer.save_encodings: unknown set '{s}'. Valid sets are 'train','test' and 'validation'"
 
     @abstractmethod
     def evaluate_brain(self, subjects, verbose: bool = False):
