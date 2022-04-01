@@ -1,11 +1,11 @@
 import json, os, torch, sys
 sys.path.append("..")
 from utils.ct_loader_torchio import CTLoader
+from models.cnn_2d_encoder import CNN2DEncoder
 from models.siamese_model import SiameseNet
 from models.mil_model import MILNet, IlseAttention, IlseGatedAttention, Mean, Max
 from models.resnet3d import ResNet3D
 from utils.trainer import SiameseTrainer, MILTrainer
-from models.resnet import ResNet
 from utils.losses import SupConLoss
 
 
@@ -43,13 +43,20 @@ def load_3d_encoder(encoder_info: dict):
     except:
         drop_rate               = float(encoder_info["drop_rate"])
         drop_block_rate         = float(encoder_info["drop_block_rate"])
-        remove_first_maxpool    = encoder_info["remove_first_maxpool"]
-        return ResNet3D(version                 = version,
-                        n_features              = n_features,
-                        drop_rate               = drop_rate,
-                        drop_block_rate         = drop_block_rate,
-                        normalization           = normalization,
-                        remove_first_maxpool    = remove_first_maxpool)
+        if "remove_first_maxpool" in encoder_info:
+            remove_first_maxpool    = encoder_info["remove_first_maxpool"]
+            return ResNet3D(version                 = version,
+                            n_features              = n_features,
+                            drop_rate               = drop_rate,
+                            drop_block_rate         = drop_block_rate,
+                            normalization           = normalization,
+                            remove_first_maxpool    = remove_first_maxpool)
+        else:
+            return ResNet3D(version                 = version,
+                            n_features              = n_features,
+                            drop_rate               = drop_rate,
+                            drop_block_rate         = drop_block_rate,
+                            normalization           = normalization)
 
 
 def load_encoder(f: dict):
@@ -90,7 +97,7 @@ def load_siamese_mlp(mlp_info):
             activation = torch.nn.GELU()
         else:
             assert False, f"load_siamese_mlp: Unknown activation {activation}"
-        return {"layers_list": layers, "dropout": dropout, 
+        return {"mlp_layers": layers, "dropout": dropout, 
         "return_features": return_features}
 
 
@@ -166,9 +173,9 @@ class Reload:
             if len(weights) > 1:
                 print(f"Reload.load_model: more than one weights file found. Using {weights[0]}.")
             if self.cuda:
-                model.load_state_dict( torch.load(weights[0], map_location = torch.device("cpu")) )
-            else:
                 model.load_state_dict( torch.load(weights[0]) )
+            else:
+                model.load_state_dict( torch.load(weights[0], map_location = torch.device("cpu")) )
         return model
         
     def load_ct_loader(self):

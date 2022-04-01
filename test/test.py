@@ -1,22 +1,19 @@
 import sys, torch
 sys.path.append("..")
 from utils.reload import Reload
-    
-    
-def test(dir: str):
+
+def reload_trainer(dir: str, load_weights = True):
     '''
     TODO
     '''
     reload      = Reload(dir = dir)
-    model       = reload.load_model(load_weights = True)
+    model       = reload.load_model(load_weights = load_weights)
     trainer     = reload.load_trainer()
     model_name  = reload.get_model_name()
     trainer.set_model(model, model_name)
-    trainer.test()
-
+    return trainer
 
 if __name__ == "__main__":
-    torch.cuda.set_device(2)
-    test("SiameseNet-8.12.")
-    test("SiameseNet-8.20.")
-    test("SiameseNet-8.31.")
+    # torch.cuda.set_device(2)
+    trainer = reload_trainer("SiameseNet-8.31.")
+    # trainer.save_encodings()
