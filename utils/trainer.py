@@ -348,31 +348,32 @@ class Trainer(ABC):
         Saves the encodings of a given set to disk
         TODO
         '''
-        def save_encodings_aux(subjects_loader):
+        def save_encodings_aux(subjects_loader, labels, s):
             for subjects in subjects_loader:
                 scans, y = self.get_batch(subjects)
                 features = self.evaluate_brain(scans, verbose = False)
                 for i in range(len(y)):
-                    labels.append(y)
-                    torch.save(features[i,:].squeeze(), f"{encodings_dir}/subject-{i}.pt")
-                    i += 1
+                    labels.append(int(y[i]))
+                    torch.save(features[i,:].squeeze(), f"{encodings_dir}/subject-{s}.pt")
+                    s += 1
+            return s
         self.assert_model_loaded()
         assert len(to_save) > 0, "Trainer.save_encodings: specify at least one set of examples"
         assert len(to_save) <= 3, "Trainer.save_encodings: there are only 3 possible sets ('train','test' and 'validation')"
         for i in range(len(to_save)):
             to_save[i] = to_save[i].lower()
-            assert s in ("train", "test", "validation"), f"Trainer.save_encodings: unknown set '{s}'. Valid sets are 'train','test' and 'validation'"
+            assert to_save[i] in ("train", "test", "validation"), f"Trainer.save_encodings: unknown set '{to_save[i]}'. Valid sets are 'train','test' and 'validation'"
         encodings_dir = f"{self.model_name}/encodings"
         if not os.path.isdir(encodings_dir):
             os.mkdir(encodings_dir)
-        i = 0
+        s = 0
         labels = []
         if "train" in to_save:
-            save_encodings_aux(self.train_loader)
+            s = save_encodings_aux(self.train_loader, labels, s)
         if "test" in to_save:
-            save_encodings_aux(self.test_loader)
+            s = save_encodings_aux(self.test_loader, labels, s)
         if "validation" in to_save:
-            save_encodings_aux(self.validation_loader)
+            s = save_encodings_aux(self.validation_loader, labels, s)
         torch.save(torch.tensor(labels), f"{encodings_dir}/labels.pt")    
 
     @abstractmethod
