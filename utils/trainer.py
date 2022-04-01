@@ -310,7 +310,7 @@ class Trainer(ABC):
             features = features.detach().cpu().numpy()
             self.knn.partial_fit(features, y)
         
-    def test(self, verbose = True):
+    def test(self, t, verbose = True):
         '''
         TODO
         '''
@@ -340,7 +340,7 @@ class Trainer(ABC):
             self.trace(" Recall:\t{:.2f}".format(recall))
             self.trace(" Precision:\t{:.2f}".format(precision))
         scores = {"accuracy": accur, "AUC": auc, "recall": recall, "precision": precision}
-        with open(f"{self.model_name}/scores-test.json", "w") as f:
+        with open(f"{self.model_name}/scores-test-{t}.json", "w") as f:
             json.dump(scores, f, indent = 4) 
             
     def save_encodings(self):

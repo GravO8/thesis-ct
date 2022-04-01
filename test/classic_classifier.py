@@ -1,4 +1,5 @@
 import os, torch, numpy
+from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import classification_report
 from sklearn.svm import SVC
@@ -40,11 +41,14 @@ if __name__ == "__main__":
     train, test = get_train_test_sets("SiameseNet-8.31.")
     x_train, y_train = train
     x_test, y_test   = test
-    tuned_parameters = [
+    svc_parameters = [
         {"kernel": ["rbf"], "gamma": [1e-3, 1e-4], "C": [1, 10, 100, 1000]},
         {"kernel": ["linear"], "C": [1, 10, 100, 1000]},
     ]
-    clf = GridSearchCV(SVC(), tuned_parameters, scoring="accuracy")
+    knn_parameters = [
+        {"n_neighbors": [3, 5, 7, 9], "metric": ["euclidean", "manhattan", "chebyshev"]}
+    ]
+    clf = GridSearchCV(KNN(), knn_parameters, scoring="accuracy")
     clf.fit(x_train, y_train)
 
     print("Best parameters set found on development set:")
