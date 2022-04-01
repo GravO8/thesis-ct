@@ -75,4 +75,5 @@ if __name__ == "__main__":
                 optimizer_args["lr"]            = lr
                 optimizer_args["weight_decay"]  = weight_decay
                 trainer.set_optimizer_args(optimizer_args)
-                trainer.train(model, model_name)
+                trainer.set_model(model, model_name)
+                trainer.train()

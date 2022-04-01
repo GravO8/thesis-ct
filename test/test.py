@@ -11,7 +11,8 @@ def test(dir: str):
     model       = reload.load_model(load_weights = True)
     trainer     = reload.load_trainer()
     model_name  = reload.get_model_name()
-    trainer.test(model, model_name)
+    trainer.set_model(model, model_name)
+    trainer.test()
 
 
 if __name__ == "__main__":
