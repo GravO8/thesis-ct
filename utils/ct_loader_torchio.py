@@ -2,10 +2,10 @@ import torch, torchio, os
 import pandas as pd
 import numpy as np
 
-augmentations = [torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
-                 torchio.RandomElasticDeformation(),
-                 torchio.RandomNoise(mean = 5, std = 2)]
-rescale       =  torchio.RescaleIntensity(out_min_max = (0, 1))
+# augmentations = [torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
+#                  torchio.RandomElasticDeformation(),
+#                  torchio.RandomNoise(mean = 5, std = 2)]
+rescale =  torchio.RescaleIntensity(out_min_max = (0, 1))
 
 
 def to_subject_datasets(train, validation, test):
@@ -72,6 +72,11 @@ def to_bin_count(patients: list):
     
     
 def augment(to_augment, n_augment):
+    '''
+    TODO
+    to_augment - list to augment
+    n_augment  - size of the list after the augmentation 
+    '''
     bin_size    = len(to_augment)
     to_add      = n_augment - bin_size
     flip        = torchio.RandomFlip("lr")
@@ -79,9 +84,7 @@ def augment(to_augment, n_augment):
         to_augment.append( flip(to_augment[i]) )
     to_add -= bin_size
     for i in range(to_add):
-        # i//bin_size - cycle through the to_augment set
-        # %len(augmentations) - cycle through the augmentations
-        to_augment.append( augmentations[(i//bin_size)%len(augmentations)](to_augment[i%bin_size]) )
+        to_augment.append( create_subject ... )
     return to_augment
     
 
@@ -103,9 +106,8 @@ def data_distribution(train, validation, test):
 class CTLoader:
     def __init__(self, table_data_file: str, ct_type: str, binary_label: bool = True, 
         has_both_scan_types: bool = False, balance_test_set: bool = True, 
-        random_seed: int = None, balance_train_set: bool = False, 
-        augment_factor: float = 1., data_dir: str = None, validation_size: float = 0.2,
-        other_labels: list = []):
+        random_seed: int = None, balance_train_set: bool = False, data_dir: str = None, 
+        validation_size: float = 0.2):
         '''
         Input:  table_data_file, string with a path to a csv file
                 ct_type, a string ct_type, a string, either "NCCT" or "CTA"
@@ -117,15 +119,12 @@ class CTLoader:
                 random_seed, integer with to set the numpy random seed
                 balance_train_set, boolean. If true, the trainset is balanced, i.e.
                 the balance_augment_train_classes function is used
-                augment_factor, a float higher than or equal to 1 specifying the increase
-                factor in the train set
                 data_dir, string with the path location of the ct_type directory and table_data_file
                 validation_size, float specifying the relative size of the validation set (this percentage
                 is relative to the size of the trai set, not the whole dataset)
         '''
-        assert ct_type in ("NCCT","CTA"), f"CT_loader.__init__: ct_type must be NCCT or CTA"
+        assert ct_type in ("NCCT", "CTA"), f"CT_loader.__init__: ct_type must be NCCT or CTA"
         assert 0 < validation_size < 1, "CT_loader.__init__: validation_size must be between 0 and 1"
-        assert augment_factor >= 1, "CT_loader.__init__: can't decrease train set size"
         self.table_data_file        = table_data_file
         self.ct_type                = ct_type
         self.binary_label           = binary_label
@@ -133,7 +132,6 @@ class CTLoader:
         self.balance_test_set       = balance_test_set
         self.random_seed            = random_seed
         self.balance_train_set      = balance_train_set
-        self.augment_factor         = augment_factor
         self.data_dir               = data_dir
         self.validation_size        = validation_size
         self.data_distr             = {}
@@ -176,8 +174,8 @@ class CTLoader:
         
     def to_dict(self):
         params  = ["ct_type", "binary_label", "has_both_scan_types",
-                "balance_test_set", "random_seed", "balance_train_set",
-                "augment_factor", "validation_size"]
+                "balance_test_set", "random_seed", "balance_train_set", 
+                "validation_size"]
         dict    = {param: str(self.__dict__[param]) for param in params}
         dict["data_distribution"] = self.data_distr
         return dict
@@ -231,9 +229,15 @@ class CTLoader:
         else:
             assert False, "k_fold: NOT IMPLEMENTED"
         
-    def split_set(self, patients, split_size = 0.8, balance_first_set = True, balance_second_set = True):
+    def split_set(self, patients: list, split_size: float = 0.8, 
+        balance_first_set: bool = True, balance_second_set: bool = True):
         '''
         TODO
+        Splits the patients list into two sets. 
+        When balance_first_set is true, the first dataset is balanced using data 
+        augmentation.
+        When balance_second_set is true, it is balanced by undersampling the 
+        majority class (because this set represents the validation or test set).
         '''
         assert 0 < split_size < 1
         if balance_second_set:
@@ -241,19 +245,21 @@ class CTLoader:
             bin_count   = [len(bins[label]) for label in bins]
             min_class   = min(bin_count)
             max_class   = max(bin_count)
-            n_second    = round(min_class * (1 - split_size))               # number of elements per class in the second set
-            n_first     = round((max_class-n_second) * self.augment_factor) # number of elements per class in the first set
+            n_first     = round(min_class * split_size) # number of elements per class in the first set
+            n_second    = min_class - n_first           # number of elements per class in the second set
+            n_augment   = n_first * 3                   # x3 for RandomFlip, RandomElasticDeformation, RandomNoise
             first_set   = []
             second_set  = []
             for label in bins:
+                s1 = bins[label][n_second:]
                 s2 = bins[label][:n_second]
-                if (len(s2) < 1) or (len(bins[label][n_second:]) < 1):
+                if (len(s1) < 1) or (len(s2) < 1):
                     print(f"WARNING: One of the sets will have no examples for class {label}. Choose splits closer to 0.5 to avoid this issue.")
-                second_set.extend(s2)
                 if balance_first_set:
-                    first_set.extend( augment(bins[label][n_second:], n_first) )
+                    first_set.extend( augment(s1, n_augment) )
                 else:
-                    first_set.extend( bins[label][n_second:] )
+                    first_set.extend( s1 )
+                second_set.extend(s2)
             np.random.shuffle(first_set)
             np.random.shuffle(second_set)
             return first_set, second_set
