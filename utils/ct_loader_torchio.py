@@ -30,7 +30,7 @@ def list_scans(path: str = None):
     return [c for c in os.listdir(path) if c.endswith(".nii")]
 
 
-def binary(label: int):
+def binary_mrs(label: int):
     '''
     Behaviour:  Applies the binarization function proposed in "Using Machine Learning to 
                 Improve the Prediction of Functional Outcome in Ischemic Stroke Patients", 
@@ -70,23 +70,6 @@ def to_bin_count(patients: list):
             bins[t["prognosis"]] = 1
     return bins
     
-    
-def augment(to_augment, n_augment):
-    '''
-    TODO
-    to_augment - list to augment
-    n_augment  - size of the list after the augmentation 
-    '''
-    bin_size    = len(to_augment)
-    to_add      = n_augment - bin_size
-    flip        = torchio.RandomFlip("lr")
-    for i in range(min(to_add, bin_size)):
-        to_augment.append( flip(to_augment[i]) )
-    to_add -= bin_size
-    for i in range(to_add):
-        to_augment.append( create_subject ... )
-    return to_augment
-    
 
 def data_distribution(train, validation, test):
     '''
@@ -104,11 +87,12 @@ def data_distribution(train, validation, test):
     
 
 class CTLoader:
-    def __init__(self, table_data_file: str, ct_type: str, binary_label: bool = True, 
+    def __init__(self, table_data_file: str, ct_type: str, target_transform = None, 
         has_both_scan_types: bool = False, balance_test_set: bool = True, 
         random_seed: int = None, balance_train_set: bool = False, data_dir: str = None, 
-        validation_size: float = 0.2):
+        validation_size: float = 0.2, target: str = "rankin"):
         '''
+        TODO: signature needs update
         Input:  table_data_file, string with a path to a csv file
                 ct_type, a string ct_type, a string, either "NCCT" or "CTA"
                 binary_label, boolean. If true, the target variable is turned into a binary variable
@@ -127,30 +111,59 @@ class CTLoader:
         assert 0 < validation_size < 1, "CT_loader.__init__: validation_size must be between 0 and 1"
         self.table_data_file        = table_data_file
         self.ct_type                = ct_type
-        self.binary_label           = binary_label
+        self.target_transform       = target_transform
         self.has_both_scan_types    = has_both_scan_types
         self.balance_test_set       = balance_test_set
         self.random_seed            = random_seed
         self.balance_train_set      = balance_train_set
         self.data_dir               = data_dir
         self.validation_size        = validation_size
+        self.target                 = target
         self.data_distr             = {}
         self.init_table_data()
         
-    def create_subject(self, row):
+    def create_subject(self, row, transform: str = None):
         '''
+        TODO: signature needs update
         Input:  row, pandas DataFrame row of the patient to be loaded into a subject torchio object
         Output: torchio object with the loaded scan
         '''
         if self.data_dir is not None:
             ct_type = os.path.join(self.data_dir, self.ct_type)
-        label   = int(row["rankin-3m"])
-        scan    = row["idProcessoLocal"]
-        path    = os.path.join(ct_type, f"{scan}.nii")
+        label   = int(row[self.target])
+        scan    = int(row["idProcessoLocal"])
+        if (transform is None) or (transform == "RandomFlip"):
+            path = os.path.join(ct_type, f"{scan}.nii")
+        else:
+            path = os.path.join(ct_type, f"{scan}-{transform}.nii")
         subject = torchio.Subject(
-                ct  = torchio.ScalarImage(path),
-                prognosis = label)
+                ct = torchio.ScalarImage(path),
+                prognosis = label,
+                transform = "original" if transform is None else transform)
+        if transform == "RandomFlip":
+            subject = torchio.RandomFlip("lr")(subject) # this augmentation is deterministic (TODO - is it?)
         return subject
+        
+    def augment(to_augment, n_augment):
+        '''
+        TODO
+        to_augment - list to augment
+        n_augment  - size of the list after the augmentation 
+        '''
+        bin_size    = len(to_augment)
+        to_add      = n_augment - bin_size
+        transforms  = ["RandomFlip", "RandomElasticDeformation"]
+        i_transform = 0
+        while to_add > 0:
+            assert i_transform < len(transforms), "CT_loader.augment: There aren't data pre computed augmentations"
+            transform = transforms[i_transform]
+            for _, row in self.table_data:
+                to_augment.append( self.create_subject(row, transform) )
+                to_add -= 1
+                if to_add <= 0:
+                    break
+            i_transform += 1
+        return to_augment
         
     def init_table_data(self):
         '''
@@ -160,12 +173,12 @@ class CTLoader:
         if self.data_dir is not None:
             self.table_data_file = os.path.join(self.data_dir, self.table_data_file)
         table_data = pd.read_csv(self.table_data_file)
-        table_data = table_data[table_data["rankin-3m"] != "missing"]
+        table_data = table_data[table_data[self.target] != "missing"]
         table_data = table_data[table_data[self.ct_type] != "missing"]
         if self.has_both_scan_types:
             table_data = table_data[(table_data["NCCT"] != "missing") & (table_data["CTA"] != "missing")]
-        if self.binary_label:
-            table_data["rankin-3m"] = [binary(int(t)) for t in table_data["rankin-3m"].values]
+        if self.target_transform is not None:
+            table_data[self.target] = [self.target_transform(t) for t in table_data[self.target].values]
         if self.random_seed is not None:
             np.random.seed(self.random_seed)
         random_permutation  = np.random.permutation( len(table_data) )
