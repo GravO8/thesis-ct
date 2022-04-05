@@ -47,10 +47,10 @@ class MLP(torch.nn.Module):
         if new_weights:
             mlp_name = f"weights/mlp-{len(models)}"
             torch.save(self.mlp.state_dict(), f"{mlp_name}.pt")
-            with open(f"{mlp_name}.json", "w") as model_description:
-                json.dump(self.to_dict(), model_description)
+            with open(f"{mlp_name}.json", "w") as f:
+                json.dump(self.to_dict(), f, indent = 4) 
                 
-    def same(self, other_model: str):
+    def same_mlp(self, other_model: str):
         self_model = self.to_dict()
         with open(f"weights/{other_model}") as json_file:
             other_model = json.load(json_file)
@@ -59,7 +59,7 @@ class MLP(torch.nn.Module):
                 (self_model["return_features"] == other_model["return_features"]))
                 
     def load_weights(self, model_name: str):
-        weights = f"weights/{model_name[:-4]}.pt"
+        weights = f"weights/{model_name[:-5]}.pt"
         if torch.cuda.is_available():
             self.mlp.load_state_dict( torch.load(weights) )
         else:
@@ -76,3 +76,8 @@ class MLP(torch.nn.Module):
                 "dropout": self.dropout,
                 "return_features": self.return_features,
                 "hidden_activation": self.hidden_activation.__class__.__name__}
+
+
+if __name__ == "__main__":
+    mlp = MLP(layers_list = [30, 20, 1], dropout = .2, return_features = False, hidden_activation = torch.nn.ReLU())
+    
