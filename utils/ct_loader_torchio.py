@@ -130,21 +130,22 @@ class CTLoader:
         '''
         if self.data_dir is not None:
             ct_type = os.path.join(self.data_dir, self.ct_type)
-        label   = int(row[self.target])
-        scan    = int(row["idProcessoLocal"])
+        target      = int(row[self.target])
+        patient_id  = int(row["idProcessoLocal"])
         if (transform is None) or (transform == "RandomFlip"):
-            path = os.path.join(ct_type, f"{scan}.nii")
+            path = os.path.join(ct_type, f"{patient_id}.nii")
         else:
-            path = os.path.join(ct_type, f"{scan}-{transform}.nii")
+            path = os.path.join(ct_type, f"{patient_id}-{transform}.nii")
         subject = torchio.Subject(
-                ct = torchio.ScalarImage(path),
-                prognosis = label,
-                transform = "original" if transform is None else transform)
+                ct          = torchio.ScalarImage(path),
+                patient_id  = patient_id,
+                target      = target,
+                transform   = "original" if transform is None else transform)
         if transform == "RandomFlip":
             subject = torchio.RandomFlip("lr")(subject) # this augmentation is deterministic (TODO - is it?)
         return subject
         
-    def augment(to_augment, n_augment):
+    def augment(self, to_augment, n_augment):
         '''
         TODO
         to_augment - list to augment
@@ -157,7 +158,8 @@ class CTLoader:
         while to_add > 0:
             assert i_transform < len(transforms), "CT_loader.augment: There aren't data pre computed augmentations"
             transform = transforms[i_transform]
-            for _, row in self.table_data:
+            for i in range(bin_size):
+                row = self.table_data[self.table_data["idProcessoLocal-1"] == to_augment[i]["patient_id"]]
                 to_augment.append( self.create_subject(row, transform) )
                 to_add -= 1
                 if to_add <= 0:
@@ -218,15 +220,18 @@ class CTLoader:
         Input:  k, integer with the number of folds
         Output: generator that yields k pairs of torchio SubjectsDatasets, with train and
                 test, respectivly, that match the inputted settings
+        Note:   Classes that aren't the minority class will be undersampled to generate
+                a balanced test set. To make sure every example is actually tested, the
+                user can run k_fold with different initial random_seeds
         '''
         assert k > 1, "k_fold: for k=1 use create_subject_dataset with train_size = 0.5 instead"
         if self.balance_test_set:
-            class_bins  = np.bincount( self.table_data["rankin-3m"] )
+            class_bins  = np.bincount( self.table_data[self.target] )
             min_class   = np.min(class_bins)
             n_test      = min_class // k
             subjects    = {label:[] for label in range(len(class_bins))}
             for _, row in self.table_data.iterrows():
-                subjects[int(row["rankin-3m"])].append( self.create_subject(row) )
+                subjects[int(row[self.target])].append( self.create_subject(row) )
             for i in range(k):
                 test, train = [], []
                 for label in range(len(class_bins)):
