@@ -283,23 +283,15 @@ class CTLoader:
 
 
 if __name__ == "__main__":
-    # TABLE_DATA  = "gravo.csv"
-    # DATA_DIR    = "../../../data/gravo"
-    # ct_loader   = CTLoader(TABLE_DATA, "NCCT", 
-    #                     balance_test_set    = True,
-    #                     balance_train_set   = False,
-    #                     data_dir            = DATA_DIR)
-    # 
-    # train, validation, test = ct_loader.subject_dataset()
-    # test_loader = torch.utils.data.DataLoader(test, 
-    #                         batch_size  = 2, 
-    #                         num_workers = 0,
-    #                         pin_memory  = torch.cuda.is_available())
-    subject = torchio.Subject(ct = torchio.ScalarImage("../../../data/gravo/NCCT/1.nii"))
-    subject["ct"].save("sapo.nii")
-    augment = torchio.RandomFlip("lr")(subject)
-    augment["ct"].save("augment1.nii")
-    augment = torchio.RandomFlip("lr")(subject)
-    augment["ct"].save("augment2.nii")
-    augment = torchio.RandomFlip("lr")(subject)
-    augment["ct"].save("augment3.nii")
+    TABLE_DATA  = "gravo.csv"
+    DATA_DIR    = "../../../data/gravo"
+    ct_loader   = CTLoader(TABLE_DATA, "NCCT", 
+                        balance_test_set    = True,
+                        balance_train_set   = False,
+                        data_dir            = DATA_DIR)
+    
+    train, validation, test = ct_loader.subject_dataset()
+    test_loader = torch.utils.data.DataLoader(test, 
+                            batch_size  = 2, 
+                            num_workers = 0,
+                            pin_memory  = torch.cuda.is_available())
