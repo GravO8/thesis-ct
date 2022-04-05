@@ -198,9 +198,7 @@ class Trainer(ABC):
         '''
         TODO
         '''
-        self.model.train(True)
         train_loss, train_error = self.train_epoch()
-        self.model.train(False)
         val_loss, val_error     = self.validate_epoch()
         elapsed                 = (time.time() - self.time_start)
         self.writer.add_scalar("Loss/train", train_loss, epoch)
@@ -226,6 +224,7 @@ class Trainer(ABC):
                     its weights according to the computed derivatives
         Output:     two real numbers with the train loss and error, respectivly
         '''
+        self.model.train(True)
         train_loss  = 0
         train_error = 0
         if self.supcon:
@@ -239,6 +238,7 @@ class Trainer(ABC):
             train_error += float(error)
         train_loss  /= len(self.train_loader)
         train_error /= len(self.train_loader)
+        self.model.train(False)
         return train_loss, train_error
     
     def validate_epoch(self):
@@ -247,6 +247,7 @@ class Trainer(ABC):
                     computes the loss and error
         Output:     two real numbers with the validation loss and error, respectivly
         '''
+        self.model.eval(True)
         val_loss    = 0
         val_error   = 0
         for subjects in self.validation_loader:
@@ -255,6 +256,7 @@ class Trainer(ABC):
             val_error  += float(error)
         val_loss       /= len(self.validation_loader)
         val_error      /= len(self.validation_loader)
+        self.model.eval(False)
         return val_loss, val_error
         
     def compute_loss_error(self, subjects, verbose: bool = False, validate: bool = False):
@@ -315,6 +317,7 @@ class Trainer(ABC):
         TODO
         '''
         self.assert_model_loaded()
+        self.model.eval(True)
         if self.supcon:
             self.init_knn()
         ys, y_preds = [], []
@@ -341,7 +344,8 @@ class Trainer(ABC):
             self.trace(" Precision:\t{:.2f}".format(precision))
         scores = {"accuracy": accur, "AUC": auc, "recall": recall, "precision": precision}
         with open(f"{self.model_name}/scores-test-{t}.json", "w") as f:
-            json.dump(scores, f, indent = 4) 
+            json.dump(scores, f, indent = 4)
+        self.model.eval(False)
             
     def save_encodings(self):
         '''
