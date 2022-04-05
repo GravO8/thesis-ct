@@ -2,9 +2,6 @@ import torch, torchio, os
 import pandas as pd
 import numpy as np
 
-# augmentations = [torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
-#                  torchio.RandomElasticDeformation(),
-#                  torchio.RandomNoise(mean = 5, std = 2)]
 rescale =  torchio.RescaleIntensity(out_min_max = (0, 1))
 
 
@@ -153,7 +150,7 @@ class CTLoader:
         '''
         bin_size    = len(to_augment)
         to_add      = n_augment - bin_size
-        transforms  = ["RandomFlip", "RandomElasticDeformation"]
+        transforms  = ["RandomFlip", "RandomElasticDeformation", "RandomNoise", "RandomAffine"]
         i_transform = 0
         while to_add > 0:
             assert i_transform < len(transforms), "CT_loader.augment: There aren't data pre computed augmentations"
@@ -265,7 +262,7 @@ class CTLoader:
             max_class   = max(bin_count)
             n_first     = round(min_class * split_size) # number of elements per class in the first set
             n_second    = min_class - n_first           # number of elements per class in the second set
-            n_augment   = n_first * 3                   # x3 for RandomFlip, RandomElasticDeformation, RandomNoise
+            n_augment   = n_first * 4                   # x4 for the 4 different data augmentations
             first_set   = []
             second_set  = []
             for label in bins:
@@ -286,15 +283,23 @@ class CTLoader:
 
 
 if __name__ == "__main__":
-    TABLE_DATA  = "gravo.csv"
-    DATA_DIR    = "../../../data/gravo"
-    ct_loader   = CTLoader(TABLE_DATA, "NCCT", 
-                        balance_test_set    = True,
-                        balance_train_set   = False,
-                        data_dir            = DATA_DIR)
-                        
-    train, validation, test = ct_loader.subject_dataset()
-    test_loader = torch.utils.data.DataLoader(test, 
-                            batch_size  = 2, 
-                            num_workers = 0,
-                            pin_memory  = torch.cuda.is_available())
+    # TABLE_DATA  = "gravo.csv"
+    # DATA_DIR    = "../../../data/gravo"
+    # ct_loader   = CTLoader(TABLE_DATA, "NCCT", 
+    #                     balance_test_set    = True,
+    #                     balance_train_set   = False,
+    #                     data_dir            = DATA_DIR)
+    # 
+    # train, validation, test = ct_loader.subject_dataset()
+    # test_loader = torch.utils.data.DataLoader(test, 
+    #                         batch_size  = 2, 
+    #                         num_workers = 0,
+    #                         pin_memory  = torch.cuda.is_available())
+    subject = torchio.Subject(ct = torchio.ScalarImage("../../../data/gravo/NCCT/1.nii"))
+    subject["ct"].save("sapo.nii")
+    augment = torchio.RandomFlip("lr")(subject)
+    augment["ct"].save("augment1.nii")
+    augment = torchio.RandomFlip("lr")(subject)
+    augment["ct"].save("augment2.nii")
+    augment = torchio.RandomFlip("lr")(subject)
+    augment["ct"].save("augment3.nii")

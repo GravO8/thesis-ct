@@ -2,6 +2,11 @@ import torchio, os
 import pandas as pd
 from tqdm import tqdm
 
+# Augmentations where done with:
+# augmentations = [torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
+#                  torchio.RandomElasticDeformation(),
+#                  torchio.RandomNoise(mean = 5, std = 2)]
+
 
 class Augmenter:
     def __init__(self, table_data_file: str, augmentation, data_dir: str = None):
@@ -40,7 +45,7 @@ class Augmenter:
 
 if __name__ == "__main__":
     augmenter = Augmenter("table_data.csv", 
-                        torchio.RandomElasticDeformation(), 
+                        torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
                         data_dir = "../../../data/gravo")
     augmenter.augment("NCCT")
     
