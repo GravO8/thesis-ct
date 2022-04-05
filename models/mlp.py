@@ -1,4 +1,4 @@
-import torch
+import torch, json, os
 
 class MLP(torch.nn.Module):
     def __init__(self, layers_list: list, dropout: float = None, 
@@ -35,6 +35,35 @@ class MLP(torch.nn.Module):
             else:
                 layers.append( torch.nn.Softmax() )
         self.mlp = torch.nn.Sequential( *layers )
+        self.init_weights()
+        
+    def init_weights(self):
+        models      = [file for file in os.listdir("weights") if (file.endswith(".json") and file.startswith("mlp-"))]
+        new_weights = True
+        for model in models:
+            if self.same_mlp(model):
+                self.load_weights(model)
+                new_weights = False
+        if new_weights:
+            mlp_name = f"weights/mlp-{len(models)}"
+            torch.save(self.mlp.state_dict(), f"{mlp_name}.pt")
+            with open(f"{mlp_name}.json", "w") as model_description:
+                json.dump(self.to_dict(), model_description)
+                
+    def same(self, other_model: str):
+        self_model = self.to_dict()
+        with open(f"weights/{other_model}") as json_file:
+            other_model = json.load(json_file)
+        return ((self_model["layers_list"] == other_model["layers_list"]) and
+                (self_model["dropout"] == other_model["dropout"]) and
+                (self_model["return_features"] == other_model["return_features"]))
+                
+    def load_weights(self, model_name: str):
+        weights = f"weights/{model_name[:-4]}.pt"
+        if torch.cuda.is_available():
+            self.mlp.load_state_dict( torch.load(weights) )
+        else:
+            self.mlp.load_state_dict( torch.load(weights, map_location = torch.device("cpu")) )
         
     def forward(self, x):
         out = self.mlp(x)
