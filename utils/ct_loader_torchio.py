@@ -2,7 +2,16 @@ import torch, torchio, os
 import pandas as pd
 import numpy as np
 
-rescale =  torchio.RescaleIntensity(out_min_max = (0, 1))
+rescale = torchio.RescaleIntensity(out_min_max = (0, 1))
+
+class TargetTransform:
+    def __init__(self, name, fn):
+        self.name   = name
+        self.fn     = fn
+    def __call__(self, x: int) -> int:
+        return self.fn(x)
+    def __repr__(self):
+        return self.name
 
 
 def to_subject_datasets(train, validation, test):
@@ -84,10 +93,11 @@ def data_distribution(train, validation, test):
     
 
 class CTLoader:
-    def __init__(self, table_data_file: str, ct_type: str, target_transform = None, 
-        has_both_scan_types: bool = False, balance_test_set: bool = True, 
-        random_seed: int = None, balance_train_set: bool = False, data_dir: str = None, 
-        validation_size: float = 0.2, target: str = "rankin"):
+    def __init__(self, table_data_file: str, ct_type: str, 
+        target_transform: TargetTransform = None, has_both_scan_types: bool = False, 
+        balance_test_set: bool = True, random_seed: int = None, 
+        balance_train_set: bool = False, data_dir: str = None, validation_size: float = 0.2, 
+        target: str = "rankin"):
         '''
         TODO: signature needs update
         Input:  table_data_file, string with a path to a csv file
@@ -156,7 +166,7 @@ class CTLoader:
             assert i_transform < len(transforms), "CT_loader.augment: There aren't data pre computed augmentations"
             transform = transforms[i_transform]
             for i in range(bin_size):
-                row = self.table_data[self.table_data["idProcessoLocal-1"] == to_augment[i]["patient_id"]]
+                row = self.table_data[self.table_data["idProcessoLocal"] == to_augment[i]["patient_id"]]
                 to_augment.append( self.create_subject(row, transform) )
                 to_add -= 1
                 if to_add <= 0:
@@ -185,9 +195,8 @@ class CTLoader:
         self.table_data     = table_data
         
     def to_dict(self):
-        params  = ["ct_type", "binary_label", "has_both_scan_types",
-                "balance_test_set", "random_seed", "balance_train_set", 
-                "validation_size"]
+        params  = ["ct_type", "has_both_scan_types", "balance_test_set", "random_seed", 
+                "balance_train_set", "validation_size", "target", "target_transform"]
         dict    = {param: str(self.__dict__[param]) for param in params}
         dict["data_distribution"] = self.data_distr
         return dict

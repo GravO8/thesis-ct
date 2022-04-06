@@ -3,6 +3,7 @@ import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
 from torch.utils.data import DataLoader
+from .assert_datasets import AssertDatasets
 from .pytorchtools import EarlyStopping, Logger
 from .losses import SupConLoss
 from enum import Enum
@@ -371,6 +372,21 @@ class Trainer(ABC):
         save_encodings_aux("train", self.train_loader)
         save_encodings_aux("validation", self.validation_loader)
         save_encodings_aux("test", self.test_loader)
+        
+    def assert_datasets(self):
+        '''
+        TODO
+        '''
+        asserter = AssertDatasets(  self.train_loader, 
+                                    self.validation_loader, 
+                                    self.test_loader)
+        asserter.assert_leaks()
+        asserter.assert_repeated()
+        if self.balance_train_set:
+            self.assert_balanced("train")
+            self.assert_balanced("validation")
+        if self.balance_test_set:
+            self.assert_balanced("test")
 
     @abstractmethod
     def evaluate_brain(self, subjects, verbose: bool = False):

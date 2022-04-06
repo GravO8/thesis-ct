@@ -1,5 +1,5 @@
 import torch
-from same_init_weights import SameInitWeights
+from .same_init_weights import SameInitWeights
 
 class MLP(torch.nn.Module, SameInitWeights):
     def __init__(self, layers_list: list, dropout: float = None, 

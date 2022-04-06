@@ -1,6 +1,6 @@
 import timm, torch
+from .same_init_weights import SameInitWeights
 from torchvision.ops import drop_block
-from same_init_weights import SameInitWeights
 
 
 class LayerNorm(torch.nn.Module):

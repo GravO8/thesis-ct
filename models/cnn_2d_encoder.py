@@ -1,5 +1,5 @@
 import timm, torch
-from same_init_weights import SameInitWeights
+from .same_init_weights import SameInitWeights
 
 
 class CNN2DEncoder(torch.nn.Module, SameInitWeights):
