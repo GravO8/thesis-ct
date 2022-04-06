@@ -37,7 +37,7 @@ class MLP(torch.nn.Module, SameInitWeights):
                 layers.append( torch.nn.Sigmoid() )
             else:
                 layers.append( torch.nn.Softmax() )
-        self.layers = torch.nn.Sequential( *layers )
+        self.mlp = torch.nn.Sequential( *layers )
                 
     def equals(self, other_model: dict):
         # overwrites the SameInitWeights equals
@@ -47,7 +47,7 @@ class MLP(torch.nn.Module, SameInitWeights):
                 (self_model["return_features"] == other_model["return_features"]))
         
     def forward(self, x):
-        out = self.layers(x)
+        out = self.mlp(x)
         if self.return_features:
             return torch.nn.functional.normalize(out, p = 2, dim = 1)
         return out

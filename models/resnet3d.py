@@ -1,5 +1,6 @@
 import timm, torch
 from torchvision.ops import drop_block
+from same_init_weights import SameInitWeights
 
 
 class LayerNorm(torch.nn.Module):
@@ -13,25 +14,30 @@ class LayerNorm(torch.nn.Module):
         return self.norm(x)
 
 
-class ResNet3D(torch.nn.Module):
+class ResNet3D(torch.nn.Module, SameInitWeights):
     def __init__(self, version: str = "resnet34", in_channels = 1, n_features = "same", 
     drop_rate: float = 0.0, drop_block_rate: float = 0.0, normalization = "batch",
     remove_first_maxpool: bool = False):
-        super(ResNet3D, self).__init__()
+        torch.nn.Module.__init__(self)
         assert "resnet" in version
         assert normalization in ("batch", "layer", "group")
         assert 0 <= drop_rate < 1
         assert 0 <= drop_block_rate < 1
-        self.version            = version
-        self.in_channels        = in_channels
-        self.n_features         = n_features
-        self.drop_rate          = drop_rate
-        self.drop_block_rate    = drop_block_rate
-        self.normalization      = normalization
-        self.remove_first_maxpool = remove_first_maxpool
+        self.version                = version
+        self.in_channels            = in_channels
+        self.n_features             = n_features
+        self.drop_rate              = drop_rate
+        self.drop_block_rate        = drop_block_rate
+        self.normalization          = normalization
+        self.remove_first_maxpool   = remove_first_maxpool
+        SameInitWeights.__init__(self, "ResNet3D")  # must be called last because the
+                                                    # method set_model is called by the
+                                                    # SameInitWeights constructor
+        
+    def set_model(self):
         self.layers             = self.convert_to_3D()
         self.layers, self.fc    = self.layers[:-1], self.layers[-1]
-        if n_features == "same":
+        if self.n_features == "same":
             self.fc = torch.nn.Identity()
         elif isinstance(self.n_features, int) or self.n_features.isnumeric():
             self.fc = torch.nn.LazyLinear(int(self.n_features))
@@ -163,12 +169,12 @@ class ResidualBlock3D(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    r = ResNet3D(version = "resnet18", drop_block_rate = 0.1, drop_rate = .8, normalization = "group")
+    r = ResNet3D(version = "resnet34", drop_block_rate = 0.1, drop_rate = .8, normalization = "group")
     # , normalization = "layer", drop_block_rate = 0.1)
     # print(r)
     # sample = torch.rand(2,1,45*2,180//3,91)
     # sample = torch.rand(2,1,45*2,180,91)
     # r(sample)
-    from torchsummary import summary
-    summary(r, (1, 45, 180, 91))
+    # from torchsummary import summary
+    # summary(r, (1, 45, 180, 91))
     

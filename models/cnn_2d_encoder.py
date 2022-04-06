@@ -1,4 +1,5 @@
 import timm, torch
+from same_init_weights import SameInitWeights
 
 
 class CNN2DEncoder(torch.nn.Module):
@@ -18,11 +19,11 @@ class CNN2DEncoder(torch.nn.Module):
         self.drop_rate          = drop_rate
         self.normalization      = normalization.__class__.__name__
         self.resnet             = timm.create_model(cnn_name, 
-                                                    pretrained = pretrained, 
-                                                    in_chans = in_channels,
+                                                    pretrained      = pretrained, 
+                                                    in_chans        = in_channels,
                                                     drop_block_rate = drop_block_rate,
-                                                    drop_rate = drop_rate,
-                                                    norm_layer = normalization)
+                                                    drop_rate       = drop_rate,
+                                                    norm_layer      = normalization)
         if self.freeze:
             for param in self.resnet.parameters():
                 param.requires_grad = False

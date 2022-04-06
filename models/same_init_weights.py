@@ -17,16 +17,16 @@ class SameInitWeights(ABC):
                 new_weights = False
         if new_weights:
             new_model = f"weights/{self.model_name}-{len(models)}"
-            torch.save(self.layers.state_dict(), f"{new_model}.pt")
+            torch.save(self.state_dict(), f"{new_model}.pt")
             with open(f"{new_model}.json", "w") as f:
                 json.dump(self.to_dict(), f, indent = 4)
     
     def load_weights(self, model_name: str):
         weights = f"weights/{model_name[:-5]}.pt"
         if torch.cuda.is_available():
-            self.layers.load_state_dict( torch.load(weights) )
+            self.load_state_dict( torch.load(weights) )
         else:
-            self.layers.load_state_dict( torch.load(weights, map_location = torch.device("cpu")) )
+            self.load_state_dict( torch.load(weights, map_location = torch.device("cpu")) )
                 
     def same_model(self, other_model: str) -> bool:
         with open(f"weights/{other_model}") as json_file:
@@ -44,8 +44,6 @@ class SameInitWeights(ABC):
     def set_model(self):
         '''
         TODO
-        expects the concrete class that derives from SameInitWeights to initialize
-        a variable called leyers
         '''
         pass
 
