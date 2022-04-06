@@ -14,9 +14,9 @@ class MLP(torch.nn.Module, SameInitWeights):
         self.dropout            = dropout
         self.return_features    = return_features
         self.hidden_activation  = hidden_activation
-        SameInitWeights.__init__(self, "MLP")   # must be called last because the
-                                                # method set_model is called by the
-                                                # SameInitWeights constructor
+        SameInitWeights.__init__(self)  # must be called last because the
+                                        # method set_model is called by the
+                                        # SameInitWeights constructor
         
     def set_model(self):
         '''
@@ -40,11 +40,7 @@ class MLP(torch.nn.Module, SameInitWeights):
         self.mlp = torch.nn.Sequential( *layers )
                 
     def equals(self, other_model: dict):
-        # overwrites the SameInitWeights equals
-        self_model = self.to_dict()
-        return ((self_model["layers_list"] == other_model["layers_list"]) and
-                (self_model["dropout"] == other_model["dropout"]) and
-                (self_model["return_features"] == other_model["return_features"]))
+        return super().equals(other_model, cols = ["layers_list", "dropout", "return_features"])
         
     def forward(self, x):
         out = self.mlp(x)
@@ -60,5 +56,5 @@ class MLP(torch.nn.Module, SameInitWeights):
 
 
 if __name__ == "__main__":
-    mlp = MLP(layers_list = [30, 20, 1], dropout = .2, return_features = False, hidden_activation = torch.nn.GELU())
+    mlp = MLP(layers_list = [30, 20, 1], dropout = .2, return_features = False, hidden_activation = torch.nn.ReLU())
     

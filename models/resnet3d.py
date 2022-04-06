@@ -30,10 +30,10 @@ class ResNet3D(torch.nn.Module, SameInitWeights):
         self.drop_block_rate        = drop_block_rate
         self.normalization          = normalization
         self.remove_first_maxpool   = remove_first_maxpool
-        SameInitWeights.__init__(self, "ResNet3D")  # must be called last because the
-                                                    # method set_model is called by the
-                                                    # SameInitWeights constructor
-        
+        SameInitWeights.__init__(self)  # must be called last because the
+                                        # method set_model is called by the
+                                        # SameInitWeights constructor
+
     def set_model(self):
         self.layers             = self.convert_to_3D()
         self.layers, self.fc    = self.layers[:-1], self.layers[-1]

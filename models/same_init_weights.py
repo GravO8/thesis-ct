@@ -2,11 +2,12 @@ import torch, json, os
 from abc import ABC, abstractmethod
 
 class SameInitWeights(ABC):
-    def __init__(self, model_name: str):
+    def __init__(self):
         super(SameInitWeights, self).__init__()
-        self.model_name = model_name
+        self.model_name = self.__class__.__name__
         self.set_model()
         self.init_weights()
+        print("here")
 
     def init_weights(self):
         models      = [file for file in os.listdir("weights") if (file.endswith(".json") and file.startswith(f"{self.model_name}-"))]
@@ -33,9 +34,9 @@ class SameInitWeights(ABC):
             other_model = json.load(json_file)
         return self.equals(other_model)
         
-    def equals(self, other_model: dict) -> bool:
+    def equals(self, other_model: dict, cols: list = None) -> bool:
         self_model = self.to_dict()
-        for col in other_model:
+        for col in (other_model if cols is None else cols):
             if self_model[col] != other_model[col]:
                 return False
         return True
