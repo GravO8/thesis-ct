@@ -1,21 +1,24 @@
-import torch, json, os
+import torch
+from same_init_weights import SameInitWeights
 
-class MLP(torch.nn.Module):
+class MLP(torch.nn.Module, SameInitWeights):
     def __init__(self, layers_list: list, dropout: float = None, 
     return_features: bool = False, hidden_activation = torch.nn.GELU()):
         '''
         TODO
         layers_list: list of integers
         '''
-        super(MLP, self).__init__()
+        torch.nn.Module.__init__(self)
         assert len(layers_list) > 0, "MLP.__init__: MLP must have at least 1 layer"
         self.layers_list        = layers_list
         self.dropout            = dropout
         self.return_features    = return_features
         self.hidden_activation  = hidden_activation
-        self.set_mlp()
+        SameInitWeights.__init__(self, "MLP")   # must be called last because the
+                                                # method set_model is called by the
+                                                # SameInitWeights constructor
         
-    def set_mlp(self):
+    def set_model(self):
         '''
         TODO
         '''
@@ -34,39 +37,17 @@ class MLP(torch.nn.Module):
                 layers.append( torch.nn.Sigmoid() )
             else:
                 layers.append( torch.nn.Softmax() )
-        self.mlp = torch.nn.Sequential( *layers )
-        self.init_weights()
-        
-    def init_weights(self):
-        models      = [file for file in os.listdir("weights") if (file.endswith(".json") and file.startswith("mlp-"))]
-        new_weights = True
-        for model in models:
-            if self.same_mlp(model):
-                self.load_weights(model)
-                new_weights = False
-        if new_weights:
-            mlp_name = f"weights/mlp-{len(models)}"
-            torch.save(self.mlp.state_dict(), f"{mlp_name}.pt")
-            with open(f"{mlp_name}.json", "w") as f:
-                json.dump(self.to_dict(), f, indent = 4) 
+        self.layers = torch.nn.Sequential( *layers )
                 
-    def same_mlp(self, other_model: str):
+    def equals(self, other_model: dict):
+        # overwrites the SameInitWeights equals
         self_model = self.to_dict()
-        with open(f"weights/{other_model}") as json_file:
-            other_model = json.load(json_file)
         return ((self_model["layers_list"] == other_model["layers_list"]) and
                 (self_model["dropout"] == other_model["dropout"]) and
                 (self_model["return_features"] == other_model["return_features"]))
-                
-    def load_weights(self, model_name: str):
-        weights = f"weights/{model_name[:-5]}.pt"
-        if torch.cuda.is_available():
-            self.mlp.load_state_dict( torch.load(weights) )
-        else:
-            self.mlp.load_state_dict( torch.load(weights, map_location = torch.device("cpu")) )
         
     def forward(self, x):
-        out = self.mlp(x)
+        out = self.layers(x)
         if self.return_features:
             return torch.nn.functional.normalize(out, p = 2, dim = 1)
         return out
@@ -79,5 +60,5 @@ class MLP(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    mlp = MLP(layers_list = [30, 20, 1], dropout = .2, return_features = False, hidden_activation = torch.nn.ReLU())
+    mlp = MLP(layers_list = [30, 20, 1], dropout = .2, return_features = False, hidden_activation = torch.nn.GELU())
     
