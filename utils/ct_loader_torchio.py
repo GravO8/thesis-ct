@@ -166,7 +166,7 @@ class CTLoader:
             assert i_transform < len(transforms), "CT_loader.augment: There aren't data pre computed augmentations"
             transform = transforms[i_transform]
             for i in range(bin_size):
-                row = self.table_data[self.table_data["idProcessoLocal"] == to_augment[i]["patient_id"]]
+                row = self.table_data[self.table_data["idProcessoLocal"] == str(to_augment[i]["patient_id"])]
                 to_augment.append( self.create_subject(row, transform) )
                 to_add -= 1
                 if to_add <= 0:
@@ -280,7 +280,7 @@ class CTLoader:
                 if (len(s1) < 1) or (len(s2) < 1):
                     print(f"WARNING: One of the sets will have no examples for class {label}. Choose splits closer to 0.5 to avoid this issue.")
                 if balance_first_set:
-                    first_set.extend( augment(s1, n_augment) )
+                    first_set.extend( self.augment(s1, n_augment) )
                 else:
                     first_set.extend( s1 )
                 second_set.extend(s2)
