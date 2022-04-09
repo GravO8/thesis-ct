@@ -61,21 +61,23 @@ if __name__ == "__main__":
     # trainer.k_fold(k = 5)
     trainer.single(train_size = .8)
     trainer.assert_datasets()
-    # for sigma in (Mean(), Max()):
-    #     i += 1
-    #     if i == START:
-    #         skip = False
-    #     if skip:
-    #         continue
-    #     model_name  = MODEL_NAME.format(i)
-    #     model       = MILNet(f = CNN2DEncoder(version = VERSION,
-    #                                     drop_block_rate = d1, 
-    #                                     drop_rate = d1,
-    #                                     pretrained = True,
-    #                                     freeze = True,
-    #                                     in_channels = 1),
-    #                         sigma = sigma,
-    #                         g = torch.nn.Identity())
-    #     # normalization = GroupNorm,
-    #     trainer.set_model(model, model_name)
-    #     trainer.save_encodings()
+    for sigma in (Mean(), Max()):
+        i += 1
+        if i == START:
+            skip = False
+        if skip:
+            continue
+        model_name  = MODEL_NAME.format(i)
+        g           = torch.nn.Identity()
+        g.__dict__["return_features"] = True
+        model       = MILNet(f = CNN2DEncoder(cnn_name = VERSION,
+                                        # drop_block_rate = d1, 
+                                        # drop_rate = d1,
+                                        pretrained = True,
+                                        freeze = True,
+                                        in_channels = 1),
+                            sigma = sigma,
+                            g = g)
+        # normalization = GroupNorm,
+        trainer.set_model(model, model_name)
+        trainer.save_encodings()

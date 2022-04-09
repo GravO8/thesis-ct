@@ -132,8 +132,8 @@ class Trainer(ABC):
         '''
         if self.supcon:
             assert model.return_features, "Trainer.train: model must return features for loss SupCon"
-        else:
-            assert not model.return_features, "Trainer.train: model can only return features for loss SupCon"
+        # else:
+        #     assert not model.return_features, "Trainer.train: model can only return features for loss SupCon"
             
     def assert_model_loaded(self):
         '''
@@ -289,7 +289,7 @@ class Trainer(ABC):
         TODO
         '''
         scans   = subjects["ct"][torchio.DATA]
-        y       = subjects["prognosis"].float()
+        y       = subjects["target"].float()
         if self.cuda:
             scans = scans.cuda()
         return scans, y
@@ -354,9 +354,11 @@ class Trainer(ABC):
         TODO
         '''
         def save_encodings_aux(subjects_set, subjects_loader):
-            s = 0
-            labels = []
-            os.mkdir(f"{encodings_dir}/{subjects_set}")
+            s           = 0
+            labels      = []
+            dir_name    = f"{encodings_dir}/{subjects_set}"
+            if not os.path.isdir(dir_name):
+                os.mkdir(dir_name)
             for subjects in subjects_loader:
                 scans, y = self.get_batch(subjects)
                 features = self.evaluate_brain(scans, verbose = False)
