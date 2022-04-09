@@ -20,7 +20,7 @@ if __name__ == "__main__":
         NUM_WORKERS     = 0
         DATA_DIR        = "../../../data/gravo"
         HAS_BOTH_SCAN_TYPES     = True
-        BALANCE_TEST_SET        = False
+        BALANCE_TEST_SET        = True
         BALANCE_TRAIN_SET       = False
     else:
         NUM_WORKERS     = 8

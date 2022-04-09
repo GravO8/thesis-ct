@@ -55,10 +55,10 @@ def to_bins(train: list):
     '''
     bins = {}
     for t in train:
-        if t["prognosis"] in bins:
-            bins[t["prognosis"]].append(t)
+        if t["target"] in bins:
+            bins[t["target"]].append(t)
         else:
-            bins[t["prognosis"]] = [t]
+            bins[t["target"]] = [t]
     return bins
 
 
@@ -70,10 +70,10 @@ def to_bin_count(patients: list):
     '''
     bins = {}
     for t in patients:
-        if t["prognosis"] in bins:
-            bins[t["prognosis"]] += 1
+        if t["target"] in bins:
+            bins[t["target"]] += 1
         else:
-            bins[t["prognosis"]] = 1
+            bins[t["target"]] = 1
     return bins
     
 
