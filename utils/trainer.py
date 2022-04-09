@@ -382,11 +382,11 @@ class Trainer(ABC):
                                     self.test_loader)
         asserter.assert_leaks()
         asserter.assert_repeated()
-        if self.balance_train_set:
-            self.assert_balanced("train")
-            self.assert_balanced("validation")
-        if self.balance_test_set:
-            self.assert_balanced("test")
+        if self.ct_loader.balance_train_set:
+            asserter.assert_balanced("train")
+            asserter.assert_balanced("validation")
+        if self.ct_loader.balance_test_set:
+            asserter.assert_balanced("test")
 
     @abstractmethod
     def evaluate_brain(self, subjects, verbose: bool = False):
