@@ -18,10 +18,14 @@ class MILNet(nn.Module):
         z, a    = self.sigma(h)     # MIL pooling obtains the bag encoding
         return self.g(z).squeeze()
     def to_dict(self):
+        try:
+            g_dict = self.g.to_dict()
+        except:
+            g_dict = self.g.__class__.__name__
         return {"type": "MIL", 
                 "specs": {"f": self.f.to_dict(), 
                           "sigma": str(self.sigma),
-                          "g": self.g.to_dict()}}
+                          "g": g_dict}}
         
         
 class IlseAttention(nn.Module):

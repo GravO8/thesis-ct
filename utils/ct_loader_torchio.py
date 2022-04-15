@@ -139,7 +139,7 @@ class CTLoader:
             ct_type = os.path.join(self.data_dir, self.ct_type)
         target      = int(row[self.target])
         patient_id  = int(row["idProcessoLocal"])
-        if (transform is None) or (transform == "RandomFlip"):
+        if transform is None:
             path = os.path.join(ct_type, f"{patient_id}.nii")
         else:
             path = os.path.join(ct_type, f"{patient_id}-{transform}.nii")
@@ -148,8 +148,6 @@ class CTLoader:
                 patient_id  = patient_id,
                 target      = target,
                 transform   = "original" if transform is None else transform)
-        if transform == "RandomFlip":
-            subject = torchio.RandomFlip("lr")(subject) # this augmentation is deterministic (TODO - is it?)
         return subject
         
     def augment(self, to_augment, n_augment):

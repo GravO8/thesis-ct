@@ -5,7 +5,8 @@ from tqdm import tqdm
 # Augmentations where done with:
 # augmentations = [torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
 #                  torchio.RandomElasticDeformation(),
-#                  torchio.RandomNoise(mean = 5, std = 2)]
+#                  torchio.RandomNoise(mean = 5, std = 2),
+#                  torchio.RandomFlip("lr")]
 
 
 class Augmenter:
@@ -26,8 +27,8 @@ class Augmenter:
         '''
         self.ct_dir = ct_type if self.data_dir is None else os.path.join(self.data_dir, ct_type)
         for _, row in tqdm(self.table_data.iterrows()):
-            if row[ct_type]:
-                patient_id  = row["idProcessoLocal-1"]
+            if row[ct_type] != "missing":
+                patient_id  = row["idProcessoLocal"]
                 subject     = self.create_subject(patient_id)
                 augmented   = self.augmentation(subject)
                 filename    = os.path.join(self.ct_dir, 
@@ -45,7 +46,7 @@ class Augmenter:
 
 if __name__ == "__main__":
     augmenter = Augmenter("table_data.csv", 
-                        torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
+                        torchio.RandomFlip("lr"),
                         data_dir = "../../../data/gravo")
     augmenter.augment("NCCT")
     

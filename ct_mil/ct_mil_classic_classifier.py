@@ -19,9 +19,9 @@ if __name__ == "__main__":
     if home:
         NUM_WORKERS     = 0
         DATA_DIR        = "../../../data/gravo"
-        HAS_BOTH_SCAN_TYPES     = True
+        HAS_BOTH_SCAN_TYPES     = False
         BALANCE_TEST_SET        = True
-        BALANCE_TRAIN_SET       = False
+        BALANCE_TRAIN_SET       = True
     else:
         NUM_WORKERS     = 8
         DATA_DIR        = "/media/avcstorage/gravo"
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     
     # trainer.k_fold(k = 5)
     trainer.single(train_size = .8)
-    trainer.assert_datasets()
+    # trainer.assert_datasets()
     for sigma in (Mean(), Max()):
         i += 1
         if i == START:
@@ -80,4 +80,5 @@ if __name__ == "__main__":
                             g = g)
         # normalization = GroupNorm,
         trainer.set_model(model, model_name)
+        # trainer.json_summary()
         trainer.save_encodings()
