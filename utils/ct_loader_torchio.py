@@ -62,23 +62,24 @@ def to_bins(train: list):
     return bins
 
 
-def to_bin_count(patients: list):
+def to_bin_count(l: list):
     '''
-    Input:  patients, list of torchio subjects
-    Output: a dictionary whose keys are the different classes and its values are 
-            the len of the list of torchio subjects that belong to that class
+    Input:  l, a list
+    Output: a dictionary whose keys are the different unique values on the list
+            and their values is their respective count
     '''
     bins = {}
-    for t in patients:
-        if t["target"] in bins:
-            bins[t["target"]] += 1
+    for t in l:
+        if t in bins:
+            bins[t] += 1
         else:
-            bins[t["target"]] = 1
+            bins[t] = 1
     return bins
     
 
 def data_distribution(train, validation, test):
     '''
+    TODO update
     Input:  train, list of torhcio subjects objects
             validation, list of torhcio subjects objects
             test, list of torhcio subjects objects
@@ -86,9 +87,12 @@ def data_distribution(train, validation, test):
             and values are the respective data data distributions of their lists
     '''
     distr               = {}
-    distr["train"]      = to_bin_count(train)
-    distr["validation"] = to_bin_count(validation)
-    distr["test"]       = to_bin_count(test)
+    train_target        = [t["target"] for t in train]
+    distr["train"]      = to_bin_count(train_target)
+    distr["validation"] = to_bin_count([t["target"] for t in validation])
+    distr["test"]       = to_bin_count([t["target"] for t in test])
+    for label in np.unique(train_target):
+        distr[f"train_augment-{label}"] = to_bin_count([t["transform"] for t in train if t["target"] == label])
     return distr
     
 
@@ -97,7 +101,8 @@ class CTLoader:
         target_transform: TargetTransform = None, has_both_scan_types: bool = False, 
         balance_test_set: bool = True, random_seed: int = None, 
         balance_train_set: bool = False, data_dir: str = None, validation_size: float = 0.2, 
-        target: str = "rankin"):
+        target: str = "rankin", 
+        transforms: list = ["RandomFlip", "RandomElasticDeformation", "RandomNoise", "RandomAffine"]):
         '''
         TODO: signature needs update
         Input:  table_data_file, string with a path to a csv file
@@ -127,6 +132,9 @@ class CTLoader:
         self.validation_size        = validation_size
         self.target                 = target
         self.data_distr             = {}
+        if self.random_seed is not None:
+            np.random.seed(self.random_seed)
+        self.transforms = transforms
         self.init_table_data()
         
     def create_subject(self, row, transform: str = None):
@@ -158,18 +166,14 @@ class CTLoader:
         '''
         bin_size    = len(to_augment)
         to_add      = n_augment - bin_size
-        transforms  = ["RandomFlip", "RandomElasticDeformation", "RandomNoise", "RandomAffine"]
-        i_transform = 0
-        while to_add > 0:
-            assert i_transform < len(transforms), "CT_loader.augment: There aren't data pre computed augmentations"
-            transform = transforms[i_transform]
-            for i in range(bin_size):
-                row = self.table_data[self.table_data["idProcessoLocal"] == str(to_augment[i]["patient_id"])]
-                to_augment.append( self.create_subject(row, transform) )
-                to_add -= 1
-                if to_add <= 0:
-                    break
-            i_transform += 1
+        transforms_to_add = [to_add // len(self.transforms)] * len(self.transforms)
+        ids = [str(t["patient_id"]) for t in to_augment]
+        for i in range(to_add % len(self.transforms)):
+            transforms_to_add[i] += 1
+        for i in range(len(transforms_to_add)):
+            for id in np.random.choice(ids, size = transforms_to_add[i], replace = False):
+                row = self.table_data[self.table_data["idProcessoLocal"] == id]
+                to_augment.append( self.create_subject(row, self.transforms[i]) )
         return to_augment
         
     def init_table_data(self):
@@ -186,8 +190,6 @@ class CTLoader:
             table_data = table_data[(table_data["NCCT"] != "missing") & (table_data["CTA"] != "missing")]
         if self.target_transform is not None:
             table_data[self.target] = [self.target_transform(t) for t in table_data[self.target].values]
-        if self.random_seed is not None:
-            np.random.seed(self.random_seed)
         random_permutation  = np.random.permutation( len(table_data) )
         table_data          = table_data.iloc[random_permutation]
         self.table_data     = table_data

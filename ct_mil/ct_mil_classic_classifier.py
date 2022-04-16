@@ -80,5 +80,6 @@ if __name__ == "__main__":
                             g = g)
         # normalization = GroupNorm,
         trainer.set_model(model, model_name)
-        # trainer.json_summary()
-        trainer.save_encodings()
+        trainer.json_summary()
+        # trainer.save_encodings()
+        break

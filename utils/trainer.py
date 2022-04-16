@@ -103,8 +103,6 @@ class Trainer(ABC):
         self.mode               = TrainerMode.SINGLE
         self.train_size         = train_size
         train, validation, test = self.ct_loader.subject_dataset(train_size = train_size)
-        # for s in train:
-        #     print(s["target"], s["patient_id"], s["transform"])
         self.set_loaders(train, validation, test)
 
     def k_fold(self, k: int = 5):
@@ -295,9 +293,6 @@ class Trainer(ABC):
         '''
         TODO
         '''
-        print(subjects["patient_id"])
-        print(subjects["transform"])
-        print(subjects["target"])
         scans   = subjects["ct"][torchio.DATA]
         y       = subjects["target"].float()
         if self.cuda:
@@ -374,8 +369,7 @@ class Trainer(ABC):
                 features = self.evaluate_brain(scans, verbose = False)
                 for i in range(len(y)):
                     labels.append(int(y[i]))
-                    print( features[i,:].squeeze() )
-                    # torch.save(features[i,:].squeeze(), f"{encodings_dir}/{subjects_set}/subject-{s}.pt")
+                    torch.save(features[i,:].squeeze(), f"{encodings_dir}/{subjects_set}/subject-{s}.pt")
                     s += 1
             torch.save(torch.tensor(labels), f"{encodings_dir}/{subjects_set}/labels.pt")
         self.assert_model_loaded()
