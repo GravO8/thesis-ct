@@ -29,11 +29,12 @@ class Augmenter:
         for _, row in tqdm(self.table_data.iterrows()):
             if row[ct_type] != "missing":
                 patient_id  = row["idProcessoLocal"]
-                subject     = self.create_subject(patient_id)
-                augmented   = self.augmentation(subject)
                 filename    = os.path.join(self.ct_dir, 
                     f"{patient_id}-{self.augmentation.__class__.__name__}.nii")
-                augmented["ct"].save(filename)
+                if not os.path.isfile(filename):
+                    subject     = self.create_subject(patient_id)
+                    augmented   = self.augmentation(subject)
+                    augmented["ct"].save(filename)
             
     def create_subject(self, patient_id: str):
         '''
