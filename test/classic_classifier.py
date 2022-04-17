@@ -38,7 +38,7 @@ def get_train_test_sets(dir: str):
 if __name__ == "__main__":
     # adapted from
     # https://scikit-learn.org/stable/auto_examples/model_selection/plot_grid_search_digits.html
-    train, test = get_train_test_sets("MILNet-1.1.-2")
+    train, test = get_train_test_sets("MILNet-1.2.")
     x_train, y_train = train
     x_test, y_test   = test
     svc_parameters = [
@@ -48,8 +48,8 @@ if __name__ == "__main__":
     knn_parameters = [
         {"n_neighbors": [3, 5, 7, 9], "metric": ["euclidean", "manhattan", "chebyshev"]}
     ]
-    clf = GridSearchCV(KNN(), knn_parameters, scoring="accuracy")
-    # clf = GridSearchCV(SVC(), svc_parameters, scoring="accuracy")
+    # clf = GridSearchCV(KNN(), knn_parameters, scoring="accuracy")
+    clf = GridSearchCV(SVC(), svc_parameters, scoring="accuracy")
     clf.fit(x_train, y_train)
 
     print("Best parameters set found on development set:")

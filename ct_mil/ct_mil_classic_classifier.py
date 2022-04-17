@@ -54,19 +54,19 @@ if __name__ == "__main__":
                                 patience    = PATIENCE)
     MODEL_NAME     = "MILNet-1.{}."
     VERSION        = "resnet18"
-    i              = 0
-    START          = 1
+    i              = 2
+    # START          = 3
     skip           = True
     
     # trainer.k_fold(k = 5)
     trainer.single(train_size = .8)
-    # trainer.assert_datasets()
+    trainer.assert_datasets()
     for sigma in (Mean(), Max()):
         i += 1
-        if i == START:
-            skip = False
-        if skip:
-            continue
+        # if i == START:
+        #     skip = False
+        # if skip:
+        #     continue
         model_name  = MODEL_NAME.format(i)
         g           = torch.nn.Identity()
         g.__dict__["return_features"] = True
@@ -81,5 +81,4 @@ if __name__ == "__main__":
         # normalization = GroupNorm,
         trainer.set_model(model, model_name)
         trainer.json_summary()
-        # trainer.save_encodings()
-        break
+        trainer.save_encodings()
