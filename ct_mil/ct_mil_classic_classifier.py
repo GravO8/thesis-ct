@@ -52,8 +52,8 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "MILNet-1.{}."
-    VERSION        = "resnet18"
+    MODEL_NAME     = "MILNet-3.{}."
+    VERSION        = "resnet50"
     i              = 2
     # START          = 3
     skip           = True

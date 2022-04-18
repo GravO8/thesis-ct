@@ -28,13 +28,15 @@ class MILNet(nn.Module):
                           "g": g_dict}}
         
         
-class IlseAttention(nn.Module):
+class IlseAttention(nn.Module, SameInitWeights):
     def __init__(self, L: int = 128):
-        super(IlseAttention, self).__init__()
-        self.L          = L  # size of the MLP bottleneck
-        self.attention  = nn.Sequential( nn.LazyLinear(L),
+        torch.nn.Module.__init__(self)
+        self.L = L  # size of the MLP bottleneck
+        SameInitWeights.__init__(self)
+    def set_model(self):
+        self.attention  = nn.Sequential( nn.LazyLinear(self.L),
                                          nn.Tanh(),
-                                         nn.Linear(L, 1))
+                                         nn.Linear(self.L, 1))
     def forward(self, h):
         a = self.attention(h).T
         a = torch.nn.Softmax(dim = 1)(a)    # softmax over all the instance 
@@ -43,15 +45,19 @@ class IlseAttention(nn.Module):
         return z, a
     def __repr__(self):
         return f"IlseAttention({self.L})"
+    def to_dict(self):
+        return {"L": self.L}
 
 
 class IlseGatedAttention(nn.Module):
     def __init__(self, L: int = 128):
-        super(IlseGatedAttention, self).__init__()
-        self.L              = L  # size of the MLP bottleneck
-        self.attention_V    = nn.Sequential(nn.LazyLinear(L),nn.Tanh())
-        self.attention_U    = nn.Sequential(nn.LazyLinear(L),nn.Sigmoid())
-        self.attention      = nn.Linear(L, 1)
+        torch.nn.Module.__init__(self)
+        self.L = L  # size of the MLP bottleneck
+        SameInitWeights.__init__(self)
+    def set_model(self):
+        self.attention_V    = nn.Sequential(nn.LazyLinear(self.L),nn.Tanh())
+        self.attention_U    = nn.Sequential(nn.LazyLinear(self.L),nn.Sigmoid())
+        self.attention      = nn.Linear(self.L, 1)
     def forward(self, h):
         a_V = self.attention_V(h)
         a_U = self.attention_U(h)
@@ -62,6 +68,8 @@ class IlseGatedAttention(nn.Module):
         return z, a
     def __repr__(self):
         return f"IlseGatedAttention({self.L})"
+    def to_dict(self):
+        return {"L": self.L}
         
         
 class Mean(nn.Module):

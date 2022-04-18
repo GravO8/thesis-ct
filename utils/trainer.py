@@ -157,9 +157,9 @@ class Trainer(ABC):
         self.model_name = model_name if self.mode == TrainerMode.SINGLE else f"{model_name}-fold{self.fold}of{self.k}"
         if self.cuda:
             self.model.cuda()
-        self.set_trace_fn()
         if not os.path.isdir(self.model_name):
             os.mkdir(self.model_name)
+        self.set_trace_fn()
         self.weights = f"{self.model_name}/weights.pt"
             
     def set_trace_fn(self):
