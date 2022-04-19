@@ -7,7 +7,6 @@ class SameInitWeights(ABC):
         self.model_name = self.__class__.__name__
         self.set_model()
         self.init_weights()
-        print("here")
 
     def init_weights(self):
         models      = [file for file in os.listdir("weights") if (file.endswith(".json") and file.startswith(f"{self.model_name}-"))]
@@ -16,6 +15,7 @@ class SameInitWeights(ABC):
             if self.same_model(model):
                 self.load_weights(model)
                 new_weights = False
+                break
         if new_weights:
             new_model = f"weights/{self.model_name}-{len(models)}"
             torch.save(self.state_dict(), f"{new_model}.pt")

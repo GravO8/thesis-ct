@@ -9,6 +9,8 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
         torch.nn.Module.__init__(self)
         if freeze:
             assert pretrained, "CNN2DEncoder.__init__: frozen model requires pretrained=True"
+        if "efficientnet" in cnn_name:
+            assert drop_block_rate == 0.0, "CNN2DEncoder.__init__: efficientnet don't have 'drop_block_rate' parameter"
         # if pretrained:
         #     assert (drop_block_rate != 0.0) and (drop_rate != 0.0), "CNN2DEncoder.__init__: pretrained model can't use dropout"
         self.cnn_name           = cnn_name
@@ -27,12 +29,13 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
                                             # SameInitWeights constructor
         
     def set_model(self):
-        self.encoder = timm.create_model(self.cnn_name, 
-                                        pretrained      = self.pretrained,
-                                        in_chans        = self.in_channels,
-                                        drop_block_rate = self.drop_block_rate,
-                                        drop_rate       = self.drop_rate,
-                                        norm_layer      = self.normalization)
+        kwargs = {  "pretrained":   self.pretrained,
+                    "in_chans":     self.in_channels,
+                    "drop_rate":    self.drop_rate,
+                    "norm_layer":   self.normalization}
+        if "efficientnet" not in self.cnn_name:
+            kwargs["drop_block_rate"] = self.drop_block_rate
+        self.encoder = timm.create_model(self.cnn_name, **kwargs)
         if self.freeze:
             for param in self.encoder.parameters():
                 param.requires_grad = False
