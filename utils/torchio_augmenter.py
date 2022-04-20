@@ -47,7 +47,7 @@ class Augmenter:
 
 if __name__ == "__main__":
     augmenter = Augmenter("table_data.csv", 
-                        torchio.RandomFlip("lr"),
+                        torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
                         data_dir = "../../../data/gravo")
     augmenter.augment("NCCT")
     

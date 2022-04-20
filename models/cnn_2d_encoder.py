@@ -61,7 +61,7 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
                 "freeze": self.freeze,
                 "drop_block_rate": self.drop_block_rate,
                 "drop_rate": self.drop_rate,
-                "normalization": self.normalization}
+                "normalization": str(self.normalization)}
 
 
 if __name__ == "__main__":

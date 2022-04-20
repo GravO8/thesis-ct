@@ -26,6 +26,7 @@ class SameInitWeights(ABC):
     
     def load_weights(self, model_name: str):
         weights = os.path.join(self.weight_dir, f"{model_name[:-5]}.pt")
+        print(f"Loading weights: {weights}")
         if torch.cuda.is_available():
             self.load_state_dict( torch.load(weights) )
         else:
