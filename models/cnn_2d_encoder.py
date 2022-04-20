@@ -61,11 +61,12 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
                 "freeze": self.freeze,
                 "drop_block_rate": self.drop_block_rate,
                 "drop_rate": self.drop_rate,
-                "normalization": self.normalization.__class__.__name__}
+                "normalization": self.normalization}
 
 
 if __name__ == "__main__":
     r = CNN2DEncoder("resnet34", drop_rate = .1, pretrained = True)
+    print(r.to_dict())
     # print(r.encoder)
     # from torchsummary import summary
     # sample = torch.rand(2,1,91,180)

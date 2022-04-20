@@ -19,16 +19,13 @@ if __name__ == "__main__":
     if home:
         NUM_WORKERS     = 0
         DATA_DIR        = "../../../data/gravo"
-        HAS_BOTH_SCAN_TYPES     = False
-        BALANCE_TEST_SET        = True
-        BALANCE_TRAIN_SET       = True
     else:
         NUM_WORKERS     = 8
         DATA_DIR        = "/media/avcstorage/gravo"
-        HAS_BOTH_SCAN_TYPES     = False
-        BALANCE_TEST_SET        = True
-        BALANCE_TRAIN_SET       = True
-    
+
+    HAS_BOTH_SCAN_TYPES     = False
+    BALANCE_TEST_SET        = True
+    BALANCE_TRAIN_SET       = True    
     PATIENCE        = -1
     EPOCHS          = -1
     BATCH_SIZE      = 16

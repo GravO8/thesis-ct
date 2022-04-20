@@ -19,31 +19,27 @@ if __name__ == "__main__":
     if home:
         NUM_WORKERS     = 0
         DATA_DIR        = "../../../data/gravo"
-        HAS_BOTH_SCAN_TYPES     = True
-        BALANCE_TEST_SET        = not False ###############################################
-        BALANCE_TRAIN_SET       = False
-        AUGMENT_FACTOR          = 1
     else:
+        torch.cuda.set_device(2)
         NUM_WORKERS     = 8
         DATA_DIR        = "/media/avcstorage/gravo"
-        HAS_BOTH_SCAN_TYPES     = False
-        BALANCE_TEST_SET        = True
-        BALANCE_TRAIN_SET       = True
-        AUGMENT_FACTOR          = 5
     
+    HAS_BOTH_SCAN_TYPES     = False
+    BALANCE_TEST_SET        = True
+    BALANCE_TRAIN_SET       = True
     PATIENCE        = 40
     EPOCHS          = 300
     BATCH_SIZE      = 16
     CT_TYPE         = "NCCT"
-    ct_loader       = CTLoader("gravo.csv", CT_TYPE, 
+    CSV_FILENAME    = "table_data.csv"
+    ct_loader       = CTLoader(CSV_FILENAME, CT_TYPE, 
                             has_both_scan_types     = HAS_BOTH_SCAN_TYPES,
-                            binary_label            = True,
                             random_seed             = 0,
                             balance_test_set        = BALANCE_TEST_SET,
                             balance_train_set       = BALANCE_TRAIN_SET,
-                            augment_factor          = AUGMENT_FACTOR,
                             validation_size         = 0.1,
-                            data_dir                = DATA_DIR)
+                            data_dir                = DATA_DIR,
+                            target                  = "visible")
     # loss_fn        = SupConLoss()
     loss_fn        = torch.nn.BCELoss(reduction = "mean")
     optimizer      = torch.optim.Adam
@@ -56,16 +52,17 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "MILNet-1.{}."
-    VERSION        = "resnet34"
+    MODEL_NAME     = "MILNet-2.{}."
+    VERSION        = "resnet50"
     i              = 0
     START          = 1
     skip           = True
     
     trainer.single(train_size = .8)
+    trainer.assert_datasets()
     for lr in (0.001, 0.0005, 0.0001):
         for weight_decay in (0.01, 0.001, 0.0001):
-            for d1,d2 in ((.0, .0), (.1, .1), (.5, .5), (.8, .8)):
+            for d1,d2 in ((.0, .0), (.2, .2), (.5, .5), (.9, .9)):
                 for sigma in (IlseAttention(L = 128), Mean(), Max()):
                     i += 1
                     if i == START:
@@ -73,7 +70,7 @@ if __name__ == "__main__":
                     if skip:
                         continue
                     model_name  = MODEL_NAME.format(i)
-                    model       = MILNet(f = CNN2DEncoder(version = VERSION,
+                    model       = MILNet(f = CNN2DEncoder(cnn_name = VERSION,
                                                     drop_block_rate = d1, 
                                                     drop_rate = d1,
                                                     normalization = GroupNorm,
@@ -81,11 +78,11 @@ if __name__ == "__main__":
                                                     freeze = False,
                                                     in_channels = 1),
                                         sigma = sigma,
-                                        g = MLP([256], 
+                                        g = MLP([256, 1], 
                                                 dropout = d2, 
-                                                return_features = False, 
-                                                n_out = 1))
+                                                return_features = False))
                     optimizer_args["lr"]            = lr
                     optimizer_args["weight_decay"]  = weight_decay
                     trainer.set_optimizer_args(optimizer_args)
-                    trainer.train(model, model_name)
+                    trainer.set_model(model, model_name)
+                    trainer.train()
