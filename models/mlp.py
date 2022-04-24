@@ -3,7 +3,8 @@ from .same_init_weights import SameInitWeights
 
 class MLP(torch.nn.Module, SameInitWeights):
     def __init__(self, layers_list: list, dropout: float = None, 
-    return_features: bool = False, hidden_activation = torch.nn.GELU()):
+    return_features: bool = False, hidden_activation = torch.nn.GELU(),
+    load_local: bool = True):
         '''
         TODO
         layers_list: list of integers
@@ -14,9 +15,9 @@ class MLP(torch.nn.Module, SameInitWeights):
         self.dropout            = dropout
         self.return_features    = return_features
         self.hidden_activation  = hidden_activation
-        SameInitWeights.__init__(self)  # must be called last because the
-                                        # method set_model is called by the
-                                        # SameInitWeights constructor
+        SameInitWeights.__init__(self, load_local)  
+        # must be called last because the method set_model is called by the 
+        # SameInitWeights constructor
         
     def set_model(self):
         '''

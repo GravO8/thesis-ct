@@ -1,4 +1,4 @@
-import sys, torch, torchio, time, json, numpy, os
+import sys, torch, torchio, time, json, numpy, os, gc
 import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
@@ -8,6 +8,16 @@ from .pytorchtools import EarlyStopping, Logger
 from .losses import SupConLoss
 from enum import Enum
 from abc import ABC, abstractmethod
+
+
+def print_gc():
+    # from https://discuss.pytorch.org/t/how-to-debug-causes-of-gpu-memory-leaks/6741/3
+    for obj in gc.get_objects():
+        try:
+            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                print(type(obj), obj.size())
+        except:
+            pass
 
 class TrainerMode(Enum):
     SINGLE = 1
@@ -333,10 +343,11 @@ class Trainer(ABC):
                 y_pred      = self.knn.predict( features )
             else:
                 y_prob  = self.evaluate_brain(scans, verbose = verbose)
-                y_prob  = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5)
-                y_pred  = torch.ge(y_prob, 0.5).float()
-            ys.extend( list(y) )
-            y_preds.extend( y_pred.tolist() )
+                y_prob  = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
+                y_prob  = y_prob.detach().numpy() 
+                y_pred  = (y_prob > .5).astype(int)
+            ys.extend( [int(r) for r in list(y)] )
+            y_preds.extend( [int(r) for r in y_pred.tolist()] )
         auc         = metrics.roc_auc_score  (y_true = ys, y_score = y_preds)
         accur       = metrics.accuracy_score (y_true = ys, y_pred = y_preds)
         recall      = metrics.recall_score   (y_true = ys, y_pred = y_preds)

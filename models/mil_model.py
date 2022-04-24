@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 from .mlp import MLP
+from .same_init_weights import SameInitWeights
 
 
 class MILNet(nn.Module):

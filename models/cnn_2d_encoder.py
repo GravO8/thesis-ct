@@ -5,7 +5,8 @@ from .same_init_weights import SameInitWeights
 class CNN2DEncoder(torch.nn.Module, SameInitWeights):
     def __init__(self, cnn_name: str = "resnet50", pretrained: bool = False, 
         n_features = "same", freeze: bool = False, drop_block_rate: float = 0.0, 
-        drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d, in_channels: float = 1):
+        drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d, in_channels: float = 1,
+        load_local: bool = True):
         torch.nn.Module.__init__(self)
         if freeze:
             assert pretrained, "CNN2DEncoder.__init__: frozen model requires pretrained=True"
@@ -24,9 +25,9 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
         if self.pretrained:     # if we want to load the model pretrained
             self.set_model()    # we don't want to load the local random weights
         else:
-            SameInitWeights.__init__(self)  # must be called last because the
-                                            # method set_model is called by the
-                                            # SameInitWeights constructor
+            SameInitWeights.__init__(self, load_local)  
+            # must be called last because the method set_model is called by the
+            # SameInitWeights constructor
         
     def set_model(self):
         kwargs = {  "pretrained":   self.pretrained,
@@ -65,12 +66,12 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
 
 
 if __name__ == "__main__":
-    r = CNN2DEncoder("resnet34", drop_rate = .1, pretrained = True)
-    print(r.to_dict())
+    r = CNN2DEncoder("resnet50", drop_rate = .1, pretrained = True)
+    # print(r.to_dict())
     # print(r.encoder)
-    # from torchsummary import summary
+    from torchsummary import summary
     # sample = torch.rand(2,1,91,180)
-    # summary(r, (1,91,180))
+    summary(r, (1,91,180))
     # r(sample)
     # for param in encoder.parameters():
     #     print( param.requires_grad )

@@ -12,6 +12,7 @@ from models.mlp import MLP
 # To check processes running, use:
 # top 
 # htop
+# ps -aux | grep gro
 
 
 if __name__ == "__main__":
@@ -20,7 +21,7 @@ if __name__ == "__main__":
         NUM_WORKERS     = 0
         DATA_DIR        = "../../../data/gravo"
     else:
-        torch.cuda.set_device(2)
+        torch.cuda.set_device(1)
         NUM_WORKERS     = 8
         DATA_DIR        = "/media/avcstorage/gravo"
     
@@ -52,10 +53,10 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "MILNet-2.{}."
-    VERSION        = "resnet50"
-    i              = 0
+    MODEL_NAME     = "MILNet-1.{}."
+    VERSION        = "resnet18"
     START          = 1
+    i              = START-1
     skip           = True
     
     trainer.single(train_size = .8)

@@ -3,10 +3,12 @@ sys.path.append("..")
 from utils.ct_loader_torchio import CTLoader
 from models.cnn_2d_encoder import CNN2DEncoder
 from models.siamese_model import SiameseNet
+from timm.models.layers import GroupNorm
 from models.mil_model import MILNet, IlseAttention, IlseGatedAttention, Mean, Max
 from models.resnet3d import ResNet3D
 from utils.trainer import SiameseTrainer, MILTrainer
 from utils.losses import SupConLoss
+from models.mlp import MLP
 
 
 def load_sigma(sigma: dict):
@@ -63,26 +65,38 @@ def load_encoder(f: dict):
     '''
     TODO
     '''
-    try:
-        s               = f.split("(")
-        encoder_model   = s[0]
-        if "resnet" in encoder_model:
-            params  = s[1][:-1].split(",")
-            encoder = ResNet( version = encoder_model, 
-                            pretrained = params[0] == "True",
-                            n_features = params[1])
-    except:
-        encoder = ResNet(   version = f["version"], 
-                            pretrained = f["pretrained"] == "True",
-                            n_features = f["n_features"],
-                            freeze = f["freeze"] == "True")
-    return encoder
+    if f["normalization"] == "<class 'timm.models.layers.norm.GroupNorm'>":
+        normalization = GroupNorm
+    else:
+        print("load_encoder: Unknown normalization", f["normalization"])
+        exit(0)
+    return CNN2DEncoder(cnn_name        = f["cnn_name"],
+                        pretrained      = f["pretrained"],
+                        in_channels     = f["in_channels"],
+                        n_features      = f["n_features"],
+                        freeze          = f["freeze"],
+                        drop_block_rate = f["drop_block_rate"],
+                        drop_rate       = f["drop_rate"],
+                        normalization   = normalization,
+                        load_local      = False)
 
 
-def load_siamese_mlp(mlp_info):
+def load_mlp(mlp):
     '''
     TODO
     '''
+    if mlp["hidden_activation"] == "GELU":
+        hidden_activation = torch.nn.GELU()
+    else:
+        print("load_mlp: Unknown hidden_activation", mlp["hidden_activation"])
+        exit(0)
+    return MLP( layers_list         = mlp["layers_list"],
+                dropout             = mlp["dropout"],
+                return_features     = mlp["return_features"],
+                hidden_activation   = hidden_activation,
+                load_local          = False)
+                
+def load_siamese_mlp(mlp_info):
     dropout         = mlp_info["dropout"]
     return_features = mlp_info["return_features"]
     try:
@@ -131,23 +145,19 @@ class Reload:
         self.dir    = dir
         self.cuda   = torch.cuda.is_available()
         self.load_run_info()
-        
     def get_model_name(self):
         return self.dir.split("-fold")[0] if "fold" in self.dir else self.dir
-        
     def load_run_info(self):
         '''
         TODO
         '''
         with open(f"{self.dir}/summary.json", "r") as f:
             self.run_info = json.load(f)
-            
     def get_weights(self):
         '''
         TODO
         '''
         return [f"{self.dir}/{filename}" for filename in os.listdir(self.dir) if filename.endswith(".pt")]
-            
     def load_model(self, load_weights = True):
         '''
         TODO
@@ -157,7 +167,8 @@ class Reload:
             specs   = model_info["specs"]
             f       = load_encoder(specs["f"])
             sigma   = load_sigma(specs["sigma"])
-            model   = MIL_nn(f = f, sigma = sigma)
+            g       = load_mlp(specs["g"])
+            model   = MILNet(f = f, sigma = sigma, g = g)
         elif model_info["type"] == "SiameseNet":
             specs   = model_info["specs"]
             encoder = load_3d_encoder(specs["encoder"])
@@ -165,36 +176,34 @@ class Reload:
             model   = SiameseNet(encoder = encoder, **mlp)
         else:
             assert False
-        if self.cuda:
-            model.cuda()
+        # if self.cuda:
+        #     model.cuda()
         if load_weights:
             weights = self.get_weights()
             assert len(weights) > 0, "Reload.load_model: no weights found. Use load_weights=False or train the model first"
             if len(weights) > 1:
                 print(f"Reload.load_model: more than one weights file found. Using {weights[0]}.")
-            if self.cuda:
-                model.load_state_dict( torch.load(weights[0]) )
-            else:
-                model.load_state_dict( torch.load(weights[0], map_location = torch.device("cpu")) )
+            # if self.cuda:
+            #     model.load_state_dict( torch.load(weights[0], map_location = torch.device("cuda")) )
+            # else:
+            model.load_state_dict( torch.load(weights[0], map_location = torch.device("cpu")) )
         return model
-        
     def load_ct_loader(self):
         '''
         TODO
         '''
         ct_loader_info = self.run_info["ct_loader"]
-        ct_loader = CTLoader("gravo.csv", 
+        ct_loader = CTLoader("table_data.csv", 
                                 ct_type                 = ct_loader_info["ct_type"],
                                 has_both_scan_types     = ct_loader_info["has_both_scan_types"] == "True",
-                                binary_label            = ct_loader_info["binary_label"] == "True",
                                 random_seed             = int(ct_loader_info["random_seed"]),
                                 balance_test_set        = ct_loader_info["balance_test_set"] == "True",
                                 balance_train_set       = ct_loader_info["balance_train_set"] == "True",
-                                augment_factor          = float(ct_loader_info["augment_factor"]),
                                 validation_size         = float(ct_loader_info["validation_size"]),
+                                target                  = ct_loader_info["target"],
+                                target_transform        = eval(ct_loader_info["target_transform"]), # WARNING! dangerous hack!
                                 data_dir                = "/media/avcstorage/gravo" if self.cuda else "../../../data/gravo")
         return ct_loader, ct_loader_info
-        
     def init_trainer(self, ct_loader, epochs: int, patience: int):
         '''
         TODO
@@ -210,13 +219,12 @@ class Reload:
                         "epochs":           epochs,
                         "patience":         patience}
         if model_type == "MIL":
-            trainer = MIL_trainer(ct_loader, **trainer_args)
+            trainer = MILTrainer(ct_loader, **trainer_args)
         elif model_type == "SiameseNet":
             trainer = SiameseTrainer(ct_loader, **trainer_args)
         else:
             assert False, f"Reload.load_trainer: Unknown model type {model_type}"
         return trainer
-
     def load_trainer(self, epochs: int = 0, patience: int = 0, optimizer_args: dict = {}):
         '''
         TODO
@@ -226,6 +234,7 @@ class Reload:
         mode                        = ct_loader_info["mode"]
         if mode == "SINGLE":
             trainer.single(train_size = float(ct_loader_info["train_size"]))
+            self.assert_datasets(trainer, ct_loader_info)
         elif mode == "KFOLD":
             k       = int(ct_loader_info["k"])
             fold    = int(ct_loader_info["fold"])
@@ -235,3 +244,16 @@ class Reload:
         else:
             assert False, f"Reload.load_trainer: Unknown ct loader mode {mode}"
         return trainer
+    def assert_datasets(self, trainer, ct_loader_info):
+        '''
+        TODO
+        '''
+        loaded_distr = trainer.ct_loader.data_distr
+        saved_distr = ct_loader_info["data_distribution"]
+        for s in ["train", "validation", "test"]:
+            for label in loaded_distr[s]:
+                assert loaded_distr[s][label] == saved_distr[s][str(label)], f"Reload.assert_datasets: set {s}, label {label} missmatch"
+                train_augment = f"train_augment-{label}"
+                for augmentation in loaded_distr[train_augment]:
+                    assert loaded_distr[train_augment][augmentation] == saved_distr[train_augment][augmentation], f"Reload.assert_datasets: train agumentations don't match"
+        print("Datasets match")
