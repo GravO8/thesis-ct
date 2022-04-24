@@ -15,12 +15,12 @@ def load_sigma(sigma: dict):
     '''
     TODO
     '''
-    if "Ilse_attention" in sigma:
+    if "IlseAttention" in sigma:
         bottleneck = int(sigma.split("(")[1][:-1])
-        return Ilse_attention(L = bottleneck)
-    elif "Ilse_gated_attention" in sigma:
+        return IlseAttention(L = bottleneck)
+    elif "IlseGatedAttention" in sigma:
         bottleneck = int(sigma.split("(")[1][:-1])
-        return Ilse_gated_attention(L = bottleneck)
+        return IlseGatedAttention(L = bottleneck)
     elif sigma == "max":
         return Max()
     elif sigma == "mean":
@@ -256,4 +256,4 @@ class Reload:
                 train_augment = f"train_augment-{label}"
                 for augmentation in loaded_distr[train_augment]:
                     assert loaded_distr[train_augment][augmentation] == saved_distr[train_augment][augmentation], f"Reload.assert_datasets: train agumentations don't match"
-        print("Datasets match")
+        print("Datasets size match")
