@@ -2,13 +2,14 @@ import torch, json, os
 from abc import ABC, abstractmethod
 
 class SameInitWeights(ABC):
-    def __init__(self):
+    def __init__(self, load_local = True):
         super(SameInitWeights, self).__init__()
         self.model_name = self.__class__.__name__
         current_dir     = os.path.dirname(os.path.realpath(__file__))
         self.weight_dir = os.path.join(current_dir, "weights")
         self.set_model()
-        self.init_weights()
+        if load_local:
+            self.init_weights()
 
     def init_weights(self):
         models      = [file for file in os.listdir(self.weight_dir) if (file.endswith(".json") and file.startswith(f"{self.model_name}-"))]
