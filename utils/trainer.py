@@ -215,23 +215,30 @@ class Trainer(ABC):
         TODO
         '''
         train_loss, train_error = self.train_epoch()
-        val_loss, val_error     = self.validate_epoch()
+        val_loss, val_error     = self.validate_epoch(self.validation_loader)
+        test_loss, test_error   = self.validate_epoch(self.test_loader)
         elapsed                 = (time.time() - self.time_start)
         self.writer.add_scalar("Loss/train", train_loss, epoch)
         self.writer.add_scalar("Error/train", train_error, epoch)
         self.writer.add_scalar("Loss/val", val_loss, epoch)
         self.writer.add_scalar("Error/val", val_error, epoch)
+        self.writer.add_scalar("Loss/test", test_loss, epoch)
+        self.writer.add_scalar("Error/test", test_error, epoch)
         self.writer.add_scalar("time", elapsed, epoch)
         self.writer.flush()
         self.trace(f"  Train loss: {train_loss}")
         self.trace(f"  Train error: {train_error}")
         self.trace(f"  Val loss: {val_loss}")
         self.trace(f"  Val error: {val_error}")
+        self.trace(f"  Test loss: {test_loss}")
+        self.trace(f"  Test error: {test_error}")
         self.trace(f"  time: {elapsed}")
         self.current_scores = {"train loss": train_loss,
                                "train error": train_error,
                                "val loss": val_loss,
-                               "val error": val_error}
+                               "val error": val_error,
+                               "test loss": test_loss,
+                               "test error": test_error}
         return val_loss
         
     def train_epoch(self):
@@ -256,8 +263,9 @@ class Trainer(ABC):
         train_error /= len(self.train_loader)
         return train_loss, train_error
     
-    def validate_epoch(self):
+    def validate_epoch(self, set_loader):
         '''
+        TODO: update
         Behaviour:  Applies all examples of the validation set to the model and
                     computes the loss and error
         Output:     two real numbers with the validation loss and error, respectivly
@@ -265,7 +273,7 @@ class Trainer(ABC):
         self.model.train(False)
         val_loss    = 0
         val_error   = 0
-        for subjects in self.validation_loader:
+        for subjects in set_loader:
             loss, error = self.compute_loss_error(subjects, verbose = True, validate = True)
             val_loss   += float(loss)
             val_error  += float(error)

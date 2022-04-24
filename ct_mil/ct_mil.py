@@ -53,37 +53,33 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "MILNet-1.{}."
+    MODEL_NAME     = "MILNet-1.70.{}."
     VERSION        = "resnet18"
-    START          = 1
-    i              = START-1
-    skip           = True
+    # START          = 1
+    # i              = START-1
+    # skip           = True
     
     trainer.single(train_size = .8)
     trainer.assert_datasets()
-    for lr in (0.001, 0.0005, 0.0001):
-        for weight_decay in (0.01, 0.001, 0.0001):
-            for d1,d2 in ((.0, .0), (.2, .2), (.5, .5), (.9, .9)):
-                for sigma in (IlseAttention(L = 128), Mean(), Max()):
-                    i += 1
-                    if i == START:
-                        skip = False
-                    if skip:
-                        continue
-                    model_name  = MODEL_NAME.format(i)
-                    model       = MILNet(f = CNN2DEncoder(cnn_name = VERSION,
-                                                    drop_block_rate = d1, 
-                                                    drop_rate = d1,
-                                                    normalization = GroupNorm,
-                                                    pretrained = False,
-                                                    freeze = False,
-                                                    in_channels = 1),
-                                        sigma = sigma,
-                                        g = MLP([256, 1], 
-                                                dropout = d2, 
-                                                return_features = False))
-                    optimizer_args["lr"]            = lr
-                    optimizer_args["weight_decay"]  = weight_decay
-                    trainer.set_optimizer_args(optimizer_args)
-                    trainer.set_model(model, model_name)
-                    trainer.train()
+    lr              = 0.0005
+    weight_decay    = 0.0001
+    d1, d2          = .9, .9
+    sigma           = IlseAttention(L = 128)
+    for i in range(1, 10+1):
+        model_name  = MODEL_NAME.format(i)
+        model       = MILNet(f = CNN2DEncoder(cnn_name = VERSION,
+                                        drop_block_rate = d1, 
+                                        drop_rate = d1,
+                                        normalization = GroupNorm,
+                                        pretrained = False,
+                                        freeze = False,
+                                        in_channels = 1),
+                            sigma = sigma,
+                            g = MLP([256, 1], 
+                                    dropout = d2, 
+                                    return_features = False))
+        optimizer_args["lr"]            = lr
+        optimizer_args["weight_decay"]  = weight_decay
+        trainer.set_optimizer_args(optimizer_args)
+        trainer.set_model(model, model_name)
+        trainer.train()
