@@ -271,15 +271,15 @@ class Trainer(ABC):
         Output:     two real numbers with the validation loss and error, respectivly
         '''
         self.model.train(False)
-        val_loss    = 0
-        val_error   = 0
+        cmul_loss    = 0
+        cmul_error   = 0
         for subjects in set_loader:
             loss, error = self.compute_loss_error(subjects, verbose = True, validate = True)
-            val_loss   += float(loss)
-            val_error  += float(error)
-        val_loss       /= len(self.validation_loader)
-        val_error      /= len(self.validation_loader)
-        return val_loss, val_error
+            cmul_loss  += float(loss)
+            cmul_error += float(error)
+        cmul_loss      /= len(set_loader)
+        cmul_error     /= len(set_loader)
+        return cmul_loss, cmul_error
         
     def compute_loss_error(self, subjects, verbose: bool = False, validate: bool = False):
         '''
