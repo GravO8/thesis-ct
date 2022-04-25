@@ -21,7 +21,7 @@ if __name__ == "__main__":
         NUM_WORKERS     = 0
         DATA_DIR        = "../../../data/gravo"
     else:
-        torch.cuda.set_device(1)
+        torch.cuda.set_device(2)
         NUM_WORKERS     = 8
         DATA_DIR        = "/media/avcstorage/gravo"
     
@@ -40,7 +40,8 @@ if __name__ == "__main__":
                             balance_train_set       = BALANCE_TRAIN_SET,
                             validation_size         = 0.1,
                             data_dir                = DATA_DIR,
-                            target                  = "visible")
+                            target                  = "visible",
+                            transforms              = ["RandomFlip"])
     # loss_fn        = SupConLoss()
     loss_fn        = torch.nn.BCELoss(reduction = "mean")
     optimizer      = torch.optim.Adam
@@ -53,7 +54,7 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "MILNet-1.70.{}."
+    MODEL_NAME     = "MILNet-4.2.{}."
     VERSION        = "resnet18"
     # START          = 1
     # i              = START-1
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     trainer.assert_datasets()
     lr              = 0.0005
     weight_decay    = 0.0001
-    d1, d2          = .9, .9
+    d1, d2          = .8, .8
     sigma           = IlseAttention(L = 128)
     for i in range(1, 10+1):
         model_name  = MODEL_NAME.format(i)
@@ -82,4 +83,12 @@ if __name__ == "__main__":
         optimizer_args["weight_decay"]  = weight_decay
         trainer.set_optimizer_args(optimizer_args)
         trainer.set_model(model, model_name)
-        trainer.train()
+        trainer.json_summary()
+        break
+        # trainer.train()
+        
+    # TODO
+    # Meter a correr com os settings atuais - MILNet70 mas com .8 de dropout e 
+    # apenas RandomFlip como augmentation
+    # Meter a correr com estes settings mas efficientnet_b0, efficientnet_b1, 
+    # efficientnet_b2 (modelos mais pequeno que resnet18)

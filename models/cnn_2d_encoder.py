@@ -66,7 +66,7 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
 
 
 if __name__ == "__main__":
-    r = CNN2DEncoder("resnet50", drop_rate = .1, pretrained = True)
+    r = CNN2DEncoder("efficientnet_b3", pretrained = False)
     # print(r.to_dict())
     # print(r.encoder)
     from torchsummary import summary

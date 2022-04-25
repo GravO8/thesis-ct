@@ -166,14 +166,19 @@ class CTLoader:
         '''
         bin_size    = len(to_augment)
         to_add      = n_augment - bin_size
-        transforms_to_add = [to_add // len(self.transforms)] * len(self.transforms)
-        ids = [str(t["patient_id"]) for t in to_augment]
-        for i in range(to_add % len(self.transforms)):
-            transforms_to_add[i] += 1
-        for i in range(len(transforms_to_add)):
-            for id in np.random.choice(ids, size = transforms_to_add[i], replace = False):
-                row = self.table_data[self.table_data["idProcessoLocal"] == id]
-                to_augment.append( self.create_subject(row, self.transforms[i]) )
+        if to_add > 0:
+            transforms_to_add = [to_add // len(self.transforms)] * len(self.transforms)
+            ids = [str(t["patient_id"]) for t in to_augment]
+            for i in range(to_add % len(self.transforms)):
+                transforms_to_add[i] += 1
+            for i in range(len(transforms_to_add)):
+                for id in np.random.choice(ids, size = transforms_to_add[i], replace = False):
+                    row = self.table_data[self.table_data["idProcessoLocal"] == id]
+                    to_augment.append( self.create_subject(row, self.transforms[i]) )
+        else:
+            # If the classes are too unbalanced, then maybe some classes don't 
+            # need any augmentations and should actually be undersampled
+            to_augment = np.random.choice(to_augment, size = n_augment, replace = False)
         return to_augment
         
     def init_table_data(self):
@@ -196,7 +201,8 @@ class CTLoader:
         
     def to_dict(self):
         params  = ["ct_type", "has_both_scan_types", "balance_test_set", "random_seed", 
-                "balance_train_set", "validation_size", "target", "target_transform"]
+                "balance_train_set", "validation_size", "target", "target_transform",
+                "transforms"]
         dict    = {param: str(self.__dict__[param]) for param in params}
         dict["data_distribution"] = self.data_distr
         return dict
@@ -269,9 +275,9 @@ class CTLoader:
             bin_count   = [len(bins[label]) for label in bins]
             min_class   = min(bin_count)
             max_class   = max(bin_count)
-            n_first     = round(min_class * split_size) # number of elements per class in the first set
-            n_second    = min_class - n_first           # number of elements per class in the second set
-            n_augment   = n_first * 4                   # x4 for the 4 different data augmentations
+            n_first     = round(min_class * split_size)         # number of elements per class in the first set
+            n_second    = min_class - n_first                   # number of elements per class in the second set
+            n_augment   = n_first * (len(self.transforms)+1)    # number of elements per class after augmentations
             first_set   = []
             second_set  = []
             for label in bins:
