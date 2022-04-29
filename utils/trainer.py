@@ -209,6 +209,9 @@ class Trainer(ABC):
         with open(f"{self.model_name}/scores.json", "w") as f:
             json.dump(self.best, f, indent = 4) 
         self.model.load_state_dict(torch.load(self.weights)) # when done training, load best weights
+        self.test("train")
+        self.test("validation")
+        self.test("test")
         
     def train_validate_epoch(self, epoch: int):
         '''
@@ -334,7 +337,7 @@ class Trainer(ABC):
             features = features.detach().cpu().numpy()
             self.knn.partial_fit(features, y)
         
-    def test(self, t, verbose = True):
+    def test(self, set_name, verbose = True):
         '''
         TODO
         '''
@@ -342,8 +345,16 @@ class Trainer(ABC):
         self.model.train(False)
         if self.supcon:
             self.init_knn()
+        if set_name == "train":
+            set_loader = self.train_loader
+        elif set_name == "validation":
+            set_loader = self.validation_loader
+        elif set_name == "test":
+            set_loader = self.test_loader
+        else:
+            assert False, f"Trainer.test: unknown set {set_name}"
         ys, y_preds = [], []
-        for subjects in self.test_loader:
+        for subjects in set_loader:
             scans, y = self.get_batch(subjects)
             if self.supcon:
                 features    = self.evaluate_brain(scans, verbose = verbose)
@@ -366,7 +377,7 @@ class Trainer(ABC):
             self.trace(" Recall:\t{:.2f}".format(recall))
             self.trace(" Precision:\t{:.2f}".format(precision))
         scores = {"accuracy": accur, "AUC": auc, "recall": recall, "precision": precision}
-        with open(f"{self.model_name}/scores-test-{t}.json", "w") as f:
+        with open(f"{self.model_name}/scores-{set_name}.json", "w") as f:
             json.dump(scores, f, indent = 4)
             
     def save_encodings(self):

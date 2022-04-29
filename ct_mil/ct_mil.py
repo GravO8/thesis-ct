@@ -21,7 +21,7 @@ if __name__ == "__main__":
         NUM_WORKERS     = 0
         DATA_DIR        = "../../../data/gravo"
     else:
-        torch.cuda.set_device(2)
+        torch.cuda.set_device(1)
         NUM_WORKERS     = 8
         DATA_DIR        = "/media/avcstorage/gravo"
     
@@ -54,8 +54,8 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "MILNet-4.2.{}."
-    VERSION        = "resnet18"
+    MODEL_NAME     = "MILNet-4.4.{}."
+    VERSION        = "efficientnet_b1"
     # START          = 1
     # i              = START-1
     # skip           = True
@@ -66,10 +66,9 @@ if __name__ == "__main__":
     weight_decay    = 0.0001
     d1, d2          = .8, .8
     sigma           = IlseAttention(L = 128)
-    for i in range(1, 10+1):
+    for i in range(1, 20+1):
         model_name  = MODEL_NAME.format(i)
         model       = MILNet(f = CNN2DEncoder(cnn_name = VERSION,
-                                        drop_block_rate = d1, 
                                         drop_rate = d1,
                                         normalization = GroupNorm,
                                         pretrained = False,
@@ -83,9 +82,7 @@ if __name__ == "__main__":
         optimizer_args["weight_decay"]  = weight_decay
         trainer.set_optimizer_args(optimizer_args)
         trainer.set_model(model, model_name)
-        trainer.json_summary()
-        break
-        # trainer.train()
+        trainer.train()
         
     # TODO
     # Meter a correr com os settings atuais - MILNet70 mas com .8 de dropout e 

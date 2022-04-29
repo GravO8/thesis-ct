@@ -6,7 +6,7 @@ from tqdm import tqdm
 # augmentations = [torchio.RandomAffine(scales = 0, translation = 0, degrees = 10, center = "image"),
 #                  torchio.RandomElasticDeformation(),
 #                  torchio.RandomNoise(mean = 5, std = 2),
-#                  torchio.RandomFlip("Left")]
+#                  torchio.RandomFlip("lr")]
 
 
 class Augmenter:
