@@ -49,7 +49,10 @@ class ResNet3D(torch.nn.Module, SameInitWeights):
             x = layer(x)
         if self.drop_rate != 0.0:
             x = torch.nn.functional.dropout(x, p = float(self.drop_rate))
-        return self.fc(x)
+        x = self.fc(x)
+        if self.n_features == 1:
+            x = torch.sigmoid(x)
+        return x
     
     def convert_to_3D(self):
         model_2d = timm.create_model(self.version, 

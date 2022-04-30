@@ -453,3 +453,11 @@ class SiameseTrainer(Trainer):
         hemisphere1 = scans[:,:,:msp,:,:]           # shape = (B,C,x,y,z)
         hemisphere2 = scans[:,:,msp:,:,:].flip(2)   # B - batch; C - channels
         return self.model(hemisphere1, hemisphere2)
+
+
+class CNNTrainer(Trainer):
+    def evaluate_brain(self, scans, verbose: bool = False):
+        '''
+        TODO
+        '''
+        return self.model(scans)
