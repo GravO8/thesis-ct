@@ -54,8 +54,8 @@ class Trainer(ABC):
         if self.supcon:
             self.knn = KNNClassifier(n_neighbors = 5, max_window_size = 2000)
             assert self.batch_size > 1, "Trainer.__init__: Supervised Contrastive loss requires a batch sizer > 0."
-        
-    def json_summary(self):
+            
+    def get_json_summary(self):
         '''
         TODO
         '''
@@ -80,12 +80,18 @@ class Trainer(ABC):
         else:
             loader_dict["k"]    = self.k
             loader_dict["fold"] = self.fold
-        dict                = {"name": self.model_name,
-                               "model": self.model.to_dict(), 
-                               "ct_loader": loader_dict,
-                               "optimizer": optimizer_dict,
-                               "loss_fn": str(self.loss_fn),
-                               "train": train_dict}
+        return {"name": self.model_name,
+               "model": self.model.to_dict(), 
+               "ct_loader": loader_dict,
+               "optimizer": optimizer_dict,
+               "loss_fn": str(self.loss_fn),
+               "train": train_dict}
+        
+    def json_summary(self):
+        '''
+        TODO
+        '''
+        dict = self.get_json_summary()
         with open(f"{self.model_name}/summary.json", "w") as f:
             json.dump(dict, f, indent = 4)
             
@@ -477,7 +483,7 @@ class CNNTrainer2D(Trainer):
         super(CNNTrainer2D, self).__init__(ct_loader, **kwargs)
         assert len(scan_ids) == len(scan_slices), "CNNTrainer2D.__init__: scan_ids and scan_slices must have the same length"
         assert len(scan_ids) > 0, "CNNTrainer2D.__init__: supply at least 1 reference scan"
-        self.scan_ids       = scan_ids # TODO adicionar ao json
+        self.scan_ids       = scan_ids
         self.scan_slices    = scan_slices
         self.slice_interval = slice_interval
         
@@ -497,18 +503,28 @@ class CNNTrainer2D(Trainer):
                     del patient_ids[patient_ids.index(patient_id)]
                     j       = self.scan_slices[self.scan_ids.index(patient_id)]
                     slice   = batch["ct"][torchio.DATA][i,:,:,:,j].squeeze()
-                    if self.mask in None:
+                    if self.mask is None:
                         self.mask = slice
                     else:
                         self.mask += slice
             if len(patient_ids) == 0:
                 break
         self.mask /= len(self.scan_ids)
-            # s, e    = j-self.slice_interval, j+self.slice_interval
+        self.negative_mask = 1 - self.mask
         if len(patient_ids) > 0:
             for patient_id in patient_ids:
                 print(f"CNNTrainer2D.single: patient {patient_id} used for mask is not on train set")
             assert False
+            
+    def get_json_summary(self):
+        '''
+        TODO
+        '''
+        dict                    = super(CNNTrainer2D, self).get_json_summary()
+        dict["scan_ids"]        = self.scan_ids
+        dict["scan_slices"]     = self.scan_slices
+        dict["slice_interval"]  = self.slice_interval
+        return dict
         
     def k_fold(self):
         '''
@@ -520,5 +536,16 @@ class CNNTrainer2D(Trainer):
         '''
         TODO
         '''
-        pass
+        batch = []
+        scores = []
+        for scan in scans.unbind(dim = 0):
+            for i in range(scan.shape[-1]):
+                ax_slice    = scan[:,:,:,i].squeeze() # shape = (B,x,y,z)
+                score       = (ax_slice*self.mask).sum() - (ax_slice*self.negative_mask).sum()
+                scores.append(score)
+            i       = numpy.argmax(scores)
+            sample  = scan[:,:,:,i-self.slice_interval:i+self.slice_interval].mean(dim = 3)
+            batch.append( sample )
+        batch = torch.stack(batch, dim = 0) 
+        return self.model(batch)
         
