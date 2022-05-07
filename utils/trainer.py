@@ -1,5 +1,6 @@
 import sys, torch, torchio, time, json, numpy, os, gc
 import sklearn.metrics as metrics
+import nibabel as nib
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
 from torch.utils.data import DataLoader
@@ -455,9 +456,69 @@ class SiameseTrainer(Trainer):
         return self.model(hemisphere1, hemisphere2)
 
 
-class CNNTrainer(Trainer):
+class CNNTrainer3D(Trainer):
     def evaluate_brain(self, scans, verbose: bool = False):
         '''
         TODO
         '''
         return self.model(scans)
+
+
+class CNNTrainer2D(Trainer):
+    def __init__(self, ct_loader, scan_ids: list, scan_slices: list, 
+        slice_interval: int = 2, **kwargs):
+        '''
+        TODO
+        scan_ids    - list of patients ids whose scan is going to be used to create
+        the mask that is used to select the exam's slices
+        scan_slices - the index of the reference slice of each of the scans 
+        listed in the scan_ids argument
+        '''
+        super(CNNTrainer2D, self).__init__(ct_loader, **kwargs)
+        assert len(scan_ids) == len(scan_slices), "CNNTrainer2D.__init__: scan_ids and scan_slices must have the same length"
+        assert len(scan_ids) > 0, "CNNTrainer2D.__init__: supply at least 1 reference scan"
+        self.scan_ids       = scan_ids # TODO adicionar ao json
+        self.scan_slices    = scan_slices
+        self.slice_interval = slice_interval
+        
+    def single(self, train_size: float = 0.8):
+        '''
+        TODO
+        '''
+        super(CNNTrainer2D, self).single(train_size)
+        patient_ids = self.scan_ids + [] # value copy
+        self.mask   = None
+        for batch in self.train_loader:
+            batch_ids   = batch["patient_id"]
+            transforms  = batch["transform"]
+            for i in range(len(batch_ids)):
+                if (transforms[i] == "original") and (batch_ids[i] in patient_ids):
+                    patient_id = batch_ids[i]
+                    del patient_ids[patient_ids.index(patient_id)]
+                    j       = self.scan_slices[self.scan_ids.index(patient_id)]
+                    slice   = batch["ct"][torchio.DATA][i,:,:,:,j].squeeze()
+                    if self.mask in None:
+                        self.mask = slice
+                    else:
+                        self.mask += slice
+            if len(patient_ids) == 0:
+                break
+        self.mask /= len(self.scan_ids)
+            # s, e    = j-self.slice_interval, j+self.slice_interval
+        if len(patient_ids) > 0:
+            for patient_id in patient_ids:
+                print(f"CNNTrainer2D.single: patient {patient_id} used for mask is not on train set")
+            assert False
+        
+    def k_fold(self):
+        '''
+        TODO
+        '''
+        assert False, "TODO"
+        
+    def evaluate_brain(self, scans, verbose: bool = False):
+        '''
+        TODO
+        '''
+        pass
+        
