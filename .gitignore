@@ -8,3 +8,4 @@ MILNET-*
 to_inesc.py
 .ipynb_checkpoints
 models/weights
+models/download_weights.py

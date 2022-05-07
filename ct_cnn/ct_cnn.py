@@ -55,7 +55,7 @@ if __name__ == "__main__":
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
     MODEL_NAME     = "3DCNN-1.{}."
-    VERSION        = "resnet-18"
+    VERSION        = "resnet18"
     START          = 1
     i              = START-1
     # skip           = True

@@ -44,7 +44,7 @@ def binary_mrs(label: int):
     Input:      label, a integer
     Output:     integer (0 or 1)
     '''
-    return 0 if label <= 2 else 1
+    return 0 if int(label) <= 2 else 1
     
     
 def to_bins(train: list):
@@ -190,6 +190,7 @@ class CTLoader:
             self.table_data_file = os.path.join(self.data_dir, self.table_data_file)
         table_data = pd.read_csv(self.table_data_file)
         table_data = table_data[table_data[self.target] != "missing"]
+        table_data = table_data[table_data[self.target] != "None"]
         table_data = table_data[table_data[self.ct_type] != "missing"]
         if self.has_both_scan_types:
             table_data = table_data[(table_data["NCCT"] != "missing") & (table_data["CTA"] != "missing")]
