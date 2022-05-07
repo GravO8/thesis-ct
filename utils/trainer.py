@@ -1,6 +1,5 @@
 import sys, torch, torchio, time, json, numpy, os, gc
 import sklearn.metrics as metrics
-import nibabel as nib
 from torch.utils.tensorboard import SummaryWriter
 from skmultiflow.lazy import KNNClassifier
 from torch.utils.data import DataLoader
@@ -260,17 +259,19 @@ class Trainer(ABC):
         self.model.train(True)
         train_loss  = 0
         train_error = 0
+        ys, y_preds = [], []
         if self.supcon:
             self.knn.reset()
         for subjects in self.train_loader:
             self.train_optimizer.zero_grad()  # reset gradients
-            loss, error  = self.compute_loss_error(subjects, validate = False)
-            loss.backward()             # compute the loss and its gradients
+            loss, y, y_pred = self.compute_loss(subjects, validate = False)
+            loss.backward()                   # compute the loss and its gradients
             self.train_optimizer.step()       # adjust learning weights
             train_loss  += float(loss)
-            train_error += float(error)
-        train_loss  /= len(self.train_loader)
-        train_error /= len(self.train_loader)
+            ys.append(y)
+            y_preds.append(y_pred)
+        train_loss /= len(self.train_loader)
+        train_error = 1 - metrics.accuracy_score(y_true = ys, y_pred = y_preds)
         return train_loss, train_error
     
     def validate_epoch(self, set_loader):
@@ -281,17 +282,18 @@ class Trainer(ABC):
         Output:     two real numbers with the validation loss and error, respectivly
         '''
         self.model.train(False)
-        cmul_loss    = 0
-        cmul_error   = 0
-        for subjects in set_loader:
-            loss, error = self.compute_loss_error(subjects, verbose = True, validate = True)
-            cmul_loss  += float(loss)
-            cmul_error += float(error)
-        cmul_loss      /= len(set_loader)
-        cmul_error     /= len(set_loader)
-        return cmul_loss, cmul_error
+        cmul_loss   = 0
+        ys, y_preds = [], []
+        for batch in set_loader:
+            loss, y, y_pred = self.compute_loss(batch, verbose = True, validate = True)
+            cmul_loss      += float(loss)
+            ys.extend(y)
+            y_preds.extend(y_pred)
+        cmul_loss  /= len(set_loader)
+        error       = 1 - metrics.accuracy_score(y_true = ys, y_pred = y_preds)
+        return cmul_loss, error
         
-    def compute_loss_error(self, subjects, verbose: bool = False, validate: bool = False):
+    def compute_loss(self, subjects, verbose: bool = False, validate: bool = False):
         '''
         TODO
         '''
@@ -309,11 +311,10 @@ class Trainer(ABC):
             loss    = self.loss_fn(y_prob, y)
             y_prob  = y_prob.detach().numpy() 
         y_pred = (y_prob > .5).astype(int)
-        error = (1. - numpy.equal(y_pred, y.cpu().numpy()).astype(int)).sum()/len(y)
         if verbose:
             for i in range(len(y)):
-                self.trace(f" - True label: {int(y[i])}. Predicted: {int(y_pred[i])}. Probability: {round(float(y_prob[i]), 4)}")
-        return loss, error
+                self.trace(f" - True label/Predicted: {int(y[i])} {int(y_pred[i])}. Probability: {round(float(y_prob[i]), 4)}")
+        return loss, [int(v) for v in y], [int(v) for v in y_pred]
     
     def get_batch(self, subjects):
         '''
