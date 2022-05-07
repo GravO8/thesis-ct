@@ -473,7 +473,7 @@ class CNNTrainer3D(Trainer):
 
 class CNNTrainer2D(Trainer):
     def __init__(self, ct_loader, scan_ids: list, scan_slices: list, 
-        slice_interval: int = 2, **kwargs):
+        slice_interval: int = 2, pad = True, **kwargs):
         '''
         TODO
         scan_ids    - list of patients ids whose scan is going to be used to create
@@ -487,6 +487,7 @@ class CNNTrainer2D(Trainer):
         self.scan_ids       = scan_ids
         self.scan_slices    = scan_slices
         self.slice_interval = slice_interval
+        self.pad            = pad
         
     def single(self, train_size: float = 0.8):
         '''
@@ -511,7 +512,7 @@ class CNNTrainer2D(Trainer):
             if len(patient_ids) == 0:
                 break
         self.mask /= len(self.scan_ids)
-        self.negative_mask = 1 - self.mask
+        self.negative_mask = self.mask.max() - self.mask
         if len(patient_ids) > 0:
             for patient_id in patient_ids:
                 print(f"CNNTrainer2D.single: patient {patient_id} used for mask is not on train set")
@@ -525,6 +526,7 @@ class CNNTrainer2D(Trainer):
         dict["scan_ids"]        = self.scan_ids
         dict["scan_slices"]     = self.scan_slices
         dict["slice_interval"]  = self.slice_interval
+        dict["pad"]             = self.pad
         return dict
         
     def k_fold(self):
@@ -538,15 +540,36 @@ class CNNTrainer2D(Trainer):
         TODO
         '''
         batch = []
-        scores = []
+        import matplotlib.pyplot as plt
+        
         for scan in scans.unbind(dim = 0):
+            scores = []
             for i in range(scan.shape[-1]):
                 ax_slice    = scan[:,:,:,i].squeeze() # shape = (B,x,y,z)
                 score       = (ax_slice*self.mask).sum() - (ax_slice*self.negative_mask).sum()
                 scores.append(score)
             i       = numpy.argmax(scores)
-            sample  = scan[:,:,:,i-self.slice_interval:i+self.slice_interval].mean(dim = 3)
+            sample  = scan[:,:,:,i-self.slice_interval:i+self.slice_interval].mean(axis = 3)
+            # t = sample.squeeze().T
+            # t = t.flip(0)
+            # plt.imshow(t, cmap = "gray")
+            # plt.show()
             batch.append( sample )
-        batch = torch.stack(batch, dim = 0) 
+        # 32, 1, 91, 109
+        batch = torch.stack(batch, dim = 0)
+        if self.pad:
+            W, H  = (224, 244)
+            shp   = batch.shape
+            zeros = torch.zeros(shp[0], 1, W, H)
+            w     = (W-shp[2])//2
+            h     = (H-shp[3])//2
+            zeros[:,:,w:w+shp[2],h:h+shp[3]] = batch
+            batch = zeros
+            for i in range(len(batch)):
+                t = batch[i].squeeze().T
+                t = t.flip(0)
+                plt.imshow(t, cmap = "gray")
+                plt.show()
+        # 1/0
         return self.model(batch)
         

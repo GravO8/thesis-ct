@@ -65,7 +65,7 @@ if __name__ == "__main__":
     # skip           = True
     
     trainer.single(train_size = .8)
-    trainer.assert_datasets()
+    # trainer.assert_datasets()
     for lr in (0.001, 0.0005, 0.0001):
         for weight_decay in (.1, 0.01, 0.001, 0.0001):
             for d1,d2 in ((.0, .0), (.1, .1), (.5, .5), (.8, .8)):
