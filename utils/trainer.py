@@ -550,6 +550,7 @@ class CNNTrainer2D(Trainer):
             sample  = scan[:,:,:,i-self.slice_interval:i+self.slice_interval].mean(axis = 3)
             batch.append( sample )
         batch = torch.stack(batch, dim = 0)
+        batch = torch.nn.functional.interpolate(batch, scale_factor = 2, mode = "bilinear", antialias = True)
         if self.pad:
             W, H  = (224, 244)
             shp   = batch.shape
@@ -558,11 +559,5 @@ class CNNTrainer2D(Trainer):
             h     = (H-shp[3])//2
             zeros[:,:,w:w+shp[2],h:h+shp[3]] = batch
             batch = zeros
-        #     for i in range(32):
-        #         t = batch[i].squeeze().T
-        #         t = t.flip(0)
-        #         plt.imshow(t, cmap = "gray")
-        #         plt.show()
-        # 1/0
         return self.model(batch)
         
