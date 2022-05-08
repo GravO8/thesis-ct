@@ -1,7 +1,8 @@
 import sys, torch, torchio, os, json
 sys.path.append("..")
-from utils.ct_loader_torchio import AxialLoader, TargetTransform, binary_mrs
+from utils.ct_loader_torchio import TargetTransform, binary_mrs
 from models.cnn_2d_encoder import CNN2DEncoder
+from utils.ct_loader_2d import AxialLoader
 from timm.models.layers import GroupNorm
 from utils.trainer import CNNTrainer
 from models.mlp import MLP
@@ -35,6 +36,10 @@ if __name__ == "__main__":
     scan_ids        = [1303781, 2520986, 2605128, 2503602, 1911947]
     scan_slices     = [35, 33, 34, 36, 39]
     ct_loader       = AxialLoader(CSV_FILENAME, CT_TYPE, 
+                            scan_ids,
+                            scan_slices,
+                            slice_interval          = 2,
+                            pad                     = 224,
                             has_both_scan_types     = HAS_BOTH_SCAN_TYPES,
                             random_seed             = 0,
                             balance_test_set        = BALANCE_TEST_SET,
@@ -48,9 +53,6 @@ if __name__ == "__main__":
     optimizer       = torch.optim.Adam
     optimizer_args  = {"betas": (0.9, 0.999)}
     trainer         = CNNTrainer(ct_loader, 
-                                scan_ids,
-                                scan_slices,
-                                slice_interval = 2,
                                 optimizer   = optimizer, 
                                 loss_fn     = loss_fn, 
                                 trace_fn    = "print" if home else "log",
