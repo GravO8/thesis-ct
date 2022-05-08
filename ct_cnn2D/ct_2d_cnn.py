@@ -1,9 +1,9 @@
 import sys, torch, torchio, os, json
 sys.path.append("..")
-from utils.ct_loader_torchio import CTLoader, TargetTransform, binary_mrs
+from utils.ct_loader_torchio import AxialLoader, TargetTransform, binary_mrs
 from models.cnn_2d_encoder import CNN2DEncoder
 from timm.models.layers import GroupNorm
-from utils.trainer import CNNTrainer2D
+from utils.trainer import CNNTrainer
 from models.mlp import MLP
 
 # To check the number of GPUs and their usage, use:
@@ -32,7 +32,9 @@ if __name__ == "__main__":
     BATCH_SIZE      = 32
     CT_TYPE         = "NCCT"
     CSV_FILENAME    = "table_data.csv"
-    ct_loader       = CTLoader(CSV_FILENAME, CT_TYPE, 
+    scan_ids        = [1303781, 2520986, 2605128, 2503602, 1911947]
+    scan_slices     = [35, 33, 34, 36, 39]
+    ct_loader       = AxialLoader(CSV_FILENAME, CT_TYPE, 
                             has_both_scan_types     = HAS_BOTH_SCAN_TYPES,
                             random_seed             = 0,
                             balance_test_set        = BALANCE_TEST_SET,
@@ -41,14 +43,11 @@ if __name__ == "__main__":
                             data_dir                = DATA_DIR,
                             target                  = "rankin-23",
                             target_transform        = TargetTransform("binary_mrs", binary_mrs),
-                            transforms              = ["RandomFlip", "RandomAffine", "RandomElasticDeformation", "RandomNoise"],
-                            rescale                 = False)
-    loss_fn        = torch.nn.BCELoss(reduction = "mean")
-    optimizer      = torch.optim.Adam
-    optimizer_args = {"betas": (0.9, 0.999)}
-    scan_ids       = [1303781, 2520986, 2605128, 2503602, 1911947]
-    scan_slices    = [35, 33, 34, 36, 39]
-    trainer        = CNNTrainer2D(ct_loader, 
+                            transforms              = ["RandomFlip", "RandomAffine", "RandomElasticDeformation", "RandomNoise"])
+    loss_fn         = torch.nn.BCELoss(reduction = "mean")
+    optimizer       = torch.optim.Adam
+    optimizer_args  = {"betas": (0.9, 0.999)}
+    trainer         = CNNTrainer(ct_loader, 
                                 scan_ids,
                                 scan_slices,
                                 slice_interval = 2,
@@ -59,11 +58,11 @@ if __name__ == "__main__":
                                 num_workers = NUM_WORKERS,
                                 epochs      = EPOCHS,
                                 patience    = PATIENCE)
-    MODEL_NAME     = "2DCNN-1.{}."
-    VERSION        = "resnet18"
-    START          = 1
-    i              = 0
-    # skip           = True
+    MODEL_NAME      = "2DCNN-1.{}."
+    VERSION         = "resnet18"
+    START           = 1
+    i               = 0
+    # skip            = True
     
     trainer.single(train_size = .8)
     # trainer.assert_datasets()

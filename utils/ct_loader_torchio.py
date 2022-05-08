@@ -14,7 +14,7 @@ class TargetTransform:
         return self.name
 
 
-def to_subject_datasets(train, validation, test, rescale = True):
+def to_subject_datasets(train, validation, test):
     '''
     TODO: update signature
     Input:  train, list of torhcio subjects objects
@@ -23,13 +23,9 @@ def to_subject_datasets(train, validation, test, rescale = True):
     Output: 3 torchio SubjectsDataset created from the 3 inputed lists. Their 
             scans are rescaled so every voxel is between 0 and 1
     '''
-    if rescale:
-        return  (torchio.SubjectsDataset(train, transform = rescale),
-                torchio.SubjectsDataset(validation, transform = rescale),
-                torchio.SubjectsDataset(test, transform = rescale))
-    return  (torchio.SubjectsDataset(train),
-            torchio.SubjectsDataset(validation), 
-            torchio.SubjectsDataset(test))
+    return  (torchio.SubjectsDataset(train, transform = rescale),
+            torchio.SubjectsDataset(validation, transform = rescale),
+            torchio.SubjectsDataset(test, transform = rescale))
 
 
 def list_scans(path: str = None):
@@ -106,7 +102,7 @@ class CTLoader:
         target_transform: TargetTransform = None, has_both_scan_types: bool = False, 
         balance_test_set: bool = True, random_seed: int = None, 
         balance_train_set: bool = False, data_dir: str = None, validation_size: float = 0.2, 
-        target: str = "rankin", rescale: bool = True,
+        target: str = "rankin",
         transforms: list = ["RandomFlip", "RandomElasticDeformation", "RandomNoise", "RandomAffine"]):
         '''
         TODO: signature needs update
@@ -136,7 +132,6 @@ class CTLoader:
         self.data_dir               = data_dir
         self.validation_size        = validation_size
         self.target                 = target
-        self.rescale                = rescale
         self.data_distr             = {}
         if self.random_seed is not None:
             np.random.seed(self.random_seed)
@@ -209,7 +204,7 @@ class CTLoader:
     def to_dict(self):
         params  = ["ct_type", "has_both_scan_types", "balance_test_set", "random_seed", 
                 "balance_train_set", "validation_size", "target", "target_transform",
-                "transforms", "rescale"]
+                "transforms"]
         dict    = {param: str(self.__dict__[param]) for param in params}
         dict["data_distribution"] = self.data_distr
         return dict
@@ -232,7 +227,7 @@ class CTLoader:
                                         balance_first_set = self.balance_train_set,
                                         balance_second_set = True)
         self.data_distr = data_distribution(train, validation, test)
-        return to_subject_datasets(train, validation, test, rescale = self.rescale)
+        return to_subject_datasets(train, validation, test)
         
     def k_fold(self, k: int = 5):
         '''
@@ -262,7 +257,7 @@ class CTLoader:
                                                 balance_first_set = self.balance_train_set,
                                                 balance_second_set = True)
                 self.data_distr[f"fold_{i+1}/{k}"] = data_distribution(train, validation, test)
-                yield to_subject_datasets(train, validation, test, rescale = self.rescale)
+                yield to_subject_datasets(train, validation, test)
         else:
             assert False, "k_fold: NOT IMPLEMENTED"
         
