@@ -539,35 +539,16 @@ class CNNTrainer2D(Trainer):
         '''
         TODO
         '''
-        batch = []
-        import matplotlib.pyplot as plt
-        t = self.mask.squeeze().T
-        t = t.flip(0)
-        plt.imshow(t, cmap = "gray")
-        plt.show()
-        t = self.negative_mask.squeeze().T
-        t = t.flip(0)
-        plt.imshow(t, cmap = "gray")
-        plt.show()
-        
+        batch = []    
         for scan in scans.unbind(dim = 0):
             scores = []
             for i in range(scan.shape[-1]):
                 ax_slice    = scan[:,:,:,i].squeeze() # shape = (B,x,y,z)
                 score       = (ax_slice*self.mask).sum() - (ax_slice*self.negative_mask).sum()
-                # print((ax_slice*self.mask).sum(), (ax_slice*self.negative_mask).sum(), score)
-                print(ax_slice.shape, self.mask.shape, (ax_slice*self.mask).shape)
                 scores.append(score)
             i       = numpy.argmax(scores)
-            print(scan.shape)
             sample  = scan[:,:,:,i-self.slice_interval:i+self.slice_interval].mean(axis = 3)
-            t = sample.squeeze().T
-            t = t.flip(0)
-            plt.imshow(t, cmap = "gray")
-            plt.show()
             batch.append( sample )
-        1/0
-        # 32, 1, 91, 109
         batch = torch.stack(batch, dim = 0)
         if self.pad:
             W, H  = (224, 244)
@@ -577,11 +558,11 @@ class CNNTrainer2D(Trainer):
             h     = (H-shp[3])//2
             zeros[:,:,w:w+shp[2],h:h+shp[3]] = batch
             batch = zeros
-            for i in range(5):
-                t = batch[i].squeeze().T
-                t = t.flip(0)
-                plt.imshow(t, cmap = "gray")
-                plt.show()
-        1/0
+        #     for i in range(32):
+        #         t = batch[i].squeeze().T
+        #         t = t.flip(0)
+        #         plt.imshow(t, cmap = "gray")
+        #         plt.show()
+        # 1/0
         return self.model(batch)
         

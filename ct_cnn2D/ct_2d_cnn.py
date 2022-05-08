@@ -41,7 +41,8 @@ if __name__ == "__main__":
                             data_dir                = DATA_DIR,
                             target                  = "rankin-23",
                             target_transform        = TargetTransform("binary_mrs", binary_mrs),
-                            transforms              = ["RandomFlip", "RandomAffine", "RandomElasticDeformation", "RandomNoise"])
+                            transforms              = ["RandomFlip", "RandomAffine", "RandomElasticDeformation", "RandomNoise"],
+                            rescale                 = False)
     loss_fn        = torch.nn.BCELoss(reduction = "mean")
     optimizer      = torch.optim.Adam
     optimizer_args = {"betas": (0.9, 0.999)}
