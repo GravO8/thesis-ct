@@ -22,6 +22,9 @@ def to_subject_datasets(train, validation, test):
     Output: 3 torchio SubjectsDataset created from the 3 inputed lists. Their 
             scans are rescaled so every voxel is between 0 and 1
     '''
+    return  torchio.SubjectsDataset(train),\
+            torchio.SubjectsDataset(validation),\
+            torchio.SubjectsDataset(test)
     return  torchio.SubjectsDataset(train, transform = rescale),\
             torchio.SubjectsDataset(validation, transform = rescale),\
             torchio.SubjectsDataset(test, transform = rescale)
