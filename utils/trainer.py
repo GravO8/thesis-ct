@@ -268,8 +268,8 @@ class Trainer(ABC):
             loss.backward()                   # compute the loss and its gradients
             self.train_optimizer.step()       # adjust learning weights
             train_loss  += float(loss)
-            ys.append(y)
-            y_preds.append(y_pred)
+            ys.extend(y)
+            y_preds.extend(y_pred)
         train_loss /= len(self.train_loader)
         train_error = 1 - metrics.accuracy_score(y_true = ys, y_pred = y_preds)
         return train_loss, train_error
@@ -463,9 +463,17 @@ class SiameseTrainer(Trainer):
         return self.model(hemisphere1, hemisphere2)
 
 
-class CNNTrainer(Trainer):
+class CNNTrainer3D(Trainer):
     def evaluate_brain(self, scans, verbose: bool = False):
         '''
         TODO
         '''
         return self.model(scans)
+
+
+class CNNTrainer2D(Trainer):
+    def evaluate_brain(self, scans, verbose: bool = False):
+        '''
+        TODO
+        '''
+        return self.model(scans.squeeze(4))

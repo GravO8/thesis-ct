@@ -53,15 +53,15 @@ class AxialLoader(CTLoader):
         i     = numpy.argmax(scores)
         scan  = scan[:,:,:,i-self.slice_interval:i+self.slice_interval].mean(axis = 3).unsqueeze(dim = 0)
         scan  = torch.nn.functional.interpolate(scan, scale_factor = 2, mode = "bilinear", antialias = True)
-        scan  = scan.squeeze()
+        scan  = scan.squeeze(dim = 0)
         if self.pad is not None:
-            w, h    = scan.shape
+            _, w, h = scan.shape
             zeros   = torch.zeros(1, self.pad, self.pad)
             pad_w   = (self.pad-w)//2
             pad_h   = (self.pad-h)//2
             zeros[:, pad_w:pad_w+w, pad_h:pad_h+h] = scan
             scan = zeros
-        subject["ct"][torchio.DATA] = torch.Tensor(scan)
+        subject["ct"][torchio.DATA] = torch.Tensor(scan.unsqueeze(len(scan.shape)))
         if debug:
             import matplotlib.pyplot as plt
             plt.imshow(scan.squeeze().T.flip(0), cmap = "gray")
@@ -74,12 +74,12 @@ class AxialLoader(CTLoader):
         '''
         train_loader, validation_loader, test_loader = super().subject_dataset(train_size = train_size)
         mask_leak = False
-        for batch in train_loader:
-            for patient_id in batch["patient_id"]:
-                if patient_id in self.scan_ids:
-                    print(f"CNNTrainer2D.subject_dataset: patient {patient_id} used for mask is not on train set")
-                    mask_leak = True
-        assert not mask_leak, "CNNTrainer2D.subject_dataset: scans used to obtain mask are not in the train set"
+        for subject in train_loader:
+            patient_id = subject["patient_id"]
+            if (subject["transform"] == "original") and (patient_id in self.scan_ids):
+                print(f"CNNTrainer2D.subject_dataset: patient {patient_id} used for mask is not on train set")
+                mask_leak = True
+        # assert not mask_leak, "CNNTrainer2D.subject_dataset: scans used to obtain mask are not in the train set"
         return train_loader, validation_loader, test_loader
         
     def k_fold(self, k: int = 5):
@@ -92,7 +92,7 @@ class AxialLoader(CTLoader):
         '''
         TODO
         '''
-        dict = super(CTLoader, self).to_dict()
+        dict = super().to_dict()
         dict["scan_ids"]        = self.scan_ids
         dict["scan_slices"]     = self.scan_slices
         dict["slice_interval"]  = self.slice_interval

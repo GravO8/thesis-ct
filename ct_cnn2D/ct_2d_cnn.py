@@ -4,7 +4,7 @@ from utils.ct_loader_torchio import TargetTransform, binary_mrs
 from models.cnn_2d_encoder import CNN2DEncoder
 from utils.ct_loader_2d import AxialLoader
 from timm.models.layers import GroupNorm
-from utils.trainer import CNNTrainer
+from utils.trainer import CNNTrainer2D
 from models.mlp import MLP
 
 # To check the number of GPUs and their usage, use:
@@ -48,11 +48,11 @@ if __name__ == "__main__":
                             data_dir                = DATA_DIR,
                             target                  = "rankin-23",
                             target_transform        = TargetTransform("binary_mrs", binary_mrs),
-                            transforms              = ["RandomFlip", "RandomAffine", "RandomElasticDeformation", "RandomNoise"])
+                            transforms              = ["RandomFlip", "RandomNoise", "RandomElasticDeformation", "RandomAffine"])
     loss_fn         = torch.nn.BCELoss(reduction = "mean")
     optimizer       = torch.optim.Adam
     optimizer_args  = {"betas": (0.9, 0.999)}
-    trainer         = CNNTrainer(ct_loader, 
+    trainer         = CNNTrainer2D(ct_loader, 
                                 optimizer   = optimizer, 
                                 loss_fn     = loss_fn, 
                                 trace_fn    = "print" if home else "log",
@@ -67,12 +67,13 @@ if __name__ == "__main__":
     # skip            = True
     
     trainer.single(train_size = .8)
-    # trainer.assert_datasets()
+    trainer.assert_datasets()
     for lr in (0.001, 0.0005, 0.0001):
         for weight_decay in (.1, 0.01, 0.001, 0.0001):
             for d1,d2 in ((.0, .0), (.1, .1), (.5, .5), (.8, .8)):
                 for pretrained in (True, False):
                     for freeze in (True, False):
+                        if not pretrained and freeze: continue
                         i += 1
                         model_name  = MODEL_NAME.format(i)
                         model       = CNN2DEncoder(cnn_name     = VERSION, 
