@@ -52,7 +52,7 @@ class AxialLoader(CTLoader):
             scores.append(score)
         i     = numpy.argmax(scores)
         scan  = scan[:,:,:,i-self.slice_interval:i+self.slice_interval].mean(axis = 3).unsqueeze(dim = 0)
-        scan  = torch.nn.functional.interpolate(scan, scale_factor = 2, mode = "bilinear", antialias = True)
+        scan  = torch.nn.functional.interpolate(scan, scale_factor = 2, mode = "bilinear")
         scan  = scan.squeeze(dim = 0)
         if self.pad is not None:
             _, w, h = scan.shape

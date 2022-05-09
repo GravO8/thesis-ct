@@ -2,19 +2,21 @@ import timm, torch
 from .same_init_weights import SameInitWeights
 
 
-class CNN2DEncoder(torch.nn.Module, SameInitWeights):
-    def __init__(self, cnn_name: str = "resnet50", pretrained: bool = False, 
+class Encoder2D(torch.nn.Module, SameInitWeights):
+    def __init__(self, encoder_name: str = "resnet50", pretrained: bool = False, 
         n_features = "same", freeze: bool = False, drop_block_rate: float = 0.0, 
-        drop_rate: float = 0.0, normalization = torch.nn.BatchNorm2d, in_channels: float = 1,
+        drop_rate: float = 0.0, normalization = None, in_channels: float = 1,
         load_local: bool = True):
         torch.nn.Module.__init__(self)
         if freeze:
-            assert pretrained, "CNN2DEncoder.__init__: frozen model requires pretrained=True"
-        if "efficientnet" in cnn_name:
-            assert drop_block_rate == 0.0, "CNN2DEncoder.__init__: efficientnet don't have 'drop_block_rate' parameter"
+            assert pretrained, "Encoder2D.__init__: frozen model requires pretrained=True"
+        if ("efficientnet" in encoder_name) or ("vit" in encoder_name):
+            assert drop_block_rate == 0.0, f"Encoder2D.__init__: 'drop_block_rate' parameter not available for {encoder_name}"
+        if ("vit" in encoder_name):
+            assert normalization is None, "Encoder2D.__init__: 'normalization' parameter not available for vision transformers"
         # if pretrained:
-        #     assert (drop_block_rate != 0.0) and (drop_rate != 0.0), "CNN2DEncoder.__init__: pretrained model can't use dropout"
-        self.cnn_name           = cnn_name
+        #     assert (drop_block_rate != 0.0) and (drop_rate != 0.0), "Encoder2D.__init__: pretrained model can't use dropout"
+        self.encoder_name       = encoder_name
         self.pretrained         = pretrained
         self.n_features         = n_features
         self.freeze             = freeze
@@ -34,28 +36,34 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
                     "in_chans":     self.in_channels,
                     "drop_rate":    self.drop_rate,
                     "norm_layer":   self.normalization}
-        if "efficientnet" not in self.cnn_name:
+        if ("efficientnet" not in self.encoder_name) and ("vit" not in self.encoder_name):
             kwargs["drop_block_rate"] = self.drop_block_rate
-        self.encoder = timm.create_model(self.cnn_name, **kwargs)
+        self.encoder = timm.create_model(self.encoder_name, **kwargs)
         if self.freeze:
             for param in self.encoder.parameters():
                 param.requires_grad = False
         if self.n_features == "same":
-            self.encoder.fc = torch.nn.Identity()
+            fc = torch.nn.Identity()
         elif isinstance(self.n_features, int) or self.n_features.isnumeric():
-            self.encoder.fc = torch.nn.LazyLinear(int(self.n_features))
+            mlp = torch.nn.LazyLinear(int(self.n_features))
+            if int(self.n_features) == 1:
+                fc = torch.nn.Sequential(mlp, torch.nn.Sigmoid())
+            else:
+                fc = mlp
         else:
             assert False
+        if "vit" in self.encoder_name:  self.encoder.head = fc
+        else:                           self.encoder.fc = fc
             
     def forward(self, x):
         return self.encoder(x)
         
     def equals(self, other_model):
-        return super().equals(other_model, cols = ["cnn_name", "in_channels", 
+        return super().equals(other_model, cols = ["encoder_name", "in_channels", 
         "n_features", "drop_block_rate", "drop_rate"])
         
     def to_dict(self):
-        return {"cnn_name": self.cnn_name, 
+        return {"encoder_name": self.encoder_name, 
                 "pretrained": self.pretrained,
                 "in_channels": self.in_channels,
                 "n_features": self.n_features,
@@ -66,7 +74,7 @@ class CNN2DEncoder(torch.nn.Module, SameInitWeights):
 
 
 if __name__ == "__main__":
-    r = CNN2DEncoder("efficientnet_b3", pretrained = False)
+    r = Encoder2D("efficientnet_b3", pretrained = False)
     # print(r.to_dict())
     # print(r.encoder)
     from torchsummary import summary
