@@ -24,6 +24,7 @@ class AssertDatasets:
                 print(f"WARNING! Patient {patient_id} is present in the validation and test sets.")
                 leaks += 1
         print(f"Found {leaks} leaks between train, validation and test sets.")
+        assert leaks == 0, f"AssertDatasets.assert_leaks: {leaks} leaks found."
         
     def assert_repeated(self, dataset_name = "all"):
         '''
@@ -43,6 +44,7 @@ class AssertDatasets:
                         repeated += 1
                     seen.append( name )
             print(f"Found {repeated} examples repeated in the {dataset_name} dataset.")
+            assert repeated == 0, f"AssertDatasets.assert_repeated: {repeated} examples repeated."
         if dataset_name == "all":
             aux(self.train, "train")
             aux(self.validation, "validation")

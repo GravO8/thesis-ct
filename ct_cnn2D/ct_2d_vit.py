@@ -30,7 +30,7 @@ if __name__ == "__main__":
     BALANCE_TRAIN_SET       = True
     PATIENCE        = 40
     EPOCHS          = 300
-    BATCH_SIZE      = 32
+    BATCH_SIZE      = 64
     CT_TYPE         = "NCCT"
     CSV_FILENAME    = "table_data.csv"
     scan_ids        = [1303781, 2520986, 2605128, 2503602, 1911947]

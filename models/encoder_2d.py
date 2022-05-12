@@ -1,5 +1,5 @@
 import timm, torch
-from .same_init_weights import SameInitWeights
+from same_init_weights import SameInitWeights
 
 
 class Encoder2D(torch.nn.Module, SameInitWeights):
@@ -74,11 +74,12 @@ class Encoder2D(torch.nn.Module, SameInitWeights):
 
 
 if __name__ == "__main__":
-    r = Encoder2D("efficientnet_b3", pretrained = False)
+    # r = Encoder2D("efficientnet_b0", pretrained = False)
     # print(r.to_dict())
     # print(r.encoder)
     from torchsummary import summary
     # sample = torch.rand(2,1,91,180)
+    r = timm.create_model("efficientnet_b0", in_chans = 1)
     summary(r, (1,91,180))
     # r(sample)
     # for param in encoder.parameters():
