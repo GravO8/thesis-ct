@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 DATA_DIR        = "../../../data/gravo"
-K_FOLDS         = 5
 TEST_SIZE       = 60
+VAL_PERC        = .1
 DATASET_SIZE    = 465
 PATIENT_ID      = "patient_id"
 RANKIN          = "rankin"
@@ -28,57 +28,60 @@ def get_patients(table_data: pd.DataFrame, nccts: list):
     
 def kfold_split(dataset: pd.DataFrame):
     '''
-    +-------+-------+-------+-------+-------+------+
-    | fold1 | fold2 | fold3 | fold4 | fold5 | test |
-    +-------+-------+-------+-------+-------+------+
+    +-------------------------------+-----+------+
+    |             train             | val | test |
+    +-------------------------------+-----+------+
     is equivalent to
-    +-------+-------+-------+-------+-------+------+
-    |              development              | test |
-    +-------+-------+-------+-------+-------+------+
+    +-------------------------------------+------+
+    |              development            | test |
+    +-------------------------------------+------+
     '''
     assert len(dataset) == DATASET_SIZE, "kfold_split: unexpected dataset size"
     dataset    = dataset.sample(frac = 1, random_state = 0).reset_index(drop = True)
     N0, N1     = np.bincount(dataset[BINARY_RANKIN].values) # N1 = number of examples of class 1
-    N1_TEST    = int(N1*TEST_SIZE/DATASET_SIZE)               # N1_TEST = number of examples of class 1 in the test set
+    N1_TEST    = int(N1*TEST_SIZE/DATASET_SIZE)             # N1_TEST = number of examples of class 1 in the test set
     N0_TEST    = TEST_SIZE - N1_TEST
-    N1_DEV     = N1 - N1_TEST                                 # N1_DEV = number of examples of class 1 in the development set
+    N1_DEV     = N1 - N1_TEST                               # N1_DEV = number of examples of class 1 in the development set
     N0_DEV     = N0 - N0_TEST
-    N1_FOLD    = int(N1_DEV/K_FOLDS)                          # N1_FOLD = number of examples of class 1 in each fold
-    N0_FOLD    = int(N0_DEV/K_FOLDS)
+    N1_VAL     = int(VAL_PERC*N1_DEV)                       # N1_VAL = number of examples of class 1 in the validation set
+    N0_VAL     = int(VAL_PERC*N0_DEV)
     sets       = []
     n1_test    = 0
     n0_test    = 0
-    n1_dev     = 0
-    n0_dev     = 0
+    n1_val     = 0
+    n0_val     = 0
     for _, row in dataset.iterrows():
         if row[BINARY_RANKIN] == 1:
             if n1_test < N1_TEST:
                 sets.append("test")
                 n1_test += 1
+            elif n1_val < N1_VAL:
+                sets.append("val")
+                n1_val += 1
             else:
-                sets.append(f"fold{(n1_dev//N1_FOLD)+1}")
-                n1_dev += 1
+                sets.append("train")
         else:
             if n0_test < N0_TEST:
                 sets.append("test")
                 n0_test += 1
+            elif n0_val < N0_VAL:
+                sets.append("val")
+                n0_val += 1
             else:
-                sets.append(f"fold{(n0_dev//N0_FOLD)+1}")
-                n0_dev += 1
+                sets.append("train")
     dataset["set"] = sets
-    def assert_dataset():
-        assert TEST_SIZE == len(dataset[dataset["set"] == "test"])
-        assert N1_TEST == len(dataset[(dataset["set"] == "test") & (dataset[BINARY_RANKIN] == 1)])
-        assert N0_TEST == len(dataset[(dataset["set"] == "test") & (dataset[BINARY_RANKIN] == 0)])
-        for k in range(1, K_FOLDS+1):
-            assert N1_FOLD == len(dataset[(dataset["set"] == f"fold{k}") & (dataset[BINARY_RANKIN] == 1)])
-            assert N0_FOLD == len(dataset[(dataset["set"] == f"fold{k}") & (dataset[BINARY_RANKIN] == 0)])
-    assert_dataset()
+    assert TEST_SIZE == len(dataset[dataset["set"] == "test"])
+    assert N1_TEST == len(dataset[(dataset["set"] == "test") & (dataset[BINARY_RANKIN] == 1)])
+    assert N0_TEST == len(dataset[(dataset["set"] == "test") & (dataset[BINARY_RANKIN] == 0)])
+    assert N1_VAL == len(dataset[(dataset["set"] == "val") & (dataset[BINARY_RANKIN] == 1)])
+    assert N0_VAL == len(dataset[(dataset["set"] == "val") & (dataset[BINARY_RANKIN] == 0)])
+    assert (N1-N1_TEST-N1_VAL) == len(dataset[(dataset["set"] == "train") & (dataset[BINARY_RANKIN] == 1)])
+    assert (N0-N0_TEST-N0_VAL) == len(dataset[(dataset["set"] == "train") & (dataset[BINARY_RANKIN] == 0)])
     return dataset
     
     
 def prettify_dataset(dataset: pd.DataFrame):
-    sort_col        = [0 if row["set"] == "test" else int(row["set"].replace("fold", "")) for _, row in dataset.iterrows()]
+    sort_col        = [("test", "val", "train").index(row["set"]) for _, row in dataset.iterrows()]
     dataset["sort"] = sort_col
     dataset         = dataset.sort_values(by = ["sort", RANKIN])
     del dataset["sort"]
@@ -117,5 +120,5 @@ if __name__ == "__main__":
     dataset         = kfold_split(dataset)
     dataset         = prettify_dataset(dataset)
     
-    get_augmentations(dataset)
-    # dataset.to_csv("dataset.csv", index = False)
+    # get_augmentations(dataset)
+    dataset.to_csv("dataset.csv", index = False)
