@@ -94,10 +94,10 @@ Weight decay = 0.0001
 
 **0.1. 3D CNN followed by logistic regression**
 
-- `0.1.1.baseline-CustomCNN-3D` - CustomCNN 3D
-- `0.1.2.baseline-DeepSymNet` - DeepSymNet (without the L-1 norm layer)
-- `0.1.3.baseline-ResNet18-3D` - ResNet18 3D
-- `0.1.4.baseline-ResNet34-3D` - ResNet34 3D
+- `0.1.1.baseline-3DCNN-CustomCNN_3D` - CustomCNN 3D
+- `0.1.2.baseline-3DCNN-DeepSymNet` - DeepSymNet (without the L-1 norm layer)
+- `0.1.3.baseline-3DCNN-ResNet18_3D` - ResNet18 3D
+- `0.1.4.baseline-3DCNN-ResNet34_3D` - ResNet34 3D
 
 **0.2. Mirror brain subtracted to itself**
 
@@ -155,7 +155,7 @@ Escolher o melhor encoder e tipo de inicialização
 
 **2.4. MIL axial slices Ilse Attention**
 
-Escolher o melhor encoder e o melhor número de slices N
+Escolher o melhor encoder e tipo de inicialização
 
 - One of { CustomCNN, ResNet18, ResNet34, EfficientNet B0, EfficientNet B1 }
 
