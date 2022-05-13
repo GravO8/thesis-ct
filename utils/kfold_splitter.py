@@ -94,7 +94,7 @@ def get_augmentations(dataset: pd.DataFrame):
     n_augments      = len(AUGMENTS)                                 # number of available augmentations
     train_set       = dataset[dataset["set"] == "train"]
     n_train         = np.bincount(train_set[BINARY_RANKIN].values)
-    n_augment       = n_train[1]*(n_augments+1)                     # 1 is the minority class
+    n_augment       = n_train[1]*(n_augments+1)                     # the desired number of examples in both classes, after augmentations (1 is the minority class)
     for label in (0, 1):
         ids                 = train_set[train_set[BINARY_RANKIN] == label][PATIENT_ID].values
         to_add              = n_augment - n_train[label]
@@ -109,9 +109,11 @@ def get_augmentations(dataset: pd.DataFrame):
     augmentations = train_set.merge(augmentations, how = "left")[[PATIENT_ID,AUGMENTATION]]
     augmentations.dropna(inplace = True)
     assert len(train_set)+len(augmentations) == n_augment*2
+    # assert the total number of examples in each class after augmentations is the same (and equal to n_augment)
     assert n_train[0]+len(augmentations[augmentations[PATIENT_ID].isin(train_set[train_set[BINARY_RANKIN] == 0][PATIENT_ID].values)]) == n_augment
     assert n_train[1]+len(augmentations[augmentations[PATIENT_ID].isin(train_set[train_set[BINARY_RANKIN] == 1][PATIENT_ID].values)]) == n_augment
     return augmentations
+
 
 if __name__ == "__main__":
     table_data_dir  = os.path.join(DATA_DIR, "table_data.csv")
