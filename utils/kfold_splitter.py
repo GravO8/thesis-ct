@@ -9,6 +9,7 @@ DATASET_SIZE    = 465
 PATIENT_ID      = "patient_id"
 RANKIN          = "rankin"
 BINARY_RANKIN   = "binary_rankin"
+AUGMENTATION    = "augmentation"
 AUGMENTS        = ["RandomFlip", "RandomNoise", "RandomElasticDeformation", "RandomAffine"]
 
 
@@ -89,26 +90,28 @@ def prettify_dataset(dataset: pd.DataFrame):
     
     
 def get_augmentations(dataset: pd.DataFrame):
-    augmentations   = {"fold":[], PATIENT_ID:[], "augmentation":[]}
-    n_augments      = len(AUGMENTS)
-    for k in range(1,K_FOLDS+1):
-        fold_set    = dataset[dataset["set"] == f"fold{k}"]
-        n_fold      = np.bincount(fold_set[BINARY_RANKIN].values)
-        n_augment   = n_fold[1]*n_augments # 1 is the minority class
-        for label in (0, 1):
-            ids                 = fold_set[fold_set[BINARY_RANKIN] == label][PATIENT_ID].values
-            to_add              = n_augment - n_fold[label]
-            transforms_to_add   = [to_add // n_augments] * n_augments
-            for i in range(to_add % n_augments):
-                transforms_to_add[i] += 1
-            for i in range(n_augments):
-                for id in np.random.choice(ids, size = transforms_to_add[i], replace = False):
-                    augmentations["fold"].append(k)
-                    augmentations[PATIENT_ID].append(id)
-                    augmentations["augmentation"].append(AUGMENTS[i])
+    augmentations   = {PATIENT_ID:[], AUGMENTATION:[]}
+    n_augments      = len(AUGMENTS)                                 # number of available augmentations
+    train_set       = dataset[dataset["set"] == "train"]
+    n_train         = np.bincount(train_set[BINARY_RANKIN].values)
+    n_augment       = n_train[1]*(n_augments+1)                     # 1 is the minority class
+    for label in (0, 1):
+        ids                 = train_set[train_set[BINARY_RANKIN] == label][PATIENT_ID].values
+        to_add              = n_augment - n_train[label]
+        transforms_to_add   = [to_add // n_augments] * n_augments
+        for i in range(to_add % n_augments):
+            transforms_to_add[i] += 1
+        for i in range(n_augments):
+            for id in np.random.choice(ids, size = transforms_to_add[i], replace = False):
+                augmentations[PATIENT_ID].append(id)
+                augmentations[AUGMENTATION].append(AUGMENTS[i])
     augmentations = pd.DataFrame(augmentations)
-    print(augmentations)
-    
+    augmentations = train_set.merge(augmentations, how = "left")[[PATIENT_ID,AUGMENTATION]]
+    augmentations.dropna(inplace = True)
+    assert len(train_set)+len(augmentations) == n_augment*2
+    assert n_train[0]+len(augmentations[augmentations[PATIENT_ID].isin(train_set[train_set[BINARY_RANKIN] == 0][PATIENT_ID].values)]) == n_augment
+    assert n_train[1]+len(augmentations[augmentations[PATIENT_ID].isin(train_set[train_set[BINARY_RANKIN] == 1][PATIENT_ID].values)]) == n_augment
+    return augmentations
 
 if __name__ == "__main__":
     table_data_dir  = os.path.join(DATA_DIR, "table_data.csv")
@@ -120,5 +123,7 @@ if __name__ == "__main__":
     dataset         = kfold_split(dataset)
     dataset         = prettify_dataset(dataset)
     
-    # get_augmentations(dataset)
+    augmentations   = get_augmentations(dataset)
+    
+    augmentations.to_csv("augmentations.csv", index = False)
     dataset.to_csv("dataset.csv", index = False)
