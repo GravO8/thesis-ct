@@ -27,7 +27,7 @@ class CTLoader:
         np.random.shuffle(train)
         np.random.shuffle(val)
         np.random.shuffle(test)
-        print(len(train), len(val), len(test))
+        # print(len(train), len(val), len(test))
         return (torchio.SubjectsDataset(train),
                 torchio.SubjectsDataset(val),
                 torchio.SubjectsDataset(test))
