@@ -1,10 +1,23 @@
 import torch, torchio
+import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
 
 LR          = 0.0005 # learning rate
 WD          = 0.0001 # weight decay
 LOSS        = torch.nn.BCELoss(reduction = "mean")
 OPTIMIZER   = torch.optim.Adam
+
+
+def compute_metrics(y_true, y_prob):
+    y_pred      = (y_prob > .5).astype(int)
+    loss        = LOSS(y_prob, y)
+    accuracy    = metrics.accuracy_score    (y_true = y_true, y_pred = y_pred)
+    precision   = metrics.precision_score   (y_true = y_true, y_pred = y_pred)
+    recall      = metrics.recall_score      (y_true = y_true, y_pred = y_pred)
+    f1_score    = metrics.f1_score          (y_true = y_true, y_pred = y_pred)
+    auc         = metrics.roc_auc_score     (y_true = y_true, y_score = y_prob)
+    return {"accuracy": accuracy, "precision": precision, "recall": recall, 
+            "f1-score": f1_score, "auc": auc}
 
 
 class Trainer:
@@ -46,40 +59,75 @@ class Trainer:
         self.best_score = None
         for epoch in range(self.epochs):
             train_metrics   = self.train_epoch()
-            val_metrics     = self.get_metrics(self.validation_loader)
-            test_metrics    = self.get_metrics(self.tset_loader)
-            self.save_metrics(train_metrics, val_metrics, test_metrics, verbose = True)
+            val_metrics     = get_metrics( self.get_probabilities(self.validation_loader) )
+            test_metrics    = get_metrics(self.tset_loader)
+            self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
             self.save_weights(val_metrics["f1_score"])
             
     def train_epoch(self):
+        self.trace(f"{self.model_name} - epoch {epoch}/{self.epochs} --------------------------------")
         self.model.train(True)
-        loss_cmul   = 0
-        count       = 0
-        ys, y_probs = [], []
-        for subjects in self.train_loader:
+        y_trues, y_probs = [], []
+        for batch in self.train_loader:
             self.train_optimizer.zero_grad()  # reset gradients
-            x, y    = self.get_batch(subjects)
-            y_prob  = self.model(x)
-            y_prob  = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
-            loss    = LOSS(y_prob, y)
+            x, y_true   = self.get_batch(batch)
+            y_prob      = self.model(x)
+            y_prob      = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
+            loss        = LOSS(y_prob, y_true)
             loss.backward()                   # compute the loss and its gradients
             self.train_optimizer.step()       # adjust learning weights
-            ys.append(y)
+            y_trues.append(y_true)
             y_probs.append(y_prob.detach().numpy())
-        y       = np.concatenate(ys, axis = 0)
+        y_true  = np.concatenate(y_trues, axis = 0)
         y_prob  = np.concatenate(y_probs, axis = 0)
-        return self.compute_metrics(y, y_prob)
+        return compute_metrics(y, y_prob)
+        
+    def get_probabilities(self, set_loader):
+        self.model.train(False)
+        y_trues, y_probs = [], []
+        for batch in set_loader:
+            x, y_true   = self.get_batch(batch)
+            y_prob      = self.model(x)
+            y_prob      = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
+            y_prob      = y_prob.detach().numpy()
+            y_trues.append(y_true)
+            y_probs.append(y_prob.detach().numpy())
+        y_true  = np.concatenate(y_trues, axis = 0)
+        y_prob = np.concatenate(y_probs, axis = 0)
+        return y_true, y_prob
             
     def get_batch(self, subjects):
         scans   = subjects["ct"][torchio.DATA]
-        y       = subjects["target"].float()
+        y       = subjects["binary_rankin"].float()
         if self.cuda:
             scans = scans.cuda()
         return scans, y
         
-    def compute_metrics(y, y_prob):
-        y_pred = 
+    def tensorboard_metrics(self, epoch: int, metrics: dict):
+        set_names    = ("train", "val", "test")
+        metric_names = ("loss", "f1-score", "accuracy")
+        for set in metrics:
+            for metric in metric_names:
+                self.writer.add_scalar(f"{metric}/{set}", metrics[set][metric], epoch)
+        self.writer.flush()
         
+    def save_metrics(self, epoch: int, train_metrics: dict, val_metrics: dict, 
+        test_metrics: dict, verbose: bool = True):
+        metrics = {"train": train_metrics, "val": val_metrics, "test": test_metrics}
+        self.tensorboard_metrics(epoch, metrics)
+        if self.verbose:
+            row = "{:<10}"*4
+            self.trace_fn(row.format("", "loss", "f1-score", "accuracy"))
+            for set in metrics:
+                self.trace_fn(row.format(set, round(metrics[set]["loss"],2), 
+                round(metrics[set]["f1-score"],2), round(metrics[set]["accuracy"],2)))
+                
+    def save_weights(self, val_f1_score, verbose = True):
+        if (self.best_score is None) or (val_f1_score > self.best_score):
+            if verbose:
+                self.trace_func(f"Validation f1-score increased ({self.best_score} --> {val_f1_score}).  Saving model ...")
+            self.best_score = val_f1_score
+            torch.save(self.model.state_dict(), self.path)
     
     
 if __name__ == '__main__':
