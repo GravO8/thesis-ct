@@ -11,7 +11,7 @@ class Model(ABC, torch.nn.Module):
         pass
     
     @abstractmethod
-    def __repr__(self):
+    def to_dict(self):
         pass
         
     def get_name(self):

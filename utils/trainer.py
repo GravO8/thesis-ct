@@ -1,11 +1,17 @@
 import torch, torchio
 import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
+from logger import Logger
+
+# TODO
 
 LR          = 0.0005 # learning rate
 WD          = 0.0001 # weight decay
 LOSS        = torch.nn.BCELoss(reduction = "mean")
 OPTIMIZER   = torch.optim.Adam
+
+PERFORMANCE = "performance.csv"
+PREDICTIONS = "predictions.csv"
 
 
 def compute_metrics(y_true, y_prob):
@@ -37,32 +43,64 @@ class Trainer:
         '''
         TODO
         '''
-        train, validation, test = ct_loader.load_dataset()
-        self.train_loader       = torch.utils.data.DataLoader(train, 
-                                            batch_size  = self.batch_size, 
-                                            num_workers = self.num_workers, 
-                                            pin_memory  = self.cuda)
-        self.validation_loader  = torch.utils.data.DataLoader(validation, 
-                                            batch_size  = self.batch_size, 
-                                            num_workers = self.num_workers,
-                                            pin_memory  = self.cuda)
-        self.test_loader        = torch.utils.data.DataLoader(test, 
-                                            batch_size  = self.batch_size, 
-                                            num_workers = self.num_workers,
-                                            pin_memory  = self.cuda)
+        train, val, test = ct_loader.load_dataset()
+        self.train_loader = torch.utils.data.DataLoader(train, 
+                                    batch_size  = self.batch_size, 
+                                    num_workers = self.num_workers, 
+                                    pin_memory  = self.cuda)
+        self.val_loader   = torch.utils.data.DataLoader(val, 
+                                    batch_size  = self.batch_size, 
+                                    num_workers = self.num_workers,
+                                    pin_memory  = self.cuda)
+        self.test_loader  = torch.utils.data.DataLoader(test, 
+                                    batch_size  = self.batch_size, 
+                                    num_workers = self.num_workers,
+                                    pin_memory  = self.cuda)
+                                            
+    def set_train_model(self, model):
+        self.model = model
+        model_name = self.model.get_name()
+        if not os.path.isdir(model_name):
+            os.system(f"mkdir {model_name}")
+            with open(os.path.join(model_name, "summary.json"), "w") as f:
+                json.dump(self.model.to_dict(), f, indent = 4)
+            with open(os.path.join(model_name, PERFORMANCE), "w") as f:
+                f.write("model_name;run;set;best_epoch;accuracy;precision;recall;f1_score;auc_score\n")
+        prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
+        self.run    = 1 + len(prev_runs)
+        run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
+        os.system(f"mkdir {run_dir}")
+        if self.trace_fn == "log":
+            logger      = Logger(os.path.join(run_dir, "log.txt"))
+            self.trace  = lambda s: logger.log(s)
+        else:
+            self.trace = print
+        self.weights_path = os.path.join(run_dir, "weights.pt")
+        self.writer       = SummaryWriter(run_dir)
+        
+    def reset_model(self):
+        self.model        = None
+        self.best_score   = None
+        self.best_epoch   = None
+        self.trace        = None
+        self.weights_path = None
+        self.writer       = None
+        self.run          = None
 
     def train(self, model):
-        self.train_optimizer = OPTIMIZER(model.parameters(), 
-                                                lr = LR,
-                                                weight_decay = WD)
-        # self.trace(f"Using {'cuda' if self.cuda else 'CPU'} device")
-        self.best_score = None
+        self.set_train_model(model)
+        self.train_optimizer = OPTIMIZER(self.model.parameters(), 
+                                        lr = LR,
+                                        weight_decay = WD)
+        self.trace(f"Using {'cuda' if self.cuda else 'CPU'} device")
         for epoch in range(self.epochs):
             train_metrics   = self.train_epoch()
-            val_metrics     = get_metrics( self.get_probabilities(self.validation_loader) )
-            test_metrics    = get_metrics(self.tset_loader)
+            val_metrics     = get_metrics( self.get_probabilities(self.val_loader) )
+            test_metrics    = get_metrics( self.get_probabilities(self.test_loader) )
             self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
-            self.save_weights(val_metrics["f1_score"])
+            self.save_weights(val_metrics["f1_score"], epoch)
+        self.record_performance()
+        self.reset_model()
             
     def train_epoch(self):
         self.trace(f"{self.model_name} - epoch {epoch}/{self.epochs} --------------------------------")
@@ -117,20 +155,45 @@ class Trainer:
         self.tensorboard_metrics(epoch, metrics)
         if self.verbose:
             row = "{:<10}"*4
-            self.trace_fn(row.format("", "loss", "f1-score", "accuracy"))
+            self.trace(row.format("", "loss", "f1-score", "accuracy"))
             for set in metrics:
-                self.trace_fn(row.format(set, round(metrics[set]["loss"],2), 
+                self.trace(row.format(set, round(metrics[set]["loss"],2), 
                 round(metrics[set]["f1-score"],2), round(metrics[set]["accuracy"],2)))
                 
-    def save_weights(self, val_f1_score, verbose = True):
+    def save_weights(self, val_f1_score, epoch, verbose = True):
         if (self.best_score is None) or (val_f1_score > self.best_score):
             if verbose:
-                self.trace_func(f"Validation f1-score increased ({self.best_score} --> {val_f1_score}).  Saving model ...")
+                self.trace(f"Validation f1-score increased ({self.best_score} --> {val_f1_score}).  Saving model ...")
             self.best_score = val_f1_score
-            torch.save(self.model.state_dict(), self.path)
+            self.best_epoch = epoch
+            torch.save(self.model.state_dict(), self.weights_path)
+            
+    def record_performance(self):
+        self.model.load_state_dict(torch.load(self.weights_path))
+        model_name       = self.model.get_name()
+        metrics          = {}
+        metrics["train"] = get_metrics( self.get_probabilities(self.train_loader) )
+        metrics["val"]   = get_metrics( self.get_probabilities(self.val_loader) )
+        y_test, y_prob   = self.get_probabilities(self.test_loader)
+        y_pred           = (y_prob > .5).astype(int)
+        metrics["test"]  = get_metrics(y_test, y_prob)
+        performance_row  = f"{model_name};{self.run};{self.best_epoch}" + (";{}"*6) + "\n"
+        test_ids         = [int(patient_id) for batch in self.test_loader for patient_id in batch]
+        with open(os.path.join(model_name, PERFORMANCE), "a") as f:
+            for set in metrics:
+                f.write(performance_row.format(set, metrics[set]["accuracy"], 
+                metrics[set]["precision"], metrics[set]["recall"], 
+                metrics[set]["f1_score"], metrics[set]["auc"]))
+        with open(os.path.join(model_name, f"{model_name}-run{self.run}", PREDICTIONS), "w") as f:
+            f.write("patiend_id;y_prob;y_pred\n")
+            for i in range(len(test_ids)):
+                f.write(f"{test_ids[i]};{y_prob[i]};{y_pred[i]}\n")
     
     
 if __name__ == '__main__':
     from ct_loader import CTLoader
     ct_loader = CTLoader(data_dir = "../../../data/gravo")
     trainer = Trainer(ct_loader)
+    # a = [int(patient_id) for batch in trainer.test_loader for patient_id in batch["patient_id"]]
+    # b = [int(patient_id) for batch in trainer.test_loader for patient_id in batch["patient_id"]]
+    # print(a == b)
