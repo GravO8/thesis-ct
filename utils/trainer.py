@@ -60,8 +60,6 @@ class Trainer:
         model_name = self.model.get_name()
         if not os.path.isdir(model_name):
             os.system(f"mkdir {model_name}")
-            with open(os.path.join(model_name, "summary.json"), "w") as f:
-                json.dump(self.model.to_dict(), f, indent = 4)
             with open(os.path.join(model_name, PERFORMANCE), "w") as f:
                 f.write("model_name;run;set;best_epoch;accuracy;precision;recall;f1_score;auc_score\n")
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
