@@ -3,8 +3,6 @@ import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
 from logger import Logger
 
-# TODO
-
 LR          = 0.0005 # learning rate
 WD          = 0.0001 # weight decay
 LOSS        = torch.nn.BCELoss(reduction = "mean")
