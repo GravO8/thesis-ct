@@ -62,6 +62,8 @@ class Trainer:
             os.system(f"mkdir {model_name}")
             with open(os.path.join(model_name, PERFORMANCE), "w") as f:
                 f.write("model_name;run;set;best_epoch;accuracy;precision;recall;f1_score;auc_score\n")
+            with open(os.path.join(model_name, "summary.txt"), "w") as f:
+                f.write( str(self.model) )
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
