@@ -228,3 +228,4 @@ Escolher o melhor encoder e o melhor número de slices
 - Boost dos dados tabelares
 - Fazer uma coisa semelhante ao feito em *Interpretability-guided Content-based Medical Image Retrieval*
 - ViT encoders
+- Contrastive loss nas siamese nets (mesmo no caso simples de usar o rankin)
