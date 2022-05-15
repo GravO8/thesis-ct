@@ -1,7 +1,7 @@
 import os, torchio
 import numpy as np
 import pandas as pd
-from kfold_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION
+from .kfold_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION
 
 
 class CTLoader:

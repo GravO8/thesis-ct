@@ -1,10 +1,13 @@
 import timm, torch
-from encoder import Encoder
+from .encoder import Encoder
     
-def resnet_3d(version: int = 18):
+def resnet_3d(version: int = 18, global_pool = "gap"):
     assert version in (18, 34, 50)
-    model_2d = timm.create_model(version, in_chans = 1, num_classes = 0, global_pool = "")
-    return Encoder(get_children( model_2d ), version+"_3D", [512,2048][int(version >= 50)])
+    model_name   = f"resnet{version}"
+    model_2d     = timm.create_model(model_name, in_chans = 1, num_classes = 0, global_pool = "")
+    model_3d     = get_children(model_2d)
+    out_features = (512,2048)[int(version >= 50)]
+    return Encoder(model_name, model_3d, out_features, global_pool = global_pool, dim = 3)
 
 def get_children(model: torch.nn.Module):
     # Adapted from: https://stackoverflow.com/a/65112132

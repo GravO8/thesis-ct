@@ -2,11 +2,11 @@ import torch
 
 
 class Encoder(torch.nn.Module):
-    def __init__(self, name: str, encoder: torch.nn.Module, out_features: int, 
+    def __init__(self, model_name: str, encoder: torch.nn.Module, out_features: int, 
     global_pool: str = None, dim: int = None):
         torch.nn.Module.__init__(self)
         self.encoder      = encoder
-        self.name         = name
+        self.model_name   = model_name
         self.out_features = out_features
         self.global_pool  = global_pool
         self.dim          = dim
@@ -20,7 +20,7 @@ class Encoder(torch.nn.Module):
             elif self.global_pool == "gmp": # global max pooling
                 self.pooling = eval(f"torch.nn.AdaptiveMaxPool{self.dim}d")(1)
     def get_name(self):
-        return f"{self.name}_{'features' if self.global_pool is None else self.global_pool}_{self.dim}D"
+        return f"{self.model_name}_{'features' if self.global_pool is None else self.global_pool}_{self.dim}D"
     def forward(self, x):
         x = self.encoder(x)
         x = self.pooling(x)
@@ -29,11 +29,11 @@ class Encoder(torch.nn.Module):
 
 
 class SiameseEncoderMerger:
-    def __init__(self, name: str, fn):
-        self.name = name
-        self.fn   = fn
+    def __init__(self, fn_name: str, fn):
+        self.fn_name = fn_name
+        self.fn      = fn
     def get_name(self):
-        return self.name
+        return self.fn_name
     def __call__(self, x1, x2):
         return self.fn(x1, x2)
         
@@ -48,7 +48,7 @@ class SiameseEncoder(torch.nn.Module):
         if self.merged_encoder.global_pool is None:
             assert self.encoder.global_pool is not None, "SiameseEncoder.__init__: either the 'encoder' or the 'merged_encoder' must apply global pooling."
         else:
-            assert self.encoder.global_pool is None: "SiameseEncoder.__init__: global pooling can't be applied by both the 'encoder' and the 'merged_encoder'."
+            assert self.encoder.global_pool is None, "SiameseEncoder.__init__: global pooling can't be applied by both the 'encoder' and the 'merged_encoder'."
     def get_name(self):
         return f"{self.encoder.get_name()}-{self.merge_encodings.get_name()}-{self.merged_encoder.get_name()}"
     def forward(self, x1, x2):

@@ -1,7 +1,7 @@
-import torch, torchio
+import torch, torchio, os
 import sklearn.metrics as metrics
 from torch.utils.tensorboard import SummaryWriter
-from logger import Logger
+from .logger import Logger
 
 LR          = 0.0005 # learning rate
 WD          = 0.0001 # weight decay
@@ -35,6 +35,7 @@ class Trainer:
             self.num_workers    = 0
             self.trace_fn       = "print"
         self.batch_size = batch_size
+        self.epochs     = epochs
         self.set_loaders(ct_loader)
 
     def set_loaders(self, ct_loader):
@@ -92,7 +93,7 @@ class Trainer:
                                         weight_decay = WD)
         self.trace(f"Using {'cuda' if self.cuda else 'CPU'} device")
         for epoch in range(self.epochs):
-            train_metrics   = self.train_epoch()
+            train_metrics   = self.train_epoch(epoch)
             val_metrics     = get_metrics( self.get_probabilities(self.val_loader) )
             test_metrics    = get_metrics( self.get_probabilities(self.test_loader) )
             self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
@@ -100,8 +101,8 @@ class Trainer:
         self.record_performance()
         self.reset_model()
             
-    def train_epoch(self):
-        self.trace(f"{self.model_name} - epoch {epoch}/{self.epochs} --------------------------------")
+    def train_epoch(self, epoch: int):
+        self.trace(f"{self.model.get_name()} - epoch {epoch}/{self.epochs} --------------------------------")
         self.model.train(True)
         y_trues, y_probs = [], []
         for batch in self.train_loader:
@@ -134,7 +135,7 @@ class Trainer:
             
     def get_batch(self, subjects):
         scans   = subjects["ct"][torchio.DATA]
-        y       = subjects["binary_rankin"].float()
+        y       = subjects["target"].float()
         if self.cuda:
             scans = scans.cuda()
         return scans, y

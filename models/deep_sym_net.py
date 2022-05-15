@@ -1,6 +1,6 @@
 import torch
-from encoder import Encoder, SiameseEncoder, SiameseEncoderMerger
-from model import SiameseNet
+from .encoder import Encoder, SiameseEncoder, SiameseEncoderMerger
+from .model import SiameseNet
 
 class InceptionModule3D(torch.nn.Module):
     def __init__(self, in_channels, out_channels: int = 64):
@@ -69,9 +69,10 @@ def deep_sym_net(in_channels = 1):
     merger          = l1_norm()
     merged_encoder  = deep_sym_merged_encoder()
     return SiameseNet(SiameseEncoder(encoder, merger, merged_encoder))
-        
+
+
 if __name__ == "__main__":
-    deep_sym_encoder = deep_sym_encoder(1, gmp = False)
+    deep_sym_encoder = deep_sym_encoder(1)
     x = torch.randn(32,1,91,109,91)
     print(deep_sym_encoder(x).shape)
         

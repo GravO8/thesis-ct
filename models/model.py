@@ -1,7 +1,7 @@
 import torch
 from abc import ABC, abstractmethod
-from models import final_mlp
-from encoder import Encoder, SiameseEncoder
+from .models import final_mlp
+from .encoder import Encoder, SiameseEncoder
         
         
 class Model(ABC, torch.nn.Module):
@@ -18,8 +18,8 @@ class Model(ABC, torch.nn.Module):
     def name_appendix():
         pass
         
-    def default_process_input(self, x):
-        return x/100
+    def normalize_input(self, x, range_max: int = 100):
+        return x/range_max
     
     def forward(self, x):
         x = self.process_input(x)
@@ -32,7 +32,7 @@ class Model(ABC, torch.nn.Module):
 
 class Baseline3DCNN(Model):
     def process_input(self, x):
-        return self.default_process_input(x)
+        return self.normalize_input(x)
     def name_appendix(self):
         return "baseline-3DCNN"
         
@@ -42,7 +42,7 @@ class SiameseNet(Model):
         assert isinstance(encoder, SiameseEncoder), "SiameseNet.__init__: 'encoder' must be of class 'SiameseEncoder'"
         super().__init__(encoder)
     def process_input(self, x):
-        x           = self.default_process_input(x)
+        x           = self.normalize_input(x)
         msp         = x.shape[2]//2             # midsagittal plane
         hemisphere1 = x[:,:,:msp,:,:]           # shape = (B,C,x,y,z)
         hemisphere2 = x[:,:,msp:,:,:].flip(2)   # B - batch; C - channels
