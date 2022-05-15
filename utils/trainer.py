@@ -57,7 +57,7 @@ class Trainer:
                                     pin_memory  = self.cuda)
                                             
     def set_train_model(self, model):
-        self.model = model
+        self.model = model.float()
         model_name = self.model.get_name()
         if not os.path.isdir(model_name):
             os.system(f"mkdir {model_name}")
@@ -76,6 +76,11 @@ class Trainer:
             self.trace = print
         self.weights_path = os.path.join(run_dir, "weights.pt")
         self.writer       = SummaryWriter(run_dir)
+        if self.cuda:
+            self.trace("Using cuda device")
+            self.model.cuda()
+        else:
+            self.trace("Using CPU device")
         
     def reset_model(self):
         self.model        = None
@@ -91,7 +96,6 @@ class Trainer:
         self.train_optimizer = OPTIMIZER(self.model.parameters(), 
                                         lr = LR,
                                         weight_decay = WD)
-        self.trace(f"Using {'cuda' if self.cuda else 'CPU'} device")
         for epoch in range(self.epochs):
             train_metrics   = self.train_epoch(epoch)
             val_metrics     = get_metrics( self.get_probabilities(self.val_loader) )
@@ -109,6 +113,7 @@ class Trainer:
             self.train_optimizer.zero_grad()  # reset gradients
             x, y_true   = self.get_batch(batch)
             y_prob      = self.model(x)
+            print('here')
             y_prob      = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
             loss        = LOSS(y_prob, y_true)
             loss.backward()                   # compute the loss and its gradients
@@ -134,7 +139,7 @@ class Trainer:
         return y_true, y_prob
             
     def get_batch(self, subjects):
-        scans   = subjects["ct"][torchio.DATA]
+        scans   = subjects["ct"][torchio.DATA].float()
         y       = subjects["target"].float()
         if self.cuda:
             scans = scans.cuda()

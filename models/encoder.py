@@ -23,7 +23,7 @@ class Encoder(torch.nn.Module):
         return f"{self.model_name}_{'features' if self.global_pool is None else self.global_pool}_{self.dim}D"
     def forward(self, x):
         x = self.encoder(x)
-        x = self.pooling(x)
+        x = self.pooling(x).squeeze()
         assert self.out_features == x.shape[1], f"Encoder.forward: expected {self.out_features} out features, got {x.shape[1]}."
         return x
 

@@ -17,6 +17,7 @@ if __name__ == "__main__":
                     Baseline3DCNN(deep_sym_encoder(1, global_pool = "gap"))]
                     
     for model in to_test:
-        trainer.train(model)
+        for i in range(3):
+            trainer.train(model)
     
     
