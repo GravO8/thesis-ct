@@ -3,7 +3,7 @@ from encoder import Encoder
     
 def resnet_3d(version: int = 18):
     assert version in (18, 34, 50)
-    model_2d = timm.create_model(version, in_chans = 1, num_classes = 0)
+    model_2d = timm.create_model(version, in_chans = 1, num_classes = 0, global_pool = "")
     return Encoder(get_children( model_2d ), version+"_3D", [512,2048][int(version >= 50)])
 
 def get_children(model: torch.nn.Module):
