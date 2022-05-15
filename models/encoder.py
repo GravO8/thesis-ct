@@ -39,7 +39,7 @@ class SiameseEncoderMerger:
         
 
 class SiameseEncoder(torch.nn.Module):
-    def __init__(self, name: str, encoder: Encoder, merge_encodings: SiameseEncoderMerger, 
+    def __init__(self, encoder: Encoder, merge_encodings: SiameseEncoderMerger, 
     merged_encoder: Encoder):
         torch.nn.Module.__init__(self)
         self.encoder         = encoder

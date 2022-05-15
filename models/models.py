@@ -14,10 +14,10 @@ def conv_3d(in_channels, out_channels, kernel_size, stride = 1, padding = None):
                                 torch.nn.BatchNorm3d(num_features = out_channels),
                                 torch.nn.ReLU(inplace = True))
         
-def custom_3D_cnn_v1(gap: bool = True):
-    return Encoder3D(torch.nn.Sequential(conv_3d(1,8,5), conv_3d(8,16,3,2,1), 
+def custom_3D_cnn_v1(global_pool):
+    return Encoder(torch.nn.Sequential(conv_3d(1,8,5), conv_3d(8,16,3,2,1), 
                                        conv_3d(16,32,3), conv_3d(32,64,3,2,1)),
-                    "custom_3D_cnn_v1", 64, gap = gap))
+                    "custom_3D_cnn_v1", 64, global_pool = global_pool))
                     
                     
 if __name__ == '__main__':

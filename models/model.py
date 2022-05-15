@@ -1,14 +1,14 @@
 import torch
 from abc import ABC, abstractmethod
-from final_mlp import FinalMLP
-from encoder import Encoder
+from models import final_mlp
+from encoder import Encoder, SiameseEncoder
         
         
 class Model(ABC, torch.nn.Module):
     def __init__(self, encoder: Encoder):
         torch.nn.Module.__init__(self)
         self.encoder    = encoder
-        self.mlp        = FinalMLP(self.encoder.out_features)
+        self.mlp        = final_mlp(self.encoder.out_features)
         
     @abstractmethod
     def process_input(self, x):
@@ -37,7 +37,10 @@ class Baseline3DCNN(Model):
         return "baseline-3DCNN"
         
         
-class SiameseNet(Model): # expects to recieve a SiameseEncoder in the constructor
+class SiameseNet(Model):
+    def __init__(self, encoder: SiameseEncoder):
+        assert isinstance(encoder, SiameseEncoder), "SiameseNet.__init__: 'encoder' must be of class 'SiameseEncoder'"
+        super().__init__(encoder)
     def process_input(self, x):
         x           = self.default_process_input(x)
         msp         = x.shape[2]//2             # midsagittal plane
