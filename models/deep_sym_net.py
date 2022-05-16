@@ -59,8 +59,8 @@ def deep_sym_encoder(in_channels: int, global_pool = None):
     
 
 def deep_sym_merged_encoder(in_channels: int, global_pool = "gmp"):
-    encoder  = torch.nn.Sequential(
-        InceptionModule3D(16*4, 16),
+    encoder = torch.nn.Sequential(
+        InceptionModule3D(in_channels, 16),
         InceptionModule3D(16*4, 16)
     )
     return Encoder("deep_sym_merged_encoder", encoder, 16*4, global_pool = global_pool, dim = 3) 
@@ -74,7 +74,7 @@ def l1_norm():
 def deep_sym_net(in_channels = 1):
     encoder         = deep_sym_encoder(in_channels, global_pool = None)
     merger          = l1_norm()
-    merged_encoder  = deep_sym_merged_encoder()
+    merged_encoder  = deep_sym_merged_encoder(encoder.out_channels)
     return SiameseNet(SiameseEncoder(encoder, merger, merged_encoder))
 
 

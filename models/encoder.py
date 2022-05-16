@@ -50,7 +50,7 @@ class SiameseEncoder(torch.nn.Module):
         else:
             assert self.encoder.global_pool is None, "SiameseEncoder.__init__: global pooling can't be applied by both the 'encoder' and the 'merged_encoder'."
     def get_name(self):
-        return f"{self.encoder.get_name()}-{self.merge_encodings.get_name()}-{self.merged_encoder.get_name()}"
+        return f"{self.encoder.get_name()}_{self.merge_encodings.get_name()}_{self.merged_encoder.get_name()}"
     def forward(self, x1, x2):
         x1 = self.encoder(x1)
         x2 = self.encoder(x2)

@@ -58,3 +58,21 @@ class SiameseNet(Model):
         return (hemisphere1, hemisphere2)
     def name_appendix(self):
         return "SiameseNet"
+        
+        
+class SiameseNetBefore(SiameseNet):
+    def __init__(self, encoder: SiameseEncoder):
+        super().__init__(encoder)
+        assert encoder.encoder.global_pool is None
+        assert encoder.merged_encoder.global_pool is not None
+    def name_appendix(self):
+        return super().name_appendix() + "-" + "before"
+        
+        
+class SiameseNetAfter(SiameseNet):
+    def __init__(self, encoder: SiameseEncoder):
+        super().__init__(encoder)
+        assert encoder.encoder.global_pool is not None
+        assert encoder.merged_encoder.global_pool is None
+    def name_appendix(self):
+        return super().name_appendix() + "-" + "after"
