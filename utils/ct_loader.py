@@ -16,6 +16,7 @@ class CTLoader:
             augmentations_filename  = os.path.join(self.data_dir, augmentations_filename)
         self.labels         = pd.read_csv(labels_filename)
         self.augmentations  = pd.read_csv(augmentations_filename)
+        np.random.seed(0)
             
     def load_dataset(self):
         train   = self.load_set("train")

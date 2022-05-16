@@ -37,6 +37,15 @@ class Baseline3DCNN(Model):
         return "baseline-3DCNN"
         
         
+class BaselineMirror(Model):
+    def process_input(self, x):
+        x = self.normalize_input(x)
+        x = x - x.flip(2)
+        return x
+    def name_appendix(self):
+        return "baseline-mirror" 
+        
+        
 class SiameseNet(Model):
     def __init__(self, encoder: SiameseEncoder):
         assert isinstance(encoder, SiameseEncoder), "SiameseNet.__init__: 'encoder' must be of class 'SiameseEncoder'"
