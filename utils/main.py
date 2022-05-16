@@ -1,6 +1,6 @@
 import torch
-from ct_loader import CTLoader
-from trainer import Trainer
+from .ct_loader import CTLoader
+from .trainer import Trainer
 
 def main(to_test, N = 3, device = 3):
     if torch.cuda.is_available():

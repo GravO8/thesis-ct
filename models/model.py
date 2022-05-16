@@ -54,8 +54,12 @@ class SiameseNet(Model):
         x           = self.normalize_input(x)
         msp         = x.shape[2]//2             # midsagittal plane
         hemisphere1 = x[:,:,:msp,:,:]           # shape = (B,C,x,y,z)
-        hemisphere2 = x[:,:,msp:,:,:].flip(2)   # B - batch; C - channels
+        hemisphere2 = x[:,:,msp:-1,:,:].flip(2) # B - batch; C - channels
         return (hemisphere1, hemisphere2)
+    def forward(self, x):
+        x1, x2 = self.process_input(x)
+        x      = self.encoder(x1, x2)
+        return self.mlp(x)
     def name_appendix(self):
         return "SiameseNet"
         

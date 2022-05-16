@@ -45,6 +45,7 @@ class SiameseEncoder(torch.nn.Module):
         self.encoder         = encoder
         self.merge_encodings = merge_encodings
         self.merged_encoder  = merged_encoder
+        self.out_features    = self.merged_encoder.out_features
         if self.merged_encoder.global_pool is None:
             assert self.encoder.global_pool is not None, "SiameseEncoder.__init__: either the 'encoder' or the 'merged_encoder' must apply global pooling."
         else:

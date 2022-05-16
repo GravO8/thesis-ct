@@ -1,15 +1,6 @@
 .DS_Store
 __pycache__
-Siamesenet-*
-MILNET-*
-2DCNN*
-2DViT*
-drop_block.py
-sapo.txt
-sapo1.txt
 to_inesc.py
 .ipynb_checkpoints
-models/weights
-models/download_weights.py
 dataset.csv
 augmentations.csv
