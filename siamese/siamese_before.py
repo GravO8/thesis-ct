@@ -2,9 +2,8 @@ import torch, sys
 sys.path.append("..")
 from models.deep_sym_net import deep_sym_net, l1_norm, deep_sym_merged_encoder
 from models.resnet_3d import resnet_3d
-from models.encoder import SiameseEncoder
+from models.siamese import SiameseNetBefore, SiameseEncoder
 from models.models import custom_3D_cnn_v1
-from models.model import SiameseNetBefore
 from utils.main import main
 
 def siamese_before(encoder):

@@ -1,7 +1,7 @@
 import torch
 from abc import ABC, abstractmethod
 from .models import final_mlp
-from .encoder import Encoder, SiameseEncoder
+from .encoder import Encoder
         
         
 class Model(ABC, torch.nn.Module):
@@ -44,39 +44,3 @@ class BaselineMirror(Model):
         return x
     def name_appendix(self):
         return "baseline-mirror" 
-        
-        
-class SiameseNet(Model):
-    def __init__(self, encoder: SiameseEncoder):
-        assert isinstance(encoder, SiameseEncoder), "SiameseNet.__init__: 'encoder' must be of class 'SiameseEncoder'"
-        super().__init__(encoder)
-    def process_input(self, x):
-        x           = self.normalize_input(x)
-        msp         = x.shape[2]//2             # midsagittal plane
-        hemisphere1 = x[:,:,:msp,:,:]           # shape = (B,C,x,y,z)
-        hemisphere2 = x[:,:,msp:-1,:,:].flip(2) # B - batch; C - channels
-        return (hemisphere1, hemisphere2)
-    def forward(self, x):
-        x1, x2 = self.process_input(x)
-        x      = self.encoder(x1, x2)
-        return self.mlp(x)
-    def name_appendix(self):
-        return "SiameseNet"
-        
-        
-class SiameseNetBefore(SiameseNet):
-    def __init__(self, encoder: SiameseEncoder):
-        super().__init__(encoder)
-        assert encoder.encoder.global_pool is None
-        assert encoder.merged_encoder.global_pool is not None
-    def name_appendix(self):
-        return super().name_appendix() + "-" + "before"
-        
-        
-class SiameseNetAfter(SiameseNet):
-    def __init__(self, encoder: SiameseEncoder):
-        super().__init__(encoder)
-        assert encoder.encoder.global_pool is not None
-        assert encoder.merged_encoder.global_pool is None
-    def name_appendix(self):
-        return super().name_appendix() + "-" + "after"

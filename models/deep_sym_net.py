@@ -1,6 +1,6 @@
 import torch
-from .encoder import Encoder, SiameseEncoder, SiameseEncoderMerger
-from .model import SiameseNet
+from .encoder import Encoder
+from .siamese import SiameseEncoder, SiameseEncoderMerger, SiameseNet
 
 class InceptionModule3D(torch.nn.Module):
     def __init__(self, in_channels, out_channels: int = 64):
