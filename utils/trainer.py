@@ -1,6 +1,8 @@
-import torch, torchio, os
+import torch, torchio, os, contextlib
 import sklearn.metrics as metrics
+import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+from torchsummary import summary
 from .logger import Logger
 
 LR          = 0.0005 # learning rate
@@ -14,14 +16,14 @@ PREDICTIONS = "predictions.csv"
 
 def compute_metrics(y_true, y_prob):
     y_pred      = (y_prob > .5).astype(int)
-    loss        = LOSS(y_prob, y)
+    loss        = float(LOSS(torch.Tensor(y_prob), torch.Tensor(y_true)))
     accuracy    = metrics.accuracy_score    (y_true = y_true, y_pred = y_pred)
     precision   = metrics.precision_score   (y_true = y_true, y_pred = y_pred)
     recall      = metrics.recall_score      (y_true = y_true, y_pred = y_pred)
     f1_score    = metrics.f1_score          (y_true = y_true, y_pred = y_pred)
     auc         = metrics.roc_auc_score     (y_true = y_true, y_score = y_prob)
-    return {"accuracy": accuracy, "precision": precision, "recall": recall, 
-            "f1-score": f1_score, "auc": auc}
+    return {"loss": loss, "accuracy": accuracy, "precision": precision, 
+            "recall": recall, "f1-score": f1_score, "auc": auc}
 
 
 class Trainer:
@@ -37,6 +39,7 @@ class Trainer:
         self.batch_size = batch_size
         self.epochs     = epochs
         self.set_loaders(ct_loader)
+        self.reset_model()
 
     def set_loaders(self, ct_loader):
         '''
@@ -58,6 +61,11 @@ class Trainer:
                                             
     def set_train_model(self, model):
         self.model = model.float()
+        if self.cuda:
+            print("Using cuda device")
+            self.model.cuda()
+        else:
+            print("Using CPU device")
         model_name = self.model.get_name()
         if not os.path.isdir(model_name):
             os.system(f"mkdir {model_name}")
@@ -65,6 +73,9 @@ class Trainer:
                 f.write("model_name;run;set;best_epoch;accuracy;precision;recall;f1_score;auc_score\n")
             with open(os.path.join(model_name, "summary.txt"), "w") as f:
                 f.write( str(self.model) )
+                f.write("\n")
+                with contextlib.redirect_stdout(f):
+                    summary(self.model, (1,91,109,91))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
@@ -76,11 +87,6 @@ class Trainer:
             self.trace = print
         self.weights_path = os.path.join(run_dir, "weights.pt")
         self.writer       = SummaryWriter(run_dir)
-        if self.cuda:
-            self.trace("Using cuda device")
-            self.model.cuda()
-        else:
-            self.trace("Using CPU device")
         
     def reset_model(self):
         self.model        = None
@@ -98,10 +104,10 @@ class Trainer:
                                         weight_decay = WD)
         for epoch in range(self.epochs):
             train_metrics   = self.train_epoch(epoch)
-            val_metrics     = get_metrics( self.get_probabilities(self.val_loader) )
-            test_metrics    = get_metrics( self.get_probabilities(self.test_loader) )
+            val_metrics     = compute_metrics( *self.get_probabilities(self.val_loader) )
+            test_metrics    = compute_metrics( *self.get_probabilities(self.test_loader) )
             self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
-            self.save_weights(val_metrics["f1_score"], epoch)
+            self.save_weights(val_metrics["f1-score"], epoch)
         self.record_performance()
         self.reset_model()
             
@@ -113,7 +119,6 @@ class Trainer:
             self.train_optimizer.zero_grad()  # reset gradients
             x, y_true   = self.get_batch(batch)
             y_prob      = self.model(x)
-            print('here')
             y_prob      = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
             loss        = LOSS(y_prob, y_true)
             loss.backward()                   # compute the loss and its gradients
@@ -122,7 +127,7 @@ class Trainer:
             y_probs.append(y_prob.detach().numpy())
         y_true  = np.concatenate(y_trues, axis = 0)
         y_prob  = np.concatenate(y_probs, axis = 0)
-        return compute_metrics(y, y_prob)
+        return compute_metrics(y_true, y_prob)
         
     def get_probabilities(self, set_loader):
         self.model.train(False)
@@ -133,9 +138,9 @@ class Trainer:
             y_prob      = y_prob.squeeze().clamp(min = 1e-5, max = 1.-1e-5).cpu()
             y_prob      = y_prob.detach().numpy()
             y_trues.append(y_true)
-            y_probs.append(y_prob.detach().numpy())
+            y_probs.append(y_prob)
         y_true  = np.concatenate(y_trues, axis = 0)
-        y_prob = np.concatenate(y_probs, axis = 0)
+        y_prob  = np.concatenate(y_probs, axis = 0)
         return y_true, y_prob
             
     def get_batch(self, subjects):
@@ -157,7 +162,7 @@ class Trainer:
         test_metrics: dict, verbose: bool = True):
         metrics = {"train": train_metrics, "val": val_metrics, "test": test_metrics}
         self.tensorboard_metrics(epoch, metrics)
-        if self.verbose:
+        if verbose:
             row = "{:<10}"*4
             self.trace(row.format("", "loss", "f1-score", "accuracy"))
             for set in metrics:
@@ -176,20 +181,20 @@ class Trainer:
         self.model.load_state_dict(torch.load(self.weights_path))
         model_name       = self.model.get_name()
         metrics          = {}
-        metrics["train"] = get_metrics( self.get_probabilities(self.train_loader) )
-        metrics["val"]   = get_metrics( self.get_probabilities(self.val_loader) )
+        metrics["train"] = compute_metrics( *self.get_probabilities(self.train_loader) )
+        metrics["val"]   = compute_metrics( *self.get_probabilities(self.val_loader) )
         y_test, y_prob   = self.get_probabilities(self.test_loader)
         y_pred           = (y_prob > .5).astype(int)
-        metrics["test"]  = get_metrics(y_test, y_prob)
+        metrics["test"]  = compute_metrics(y_test, y_prob)
         performance_row  = f"{model_name};{self.run};{self.best_epoch}" + (";{}"*6) + "\n"
-        test_ids         = [int(patient_id) for batch in self.test_loader for patient_id in batch]
+        test_ids         = [int(patient_id) for batch in self.test_loader for patient_id in batch["patient_id"]]
         with open(os.path.join(model_name, PERFORMANCE), "a") as f:
             for set in metrics:
                 f.write(performance_row.format(set, metrics[set]["accuracy"], 
                 metrics[set]["precision"], metrics[set]["recall"], 
-                metrics[set]["f1_score"], metrics[set]["auc"]))
+                metrics[set]["f1-score"], metrics[set]["auc"]))
         with open(os.path.join(model_name, f"{model_name}-run{self.run}", PREDICTIONS), "w") as f:
-            f.write("patiend_id;y_prob;y_pred\n")
+            f.write("patient_id;y_prob;y_pred\n")
             for i in range(len(test_ids)):
                 f.write(f"{test_ids[i]};{y_prob[i]};{y_pred[i]}\n")
     

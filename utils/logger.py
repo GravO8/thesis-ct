@@ -1,3 +1,5 @@
+import os
+
 class Logger:
     def __init__(self, filename: str):
         if os.path.isfile(filename):

@@ -1,15 +1,20 @@
 import torch, sys
 sys.path.append("..")
-from utils.ct_loader import CTLoader
 from models.deep_sym_net import deep_sym_encoder
 from models.resnet_3d import resnet_3d
+from utils.ct_loader import CTLoader
 from utils.trainer import Trainer
 from models.models import custom_3D_cnn_v1
 from models.model import Baseline3DCNN
 
 if __name__ == "__main__":
-    ct_loader   = CTLoader(data_dir = "../../../data/gravo")
-    trainer     = Trainer(ct_loader)
+    if torch.cuda.is_available():
+        dir = "/media/avcstorage/gravo"
+        torch.cuda.set_device(3)
+    else:
+        dir = "../../../data/gravo"
+    ct_loader   = CTLoader(data_dir = dir)
+    trainer     = Trainer(ct_loader, batch_size = 32)
     
     to_test     = [ Baseline3DCNN(custom_3D_cnn_v1(global_pool = "gap")),
                     Baseline3DCNN(resnet_3d(18, global_pool = "gap")),
@@ -19,5 +24,6 @@ if __name__ == "__main__":
     for model in to_test:
         for i in range(3):
             trainer.train(model)
+    print("done")
     
     

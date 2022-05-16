@@ -5,34 +5,40 @@ from .model import SiameseNet
 class InceptionModule3D(torch.nn.Module):
     def __init__(self, in_channels, out_channels: int = 64):
         torch.nn.Module.__init__(self)
-        self.path1 = torch.nn.Conv3d(in_channels  = in_channels, 
-                                     out_channels = out_channels,
-                                     kernel_size  = 1)
+        self.path1 = torch.nn.Sequential(
+                            torch.nn.Conv3d(in_channels  = in_channels, 
+                                            out_channels = out_channels,
+                                            kernel_size  = 1),
+                            torch.nn.ReLU(inplace = True))
         self.path2 = torch.nn.Sequential(
                         torch.nn.Conv3d(in_channels  = in_channels,
                                         out_channels = out_channels,
                                         kernel_size  = 1),
+                        torch.nn.ReLU(inplace = True),
                         torch.nn.Conv3d(in_channels  = out_channels,
                                         out_channels = out_channels,
                                         padding      = 1,
-                                        kernel_size  = 3))
+                                        kernel_size  = 3),
+                        torch.nn.ReLU(inplace = True))
         self.path3 = torch.nn.Sequential(
                         torch.nn.Conv3d(in_channels  = in_channels,
                                         out_channels = out_channels,
                                         kernel_size  = 1),
+                        torch.nn.ReLU(inplace = True),
                         torch.nn.Conv3d(in_channels  = out_channels,
                                         out_channels = out_channels,
                                         padding      = 2,
-                                        kernel_size  = 5))
+                                        kernel_size  = 5),
+                        torch.nn.ReLU(inplace = True))
         self.path4 = torch.nn.Sequential(
                         torch.nn.MaxPool3d(kernel_size  = 3, 
                                            stride       = 1,
                                            padding      = 1),
                         torch.nn.Conv3d(in_channels  = in_channels,
                                         out_channels = out_channels,
-                                        kernel_size  = 1))
+                                        kernel_size  = 1),
+                        torch.nn.ReLU(inplace = True))
     def forward(self, x):
-        print("forward")
         x1 = self.path1(x)
         x2 = self.path2(x)
         x3 = self.path3(x)
@@ -44,6 +50,7 @@ class InceptionModule3D(torch.nn.Module):
 def deep_sym_encoder(in_channels: int, global_pool = None):
     encoder = torch.nn.Sequential(
         InceptionModule3D(in_channels,  4),
+        torch.nn.AvgPool3d(kernel_size = 2),
         InceptionModule3D(4*4, 16),
         InceptionModule3D(16*4, 16),
         InceptionModule3D(16*4, 16)
