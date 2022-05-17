@@ -15,7 +15,7 @@ def siamese_tangled(encoder):
     
 if __name__ == "__main__":
     to_test = [ siamese_tangled(custom_3D_cnn_v1(global_pool = None)),
-                siamese_tangled(deep_sym_encoder(1, global_pool = "gap")),
+                siamese_tangled(deep_sym_encoder(1, global_pool = None)),
                 siamese_tangled(resnet_3d(18, global_pool = None)),
                 siamese_tangled(resnet_3d(34, global_pool = None))]
     main(to_test)

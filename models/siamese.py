@@ -1,5 +1,6 @@
 import torch
-from .model import Encoder
+from .encoder import Encoder
+from .model import Model
 
 
 class SiameseEncoderMerger:
