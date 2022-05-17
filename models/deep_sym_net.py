@@ -74,7 +74,7 @@ def l1_norm():
 def deep_sym_net(in_channels = 1):
     encoder         = deep_sym_encoder(in_channels, global_pool = None)
     merger          = l1_norm()
-    merged_encoder  = deep_sym_merged_encoder(encoder.out_features)
+    merged_encoder  = deep_sym_merged_encoder(encoder.out_channels)
     return SiameseNet(SiameseEncoder(encoder, merger, merged_encoder))
 
 

@@ -18,7 +18,7 @@ def custom_3D_cnn_v1(global_pool):
     return Encoder("custom_cnn_v1", 
                    torch.nn.Sequential(conv_3d(1,8,5), conv_3d(8,16,3,2,1), 
                                        conv_3d(16,32,3), conv_3d(32,64,3,2,1)),
-                   out_features = 64, 
+                   out_channels = 64, 
                    global_pool = global_pool, 
                    dim = 3)
                     

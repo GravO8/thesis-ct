@@ -8,7 +8,7 @@ class Model(ABC, torch.nn.Module):
     def __init__(self, encoder: Encoder):
         torch.nn.Module.__init__(self)
         self.encoder    = encoder
-        self.mlp        = final_mlp(self.encoder.out_features)
+        self.mlp        = final_mlp(self.encoder.out_channels)
         
     @abstractmethod
     def process_input(self, x):

@@ -9,7 +9,7 @@ from utils.main import main
 def siamese_before(encoder):
     assert encoder.global_pool is None
     merger          = l1_norm()
-    merged_encoder  = deep_sym_merged_encoder(encoder.out_features, global_pool = "gmp")
+    merged_encoder  = deep_sym_merged_encoder(encoder.out_channels, global_pool = "gmp")
     siamese_encoder = SiameseEncoder(encoder, merger, merged_encoder)
     return SiameseNetBefore(siamese_encoder)
     

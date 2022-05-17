@@ -12,7 +12,7 @@ def siamese_after(encoder):
     merger          = l1_norm()
     merged_encoder  = Encoder("MLP_merged_encoder",
                               torch.nn.Sequential(
-                                    torch.nn.Linear(encoder.out_features, 512),
+                                    torch.nn.Linear(encoder.out_channels, 512),
                                     torch.nn.ReLU(inplace = True),
                                     torch.nn.Linear(512, 128),
                                     torch.nn.ReLU(inplace = True)),

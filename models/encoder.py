@@ -2,12 +2,12 @@ import torch
 
 
 class Encoder(torch.nn.Module):
-    def __init__(self, model_name: str, encoder: torch.nn.Module, out_features: int, 
+    def __init__(self, model_name: str, encoder: torch.nn.Module, out_channels: int, 
     global_pool: str = None, dim: int = None):
         torch.nn.Module.__init__(self)
         self.encoder      = encoder
         self.model_name   = model_name
-        self.out_features = out_features
+        self.out_channels = out_channels
         self.global_pool  = global_pool
         self.dim          = dim
         if self.global_pool is None:
@@ -24,5 +24,5 @@ class Encoder(torch.nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.pooling(x).squeeze()
-        assert self.out_features == x.shape[1], f"Encoder.forward: expected {self.out_features} out features, got {x.shape[1]}."
+        assert self.out_channels == x.shape[1], f"Encoder.forward: expected {self.out_channels} out features, got {x.shape[1]}."
         return x

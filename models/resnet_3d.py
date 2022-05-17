@@ -6,8 +6,8 @@ def resnet_3d(version: int = 18, global_pool = "gap"):
     model_name   = f"resnet{version}"
     model_2d     = timm.create_model(model_name, in_chans = 1, num_classes = 0, global_pool = "")
     model_3d     = get_children(model_2d)
-    out_features = (512,2048)[int(version >= 50)]
-    return Encoder(model_name, model_3d, out_features, global_pool = global_pool, dim = 3)
+    out_channels = (512,2048)[int(version >= 50)]
+    return Encoder(model_name, model_3d, out_channels, global_pool = global_pool, dim = 3)
 
 def get_children(model: torch.nn.Module):
     # Adapted from: https://stackoverflow.com/a/65112132

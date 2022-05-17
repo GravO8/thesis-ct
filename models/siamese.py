@@ -31,9 +31,9 @@ class SiameseTangleMerger(SiameseEncoderMerger, torch.nn.Module):
     def __init__(self, in_channels: int, dim: int = 3):
         torch.nn.Module.__init__(self)
         assert dim in (2,3)
-        self.group_conv = eval(f"torch.nn.Conv{dim}d")(in_channels  = in_channels, 
-                                                       out_channels = in_channels//2, 
-                                                       groups       = in_channels//2,
+        self.group_conv = eval(f"torch.nn.Conv{dim}d")(in_channels  = in_channels*2, 
+                                                       out_channels = in_channels, 
+                                                       groups       = in_channels,
                                                        kernel_size  = 3, 
                                                        padding      = 1)
         fn = lambda x1, x2: self.group_conv(tangle(x1,x2))
@@ -47,7 +47,7 @@ class SiameseEncoder(torch.nn.Module):
         self.encoder         = encoder
         self.merge_encodings = merge_encodings
         self.merged_encoder  = merged_encoder
-        self.out_features    = self.merged_encoder.out_features
+        self.out_channels    = self.merged_encoder.out_channels
         if self.merged_encoder.global_pool is None:
             assert self.encoder.global_pool is not None, "SiameseEncoder.__init__: either the 'encoder' or the 'merged_encoder' must apply global pooling."
         else:
@@ -59,7 +59,7 @@ class SiameseEncoder(torch.nn.Module):
         x2 = self.encoder(x2)
         x  = self.merge_encodings(x1, x2)
         x  = self.merged_encoder(x) 
-        assert self.merged_encoder.out_features == x.shape[1], f"SiameseEncoder.forward: expected {self.merged_encoder.out_features} out features, got {x.shape[1]}."
+        assert self.merged_encoder.out_channels == x.shape[1], f"SiameseEncoder.forward: expected {self.merged_encoder.out_channels} out features, got {x.shape[1]}."
         return x
 
 
