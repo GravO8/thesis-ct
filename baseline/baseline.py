@@ -11,6 +11,6 @@ if __name__ == "__main__":
                 Baseline3DCNN(resnet_3d(18, global_pool = "gap")),
                 Baseline3DCNN(resnet_3d(34, global_pool = "gap")),
                 Baseline3DCNN(deep_sym_encoder(1, global_pool = "gap"))]
-    main(to_test[3:])
+    main(to_test[3:], device = 1)
     
     
