@@ -70,11 +70,11 @@ class Trainer:
         if not os.path.isdir(model_name):
             os.system(f"mkdir {model_name}")
             with open(os.path.join(model_name, PERFORMANCE), "w") as f:
-                f.write("model_name;run;set;best_epoch;accuracy;precision;recall;f1_score;auc_score\n")
+                f.write("model_name;run;best_epoch;set;accuracy;precision;recall;f1_score;auc_score\n")
             with open(os.path.join(model_name, "summary.txt"), "w") as f:
                 f.write( str(self.model) )
                 f.write("\n")
-                with contextlib.redirect_stdout(f):
+                with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
                     summary(self.model, (1,91,109,91))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)

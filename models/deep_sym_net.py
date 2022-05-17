@@ -1,43 +1,24 @@
 import torch
 from .encoder import Encoder
 from .siamese import SiameseEncoder, SiameseEncoderMerger, SiameseNet
+from .models import conv_3d
 
 class InceptionModule3D(torch.nn.Module):
     def __init__(self, in_channels, out_channels: int = 64):
         torch.nn.Module.__init__(self)
-        self.path1 = torch.nn.Sequential(
-                            torch.nn.Conv3d(in_channels  = in_channels, 
-                                            out_channels = out_channels,
-                                            kernel_size  = 1),
-                            torch.nn.ReLU(inplace = True))
+        self.path1 = conv_3d(in_channels, out_channels, kernel_size = 1, padding = 0, bias = False)
         self.path2 = torch.nn.Sequential(
-                        torch.nn.Conv3d(in_channels  = in_channels,
-                                        out_channels = out_channels,
-                                        kernel_size  = 1),
-                        torch.nn.ReLU(inplace = True),
-                        torch.nn.Conv3d(in_channels  = out_channels,
-                                        out_channels = out_channels,
-                                        padding      = 1,
-                                        kernel_size  = 3),
-                        torch.nn.ReLU(inplace = True))
+                        conv_3d(in_channels,  out_channels, kernel_size = 1, padding = 0, bias = False),
+                        conv_3d(out_channels, out_channels, kernel_size = 3, padding = 1, bias = False))
         self.path3 = torch.nn.Sequential(
-                        torch.nn.Conv3d(in_channels  = in_channels,
-                                        out_channels = out_channels,
-                                        kernel_size  = 1),
-                        torch.nn.ReLU(inplace = True),
-                        torch.nn.Conv3d(in_channels  = out_channels,
-                                        out_channels = out_channels,
-                                        padding      = 2,
-                                        kernel_size  = 5),
-                        torch.nn.ReLU(inplace = True))
+                        conv_3d(in_channels,  out_channels, kernel_size = 1, padding = 0, bias = False),
+                        conv_3d(out_channels, out_channels, kernel_size = 5, padding = 2, bias = False))
         self.path4 = torch.nn.Sequential(
                         torch.nn.MaxPool3d(kernel_size  = 3, 
                                            stride       = 1,
-                                           padding      = 1),
-                        torch.nn.Conv3d(in_channels  = in_channels,
-                                        out_channels = out_channels,
-                                        kernel_size  = 1),
-                        torch.nn.ReLU(inplace = True))
+                                           padding      = 1,
+                                           ceil_mode    = True),
+                        conv_3d(in_channels, out_channels, kernel_size = 1, padding = 0, bias = False))
     def forward(self, x):
         x1 = self.path1(x)
         x2 = self.path2(x)

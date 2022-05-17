@@ -4,13 +4,14 @@ from .encoder import Encoder
 def final_mlp(in_features):
     return torch.nn.Sequential(torch.nn.Linear(in_features,1), torch.nn.Sigmoid())
     
-def conv_3d(in_channels, out_channels, kernel_size, stride = 1, padding = None):
+def conv_3d(in_channels, out_channels, kernel_size, stride = 1, padding = None, 
+bias = True):
     return torch.nn.Sequential( torch.nn.Conv3d(in_channels     = in_channels,
                                                 out_channels    = out_channels,
                                                 kernel_size     = kernel_size,
                                                 stride          = stride,
                                                 padding         = (kernel_size-1)//2 if padding is None else padding,
-                                                bias            = True),
+                                                bias            = bias),
                                 torch.nn.BatchNorm3d(num_features = out_channels),
                                 torch.nn.ReLU(inplace = True))
         
