@@ -3,6 +3,12 @@ from .model import Encoder
 
 
 class SiameseEncoderMerger:
+    '''
+    Command design pattern
+    fn should be a function that receives two inputs tensors, each of size 
+    (batch, channels, features_maps+) and outputs a single tensor of the same 
+    size whose content is obtained by merging the two input tensors in some way
+    '''
     def __init__(self, fn_name: str, fn):
         self.fn_name = fn_name
         self.fn      = fn
@@ -14,16 +20,24 @@ class SiameseEncoderMerger:
         
 def tangle(x1, x2):
     assert x1.shape == x2.shape
-    shp     = x1.shape
+    shp     = list(x1.shape)
     shp[1] *= 2
     x       = torch.zeros(shp)
     x[:,[i for i in range(shp[1]) if i%2 == 0],:,:,:] = x1
     x[:,[i for i in range(shp[1]) if i%2 == 1],:,:,:] = x2
     return x
-    
-    
-def tangle_merger():
-    return SiameseEncoderMerger("tangle", tangle)
+        
+class SiameseTangleMerger(SiameseEncoderMerger, torch.nn.Module):
+    def __init__(self, in_channels: int, dim: int = 3):
+        torch.nn.Module.__init__(self)
+        assert dim in (2,3)
+        self.group_conv = eval(f"torch.nn.Conv{dim}d")(in_channels  = in_channels, 
+                                                       out_channels = in_channels//2, 
+                                                       groups       = in_channels//2,
+                                                       kernel_size  = 3, 
+                                                       padding      = 1)
+        fn = lambda x1, x2: self.group_conv(tangle(x1,x2))
+        SiameseEncoderMerger.__init__(self, "tangle", fn)
         
 
 class SiameseEncoder(torch.nn.Module):
