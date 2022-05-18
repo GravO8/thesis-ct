@@ -1,6 +1,7 @@
 import torch
 from .encoder import Encoder
 from .model import Model
+from abc import ABC, abstractmethod
 
 
 class SiameseEncoderMerger:
@@ -10,13 +11,12 @@ class SiameseEncoderMerger:
     (batch, channels, features_maps+) and outputs a single tensor of the same 
     size whose content is obtained by merging the two input tensors in some way
     '''
-    def __init__(self, fn_name: str, fn):
-        self.fn_name = fn_name
-        self.fn      = fn
+    @abstractmethod
     def get_name(self):
-        return self.fn_name
+        pass
+    @abstractmethod
     def __call__(self, x1, x2):
-        return self.fn(x1, x2)
+        pass
         
         
 def tangle(x1, x2):
@@ -30,15 +30,25 @@ def tangle(x1, x2):
         
 class SiameseTangleMerger(SiameseEncoderMerger, torch.nn.Module):
     def __init__(self, in_channels: int, dim: int = 3):
-        torch.nn.Module.__init__(self)
+        super().__init__(self)
         assert dim in (2,3)
         self.group_conv = eval(f"torch.nn.Conv{dim}d")(in_channels  = in_channels*2, 
                                                        out_channels = in_channels, 
                                                        groups       = in_channels,
                                                        kernel_size  = 3, 
                                                        padding      = 1)
-        fn = lambda x1, x2: self.group_conv(tangle(x1,x2))
-        SiameseEncoderMerger.__init__(self, "tangle", fn)
+    def get_name(self):
+        return "tangle"
+    def __call__(self, x1, x2):
+        x = tangle(x1, x2)
+        x = self.group_conv(x)
+        return x
+        
+class SiameseL1NormMerger(SiameseEncoderMerger):
+    def get_name(self):
+        return "L1norm"
+    def __call__(self, x1, x2):
+        return torch.abs(x1 - x2)
         
 
 class SiameseEncoder(torch.nn.Module):

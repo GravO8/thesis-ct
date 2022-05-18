@@ -1,6 +1,6 @@
 import torch
 from .encoder import Encoder
-from .siamese import SiameseEncoder, SiameseEncoderMerger, SiameseNet
+from .siamese import SiameseEncoder, SiameseL1NormMerger, SiameseNet
 from .models import conv_3d
 
 class InceptionModule3D(torch.nn.Module):
@@ -44,17 +44,12 @@ def deep_sym_merged_encoder(in_channels: int, global_pool = "gmp"):
         InceptionModule3D(in_channels, 16),
         InceptionModule3D(16*4, 16)
     )
-    return Encoder("deep_sym_merged_encoder", encoder, 16*4, global_pool = global_pool, dim = 3) 
-    
-    
-def l1_norm():
-    fn = lambda x1, x2: torch.abs(x1 - x2)
-    return SiameseEncoderMerger("L1norm", fn)
+    return Encoder("deep_sym_merged_encoder", encoder, 16*4, global_pool = global_pool, dim = 3)
 
 
 def deep_sym_net(in_channels = 1):
     encoder         = deep_sym_encoder(in_channels, global_pool = None)
-    merger          = l1_norm()
+    merger          = SiameseL1NormMerger()
     merged_encoder  = deep_sym_merged_encoder(encoder.out_channels)
     return SiameseNet(SiameseEncoder(encoder, merger, merged_encoder))
 

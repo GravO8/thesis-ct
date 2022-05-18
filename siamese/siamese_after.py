@@ -1,15 +1,15 @@
 import torch, sys
 sys.path.append("..")
-from models.deep_sym_net import deep_sym_encoder, l1_norm
+from models.deep_sym_net import deep_sym_encoder
 from models.resnet_3d import resnet_3d
 from models.encoder import Encoder
-from models.siamese import SiameseEncoder, SiameseNetAfter
+from models.siamese import SiameseEncoder, SiameseNetAfter, SiameseL1NormMerger
 from models.models import custom_3D_cnn_v1
 from utils.main import main
 
 def siamese_after(encoder):
     assert encoder.global_pool is not None
-    merger          = l1_norm()
+    merger          = SiameseL1NormMerger()
     merged_encoder  = Encoder("MLP_merged_encoder",
                               torch.nn.Sequential(
                                     torch.nn.Linear(encoder.out_channels, 512),
