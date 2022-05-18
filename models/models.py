@@ -44,15 +44,22 @@ def custom_2D_cnn_v1(global_pool: str):
                    global_pool = global_pool, 
                    dim = 2)
                    
-def get_timm_model(model_name: str, global_pool: str = None):
+def get_timm_model(model_name: str, global_pool: str = None, 
+    pretrained: bool = False, frozen: bool = False):
+    appendix = "_pretrained" if pretrained else ""
     supported_models = {"resnet18": 512, "resnet34": 512, "efficientnet_b0": 1280, "efficientnet_b1": 1280}
     assert model_name in supported_models, f"get_timm_model: supported models are {[r for r in supported_models]}"
-    model = timm.create_model(model_name, global_pool = "", num_classes = 0, in_chans = 1)
-    return Encoder( model_name, 
+    model = timm.create_model(model_name, global_pool = "", num_classes = 0, in_chans = 1, pretrained = pretrained)
+    if frozen:
+        appendix = "_frozen"
+        assert pretrained, "get_timm_model: 'frozen' = True only available for 'pretrained' = True"
+        for param in model.parameters():
+            param.requires_grad = False
+    return Encoder( model_name + appendix, 
                     model, 
                     out_channels = supported_models[model_name], 
-                    global_pool = global_pool,
-                    dim = 2)
+                    global_pool  = global_pool,
+                    dim          = 2)
                     
                     
 if __name__ == '__main__':

@@ -56,7 +56,7 @@ class MILEncoder(torch.nn.Module):
         self.feature_extractor = feature_extractor
         self.out_channels      = self.encoder.out_channels
     def get_name(self):
-        return f"{self.encoder.get_name()}_{self.mil_pooling.get_name()}" + ("" if self.feature_extractor is None else "_"+self.feature_extractor.get_name())
+        return f"{self.encoder.get_name()}-{self.mil_pooling.get_name()}" + ("" if self.feature_extractor is None else "_"+self.feature_extractor.get_name())
     def forward(self, x):
         x = self.encoder(x)
         x = self.mil_pooling(x)
