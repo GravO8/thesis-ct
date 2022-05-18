@@ -34,22 +34,18 @@ class MeanMILPooling(MILPoolingEncodings):
         
 class AttentionMILPooling(MILPoolingEncodings, torch.nn.Module):
     def __init__(self, in_channels: int, bottleneck_dim: int = 128):
-        super().__init__(self)
+        super().__init__()
         self.attention = torch.nn.Sequential(
                             torch.nn.Linear(in_channels, bottleneck_dim),
                             torch.nn.Tanh(),
                             torch.nn.Linear(bottleneck_dim, 1))
-    def __call__(self, x):
-        # verificar se isto está correto
-        print("x", x.shape)
-        a = self.attention(h).T
-        print("a", a.shape)
-        a = torch.nn.Softmax(dim = 1)(a)
-        print("a Softmax", a.shape)
-        x = x * a
-        print("x after", x.shape)
-        # TODO
+    def forward(self, x):
+        a = self.attention(x)
+        a = torch.nn.Softmax(dim = 0)(a).T
+        x = torch.mm(a,x)
         return x
+    def get_name(self):
+        return "AttentionPooling"
 
 
 class MILEncoder(torch.nn.Module):
@@ -79,10 +75,10 @@ class MILNet(Model):
             out.append( super().forward(scan) )
         return torch.stack(out, dim = 0)
     def process_input(self, x):
-        x   = self.normalize_input(x)
-        shp = x.shape
-        x   = x.reshape((shp[3],shp[0],shp[1],shp[2])) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
-        return x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
+        x = self.normalize_input(x)
+        x = x.permute((3,0,1,2)) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
+        x = x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
+        return x
     def name_appendix(self):
         return "MILNet"
         
