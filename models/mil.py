@@ -14,8 +14,8 @@ class MILPooling(ABC):
         
 class MILPoolingEncodings(MILPooling):
     def __call__(self, x):
-        assert x.dim() == 2, "MILPoolingEncodings.__call__: expected tensor of size 2 (number of instances, instance encoding size)"
-        self.forward(x)
+        assert x.dim() == 2, f"MILPoolingEncodings.__call__: expected tensor of size 2 (number of instances, instance encoding size) but got {x.dim()}"
+        return self.forward(x)
     @abstractmethod
     def forward(self, x):
         pass
@@ -27,7 +27,7 @@ class MaxMILPooling(MILPoolingEncodings):
         return "MaxPooling"
         
 class MeanMILPooling(MILPoolingEncodings):
-    def __call__(self, x):
+    def forward(self, x):
         return h.mean(dim = 0)
     def get_name(self):
         return "MeanPooling"
@@ -41,18 +41,19 @@ class AttentionMILPooling(MILPoolingEncodings, torch.nn.Module):
                             torch.nn.Linear(bottleneck_dim, 1))
     def __call__(self, x):
         # verificar se isto está correto
-        print("x" x.shape)
+        print("x", x.shape)
         a = self.attention(h).T
         print("a", a.shape)
         a = torch.nn.Softmax(dim = 1)(a)
         print("a Softmax", a.shape)
         x = x * a
         print("x after", x.shape)
-        1/0
+        # TODO
         return x
-    
+
+
 class MILEncoder(torch.nn.Module):
-    def __init__(self, encoder: Encoder, mil_pooling: MILPooling, feature_extractor = None: Encoder):
+    def __init__(self, encoder: Encoder, mil_pooling: MILPooling, feature_extractor: Encoder = None):
         torch.nn.Module.__init__(self)
         self.encoder           = encoder # instance encoder
         self.mil_pooling       = mil_pooling
@@ -61,13 +62,34 @@ class MILEncoder(torch.nn.Module):
     def get_name(self):
         return f"{self.encoder.get_name()}_{self.mil_pooling.get_name()}" + ("" if self.feature_extractor is None else "_"+self.feature_extractor.get_name())
     def forward(self, x):
-        shp = x.shape # (C,x,y,z) = (1,x,y,z)
-        assert len(shp) == 4, "MILEncoder.forward: can only process one CT scan at the time."
-        x.reshape((shp[3],1,shp[1],shp[2])) # (B,C,x,y) = (z,1,x,y)
-        1/0 # check if the axial slices are correct
         x = self.encoder(x)
         x = self.mil_pooling(x)
         if self.feature_extractor is not None:
             x = self.feature_extractor(x)
         return x
         
+        
+class MILNet(Model):
+    def __init__(self, encoder: MILEncoder):
+        assert isinstance(encoder, MILEncoder), "MILNet.__init__: 'encoder' must be of class 'MILEncoder'"
+        super().__init__(encoder)
+    def forward(self, batch):
+        out = []
+        for scan in batch.unbind(dim = 0):
+            out.append( super().forward(scan) )
+        return torch.stack(out, dim = 0)
+    def process_input(self, x):
+        x   = self.normalize_input(x)
+        shp = x.shape
+        x   = x.reshape((shp[3],shp[0],shp[1],shp[2])) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
+        return x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
+    def name_appendix(self):
+        return "MILNet"
+        
+class MILNetAfter(MILNet):
+    def __init__(self, encoder: MILEncoder):
+        super().__init__(encoder)
+        assert encoder.encoder.global_pool is not None
+        assert (encoder.feature_extractor is None) or (encoder.feature_extractor.global_pool is None)
+    def name_appendix(self):
+        return super().name_appendix() + "-" + "after"

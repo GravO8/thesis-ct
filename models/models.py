@@ -1,11 +1,11 @@
-import torch
+import torch, timm
 from .encoder import Encoder
 
 def final_mlp(in_features):
     return torch.nn.Sequential(torch.nn.Linear(in_features,1), torch.nn.Sigmoid())
     
 def conv_3d(in_channels, out_channels, kernel_size, stride = 1, padding = None, 
-bias = True):
+    bias = True):
     return torch.nn.Sequential( torch.nn.Conv3d(in_channels     = in_channels,
                                                 out_channels    = out_channels,
                                                 kernel_size     = kernel_size,
@@ -15,15 +15,27 @@ bias = True):
                                 torch.nn.BatchNorm3d(num_features = out_channels),
                                 torch.nn.ReLU(inplace = True))
         
-def custom_3D_cnn_v1(global_pool):
+def custom_3D_cnn_v1(global_pool: str):
     return Encoder("custom_cnn_v1", 
                    torch.nn.Sequential(conv_3d(1,8,5), conv_3d(8,16,3,2,1), 
                                        conv_3d(16,32,3), conv_3d(32,64,3,2,1)),
                    out_channels = 64, 
                    global_pool = global_pool, 
                    dim = 3)
+                   
+def get_timm_model(model_name: str, global_pool: str = None):
+    supported_models = {"resnet18": 512, "resnet34": 512, "efficientnet_b0": 1280, "efficientnet_b1": 1280}
+    assert model_name in supported_models, f"get_timm_model: supported models are {[r for r in supported_models]}"
+    model = timm.create_model(model_name, global_pool = "", num_classes = 0, in_chans = 1)
+    return Encoder( model_name, 
+                    model, 
+                    out_channels = supported_models[model_name], 
+                    global_pool = global_pool,
+                    dim = 2)
+    
                     
                     
 if __name__ == '__main__':
-    r = Custom3DCNNv1()
-    print(r.encoder)
+    # r = get_timm_model("resnet18", global_pool = "gap")
+    r = timm.create_model("resnet18")
+    print(r)

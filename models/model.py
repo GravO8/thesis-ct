@@ -6,7 +6,7 @@ from .encoder import Encoder
         
 class Model(ABC, torch.nn.Module):
     def __init__(self, encoder: Encoder):
-        torch.nn.Module.__init__(self)
+        super().__init__()
         self.encoder    = encoder
         self.mlp        = final_mlp(self.encoder.out_channels)
         
