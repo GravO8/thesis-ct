@@ -6,14 +6,27 @@ def final_mlp(in_features):
     
 def conv_3d(in_channels, out_channels, kernel_size, stride = 1, padding = None, 
     bias = True):
-    return torch.nn.Sequential( torch.nn.Conv3d(in_channels     = in_channels,
-                                                out_channels    = out_channels,
-                                                kernel_size     = kernel_size,
-                                                stride          = stride,
-                                                padding         = (kernel_size-1)//2 if padding is None else padding,
-                                                bias            = bias),
-                                torch.nn.BatchNorm3d(num_features = out_channels),
-                                torch.nn.ReLU(inplace = True))
+    return torch.nn.Sequential( 
+        torch.nn.Conv3d(in_channels     = in_channels,
+                        out_channels    = out_channels,
+                        kernel_size     = kernel_size,
+                        stride          = stride,
+                        padding         = (kernel_size-1)//2 if padding is None else padding,
+                        bias            = bias),
+        torch.nn.BatchNorm3d(num_features = out_channels),
+        torch.nn.ReLU(inplace = True))
+                                
+def conv_2d(in_channels, out_channels, kernel_size, stride = 1, padding = None, 
+    bias = True):
+    return torch.nn.Sequential( 
+        torch.nn.Conv2d(in_channels     = in_channels,
+                        out_channels    = out_channels,
+                        kernel_size     = kernel_size,
+                        stride          = stride,
+                        padding         = (kernel_size-1)//2 if padding is None else padding,
+                        bias            = bias),
+        torch.nn.BatchNorm3d(num_features = out_channels),
+        torch.nn.ReLU(inplace = True))
         
 def custom_3D_cnn_v1(global_pool: str):
     return Encoder("custom_cnn_v1", 
@@ -22,6 +35,14 @@ def custom_3D_cnn_v1(global_pool: str):
                    out_channels = 64, 
                    global_pool = global_pool, 
                    dim = 3)
+                   
+def custom_2D_cnn_v1(global_pool: str):
+    return Encoder("custom_cnn_v1", 
+                   torch.nn.Sequential(conv_2d(1,8,5), conv_2d(8,16,3,2,1), 
+                                       conv_2d(16,32,3), conv_2d(32,64,3,2,1)),
+                   out_channels = 64, 
+                   global_pool = global_pool, 
+                   dim = 2)
                    
 def get_timm_model(model_name: str, global_pool: str = None):
     supported_models = {"resnet18": 512, "resnet34": 512, "efficientnet_b0": 1280, "efficientnet_b1": 1280}
@@ -32,7 +53,6 @@ def get_timm_model(model_name: str, global_pool: str = None):
                     out_channels = supported_models[model_name], 
                     global_pool = global_pool,
                     dim = 2)
-    
                     
                     
 if __name__ == '__main__':
