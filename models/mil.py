@@ -29,7 +29,7 @@ class MaxMILPooling(MILPoolingEncodings):
         
 class MeanMILPooling(MILPoolingEncodings):
     def forward(self, x):
-        return h.mean(dim = 0)
+        return x.mean(dim = 0)
     def get_name(self):
         return "MeanPooling"
         
@@ -85,7 +85,8 @@ class MILNetAfter(MILNet):
         assert (encoder.feature_extractor is None) or (encoder.feature_extractor.global_pool is None)
     def name_appendix(self):
         return super().name_appendix() + "-after"
-        
+
+
 class MILAfterAxial(MILNetAfter):
     def process_input(self, x):
         x = self.normalize_input(x)
@@ -110,19 +111,20 @@ def to_blocks(arr_in: torch.Tensor, block_shape: tuple):
     return arr_out
     
 class MILAfterBlock(MILNetAfter):
-    def process_input(self, x, debug = True):
+    def process_input(self, x, debug = False):
         x = self.normalize_input(x)
-        x = x[:,:-1,:-1,:-1].squeeze() # trim input from (91,109,91) to (90,108,90) to be more evenly divisible
+        x = x[:,:-1,:-1,:-1].squeeze()      # trim input from (91,109,91) to (90,108,90) to be more evenly divisible
         x = to_blocks(x, (18,27,18))
+        x = x.reshape((100, 1, 18, 27, 18)) # (B,C,x,y,z)
         if debug:
             import matplotlib.pyplot as plt
-            for iz1 in range(x.shape[2]):
-                for iz2 in range(x.shape[-1]):
-                    _, axs = plt.subplots(x.shape[0], x.shape[1])
-                    print("block slice", iz2)
-                    for ix in range(x.shape[0]):
-                        for iy in range(x.shape[1]):
-                            axs[ix][iy].imshow(x[ix,iy,iz1,:,:,iz2], cmp = "gray")
+            for slice in range(0,x.shape[0],20):
+                for z in range(x.shape[-1]):
+                    _, axs = plt.subplots(5, 4)
+                    for i in range(5):
+                        for j in range(4):
+                            axs[i][j].imshow(x[slice+i*4+j,:,:,:,z].squeeze(), cmap = "gray")
                     plt.show()
-        x = x.reshape(100, 18, 27, 18)
         return x
+    def name_appendix(self):
+        return super().name_appendix() + "-Block"
