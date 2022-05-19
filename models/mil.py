@@ -1,4 +1,5 @@
-import torch
+import torch, numpy
+from skimage.util import view_as_blocks
 from .encoder import Encoder
 from .model import Model
 from abc import ABC, abstractmethod
@@ -74,6 +75,8 @@ class MILNet(Model):
         for scan in batch.unbind(dim = 0):
             out.append( super().forward(scan) )
         return torch.stack(out, dim = 0)
+    def name_appendix(self):
+        return "MILNet"
         
 class MILNetAfter(MILNet):
     def __init__(self, encoder: MILEncoder):
@@ -91,19 +94,35 @@ class MILAfterAxial(MILNetAfter):
         return x
     def name_appendix(self):
         return super().name_appendix() + "-Axial"
+
+
+def to_blocks(arr_in: torch.Tensor, block_shape: tuple):
+    '''
+    code adapted from
+    https://github.com/scikit-image/scikit-image/blob/main/skimage/util/shape.py
+    to work with torch tensors
+    '''
+    block_shape = numpy.array(block_shape)
+    arr_shape   = numpy.array(arr_in.shape)
+    new_shape   = tuple(arr_shape // block_shape) + tuple(block_shape)
+    new_strides = tuple(arr_in.stride() * block_shape) + arr_in.stride()
+    arr_out     = torch.as_strided(arr_in, size=new_shape, stride=new_strides)
+    return arr_out
     
 class MILAfterBlock(MILNetAfter):
-    def process_input(self, x):
+    def process_input(self, x, debug = True):
         x = self.normalize_input(x)
-        x = x[:,:-1,:-1,:-1] # trim input from (91,109,91) to (90,108,90) to be more evenly divisible
-        out = []
-        dim = (18,27,18)
-        for ix in range(0,x.shape[1]-dim[0],dim[0]):
-            for iy in range(0,x.shape[2]-dim[1],dim[1]):
-                for iz in range(0,x.shape[3]-dim[2],dim[2]):
-                    block = x[:, ix:ix+dim[0], iy:iy+dim[1], iz:iz+dim[2]]
-                    if torch.count_nonzero(block > 0) > 100:
-                        out.append( block )
-        x = torch.stack(out)
-        print(x.shape)
-        
+        x = x[:,:-1,:-1,:-1].squeeze() # trim input from (91,109,91) to (90,108,90) to be more evenly divisible
+        x = to_blocks(x, (18,27,18))
+        if debug:
+            import matplotlib.pyplot as plt
+            for iz1 in range(x.shape[2]):
+                for iz2 in range(x.shape[-1]):
+                    _, axs = plt.subplots(x.shape[0], x.shape[1])
+                    print("block slice", iz2)
+                    for ix in range(x.shape[0]):
+                        for iy in range(x.shape[1]):
+                            axs[ix][iy].imshow(x[ix,iy,iz1,:,:,iz2], cmp = "gray")
+                    plt.show()
+        x = x.reshape(100, 18, 27, 18)
+        return x
