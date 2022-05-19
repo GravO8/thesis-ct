@@ -229,3 +229,6 @@ Escolher o melhor encoder e o melhor número de slices
 - Fazer uma coisa semelhante ao feito em *Interpretability-guided Content-based Medical Image Retrieval*
 - ViT encoders
 - Contrastive loss nas siamese nets (mesmo no caso simples de usar o rankin)
+- 3D nets com inputed padded para que cada slice axial seja 224x224 (como vou fazer no Axial e MIL methods)
+- Tamanho VS número de 3D blocks no MILBlocks
+- **TALVEZ AINDA FAÇA** - MIL before, attention com uma CNN que gera a attention de cada instance

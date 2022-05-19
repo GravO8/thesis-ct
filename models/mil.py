@@ -74,13 +74,6 @@ class MILNet(Model):
         for scan in batch.unbind(dim = 0):
             out.append( super().forward(scan) )
         return torch.stack(out, dim = 0)
-    def process_input(self, x):
-        x = self.normalize_input(x)
-        x = x.permute((3,0,1,2)) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
-        x = x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
-        return x
-    def name_appendix(self):
-        return "MILNet"
         
 class MILNetAfter(MILNet):
     def __init__(self, encoder: MILEncoder):
@@ -88,4 +81,29 @@ class MILNetAfter(MILNet):
         assert encoder.encoder.global_pool is not None
         assert (encoder.feature_extractor is None) or (encoder.feature_extractor.global_pool is None)
     def name_appendix(self):
-        return super().name_appendix() + "-" + "after"
+        return super().name_appendix() + "-after"
+        
+class MILAfterAxial(MILNetAfter):
+    def process_input(self, x):
+        x = self.normalize_input(x)
+        x = x.permute((3,0,1,2)) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
+        x = x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
+        return x
+    def name_appendix(self):
+        return super().name_appendix() + "-Axial"
+    
+class MILAfterBlock(MILNetAfter):
+    def process_input(self, x):
+        x = self.normalize_input(x)
+        x = x[:,:-1,:-1,:-1] # trim input from (91,109,91) to (90,108,90) to be more evenly divisible
+        out = []
+        dim = (18,27,18)
+        for ix in range(0,x.shape[1]-dim[0],dim[0]):
+            for iy in range(0,x.shape[2]-dim[1],dim[1]):
+                for iz in range(0,x.shape[3]-dim[2],dim[2]):
+                    block = x[:, ix:ix+dim[0], iy:iy+dim[1], iz:iz+dim[2]]
+                    if torch.count_nonzero(block > 0) > 100:
+                        out.append( block )
+        x = torch.stack(out)
+        print(x.shape)
+        

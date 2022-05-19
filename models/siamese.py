@@ -98,7 +98,7 @@ class SiameseNetBefore(SiameseNet):
         assert encoder.encoder.global_pool is None
         assert encoder.merged_encoder.global_pool is not None
     def name_appendix(self):
-        return super().name_appendix() + "-" + "before"
+        return super().name_appendix() + "-before"
         
         
 class SiameseNetAfter(SiameseNet):
@@ -107,4 +107,4 @@ class SiameseNetAfter(SiameseNet):
         assert encoder.encoder.global_pool is not None
         assert encoder.merged_encoder.global_pool is None
     def name_appendix(self):
-        return super().name_appendix() + "-" + "after"
+        return super().name_appendix() + "-after"
