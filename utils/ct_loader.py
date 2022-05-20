@@ -76,6 +76,7 @@ class CTLoader2D(CTLoader):
         }
         assert self.slice in [r for r in self.reference_slices], "CTLoader2D__init__: slice must be in 'A','B' or 'C'."
         self.set_mask()
+
     def set_mask(self):
         self.mask = None
         for i in range(len(self.reference_scans)):
@@ -89,8 +90,23 @@ class CTLoader2D(CTLoader):
             else:
                 self.mask += scan[:,:,:,axial_slice]
         self.mask    /= len(self.reference_scans)
-        self.negative = mask.max() - mask
-
+        self.negative = self.mask.max() - self.mask
+        
+    def load_set(self, set_name: str):
+        set = super().load_set(set_name)
+        for subject in set:
+            scores = []
+            scan   = subject["ct"][torchio.DATA]
+            for i in range(scan.shape[-1]):
+                ax_slice = scan[:,:,:,i].squeeze() # shape = (B,x,y,z)
+                score    = (ax_slice*self.mask).sum() - (ax_slice*self.negative).sum()
+                scores.append(score)
+            i      = np.argmax(scores)
+            scan   = scan[:,:,:,i-self.N:i+self.N].mean(axis = 3)
+            scan   = scan.unsqueeze(dim = -1) # torchio expects 4D tensors
+            subject["ct"] = scan
+        return set
+            
 if __name__ == "__main__":
     ct_loader = CTLoader2D("A", data_dir = "../../../data/gravo")
-    # ct_loader.load_dataset()
+    ct_loader.load_dataset()
