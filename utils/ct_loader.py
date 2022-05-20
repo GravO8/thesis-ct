@@ -1,7 +1,7 @@
 import os, torchio
 import numpy as np
 import pandas as pd
-from dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
+from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
 
 class CTLoader:
@@ -63,10 +63,10 @@ class CTLoader:
         
         
 class CTLoader2D(CTLoader):
-    def __init__(self, slice: str, N: int = 2, **kwargs):
+    def __init__(self, slice: str, slice_range: int = 2, **kwargs):
         super().__init__(**kwargs)
-        assert N >= 0
-        self.N                = N
+        assert slice_range >= 0
+        self.slice_range      = slice_range
         self.slice            = slice
         self.reference_scans  = (2243971, 2520986, 2605128, 2505743, 1911947)
         self.reference_slices = {
@@ -102,7 +102,7 @@ class CTLoader2D(CTLoader):
                 score    = (ax_slice*self.mask).sum() - (ax_slice*self.negative).sum()
                 scores.append(score)
             i      = np.argmax(scores)
-            scan   = scan[:,:,:,i-self.N:i+self.N].mean(axis = 3)
+            scan   = scan[:,:,:,i-self.slice_range:i+self.slice_range].mean(axis = 3)
             scan   = scan.unsqueeze(dim = -1) # torchio expects 4D tensors
             subject["ct"] = scan
         return set

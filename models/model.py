@@ -44,3 +44,13 @@ class BaselineMirror(Model):
         return x
     def name_appendix(self):
         return "baseline-mirror" 
+
+
+class Axial2DCNN(Model):
+    def process_input(self, x):
+        assert x.shape[-1] == 1, "Axial2DCNN.process_input: expected only 1 axial slice"
+        return self.normalize_input(x)
+    def set_slice_range(self, slice_range):
+        self.slice_range = slice_range
+    def name_appendix(self):
+        return f"axial{self.slice_range}-2DCNN"
