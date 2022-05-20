@@ -1,7 +1,7 @@
 import os, torchio
 import numpy as np
 import pandas as pd
-from .kfold_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION
+from dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
 
 class CTLoader:
@@ -47,7 +47,7 @@ class CTLoader:
                 augmentations_set.append(subject)
         return augmentations_set
     
-    def load_set(self, set_name):
+    def load_set(self, set_name: str):
         assert set_name in ("train", "val", "test")
         set = []
         for _, row in self.labels[self.labels["set"] == set_name].iterrows():
@@ -60,8 +60,37 @@ class CTLoader:
                 transform   = "original")
             set.append(subject)
         return set
+        
+        
+class CTLoader2D(CTLoader):
+    def __init__(self, slice: str, N: int = 2, **kwargs):
+        super().__init__(**kwargs)
+        assert N >= 0
+        self.N                = N
+        self.slice            = slice
+        self.reference_scans  = (2243971, 2520986, 2605128, 2505743, 1911947)
+        self.reference_slices = {
+            "A": [35, 33, 34, 36, 39],
+            "B": [50, 47, 48, 52, 51],
+            "C": [25, 26, 24, 25, 30]
+        }
+        assert self.slice in [r for r in self.reference_slices], "CTLoader2D__init__: slice must be in 'A','B' or 'C'."
+        self.set_mask()
+    def set_mask(self):
+        self.mask = None
+        for i in range(len(self.reference_scans)):
+            patient_id  = self.reference_scans[i]
+            axial_slice = self.reference_slices[self.slice][i]
+            assert self.labels[self.labels[PATIENT_ID] == patient_id][SET].values[0] == "train", "CTLoader2D.set_mask: all reference scans must be from the train set."
+            path        = os.path.join(self.data_dir, "NCCT", f"{patient_id}.nii")
+            scan        = torchio.ScalarImage(path)[torchio.DATA].float()
+            if self.mask is None:
+                self.mask  = scan[:,:,:,axial_slice]
+            else:
+                self.mask += scan[:,:,:,axial_slice]
+        self.mask    /= len(self.reference_scans)
+        self.negative = mask.max() - mask
 
-    
 if __name__ == "__main__":
-    ct_loader = CTLoader(data_dir = "../../../data/gravo")
-    ct_loader.load_dataset()
+    ct_loader = CTLoader2D("A", data_dir = "../../../data/gravo")
+    # ct_loader.load_dataset()

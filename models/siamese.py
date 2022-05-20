@@ -21,16 +21,14 @@ class SiameseEncoderMerger:
         
 def tangle(x1, x2):
     assert x1.shape == x2.shape
-    shp     = list(x1.shape)
-    shp[1] *= 2
-    x       = torch.zeros(shp)
-    x[:,[i for i in range(shp[1]) if i%2 == 0],:,:,:] = x1
-    x[:,[i for i in range(shp[1]) if i%2 == 1],:,:,:] = x2
-    return x
+    x1 = torch.cat((x1,x1), dim = 1)
+    x1[:,[i for i in range(x1.shape[1]) if i%2 == 0],:,:,:] = x1[:,:x1.shape[1]//2,:,:,:]
+    x1[:,[i for i in range(x1.shape[1]) if i%2 == 1],:,:,:] = x2
+    return x1
         
 class SiameseTangleMerger(SiameseEncoderMerger, torch.nn.Module):
     def __init__(self, in_channels: int, dim: int = 3):
-        super().__init__(self)
+        super().__init__()
         assert dim in (2,3)
         self.group_conv = eval(f"torch.nn.Conv{dim}d")(in_channels  = in_channels*2, 
                                                        out_channels = in_channels, 
@@ -54,7 +52,7 @@ class SiameseL1NormMerger(SiameseEncoderMerger):
 class SiameseEncoder(torch.nn.Module):
     def __init__(self, encoder: Encoder, merge_encodings: SiameseEncoderMerger, 
     merged_encoder: Encoder):
-        torch.nn.Module.__init__(self)
+        super().__init__()
         self.encoder         = encoder
         self.merge_encodings = merge_encodings
         self.merged_encoder  = merged_encoder

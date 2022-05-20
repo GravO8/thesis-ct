@@ -6,6 +6,7 @@ DATA_DIR        = "../../../data/gravo"
 TEST_SIZE       = 60
 VAL_PERC        = .1
 DATASET_SIZE    = 465
+SET             = "set"
 PATIENT_ID      = "patient_id"
 RANKIN          = "rankin"
 BINARY_RANKIN   = "binary_rankin"
@@ -27,7 +28,7 @@ def get_patients(table_data: pd.DataFrame, nccts: list):
     return pd.DataFrame(patients)
     
     
-def kfold_split(dataset: pd.DataFrame):
+def dataset_split(dataset: pd.DataFrame):
     '''
     +-------------------------------+-----+------+
     |             train             | val | test |
@@ -37,7 +38,7 @@ def kfold_split(dataset: pd.DataFrame):
     |              development            | test |
     +-------------------------------------+------+
     '''
-    assert len(dataset) == DATASET_SIZE, "kfold_split: unexpected dataset size"
+    assert len(dataset) == DATASET_SIZE, "dataset_split: unexpected dataset size"
     dataset    = dataset.sample(frac = 1, random_state = 0).reset_index(drop = True)
     N0, N1     = np.bincount(dataset[BINARY_RANKIN].values) # N1 = number of examples of class 1
     N1_TEST    = int(N1*TEST_SIZE/DATASET_SIZE)             # N1_TEST = number of examples of class 1 in the test set
@@ -70,19 +71,19 @@ def kfold_split(dataset: pd.DataFrame):
                 n0_val += 1
             else:
                 sets.append("train")
-    dataset["set"] = sets
-    assert TEST_SIZE == len(dataset[dataset["set"] == "test"])
-    assert N1_TEST == len(dataset[(dataset["set"] == "test") & (dataset[BINARY_RANKIN] == 1)])
-    assert N0_TEST == len(dataset[(dataset["set"] == "test") & (dataset[BINARY_RANKIN] == 0)])
-    assert N1_VAL == len(dataset[(dataset["set"] == "val") & (dataset[BINARY_RANKIN] == 1)])
-    assert N0_VAL == len(dataset[(dataset["set"] == "val") & (dataset[BINARY_RANKIN] == 0)])
-    assert (N1-N1_TEST-N1_VAL) == len(dataset[(dataset["set"] == "train") & (dataset[BINARY_RANKIN] == 1)])
-    assert (N0-N0_TEST-N0_VAL) == len(dataset[(dataset["set"] == "train") & (dataset[BINARY_RANKIN] == 0)])
+    dataset[SET] = sets
+    assert TEST_SIZE == len(dataset[dataset[SET] == "test"])
+    assert N1_TEST == len(dataset[(dataset[SET] == "test") & (dataset[BINARY_RANKIN] == 1)])
+    assert N0_TEST == len(dataset[(dataset[SET] == "test") & (dataset[BINARY_RANKIN] == 0)])
+    assert N1_VAL == len(dataset[(dataset[SET] == "val") & (dataset[BINARY_RANKIN] == 1)])
+    assert N0_VAL == len(dataset[(dataset[SET] == "val") & (dataset[BINARY_RANKIN] == 0)])
+    assert (N1-N1_TEST-N1_VAL) == len(dataset[(dataset[SET] == "train") & (dataset[BINARY_RANKIN] == 1)])
+    assert (N0-N0_TEST-N0_VAL) == len(dataset[(dataset[SET] == "train") & (dataset[BINARY_RANKIN] == 0)])
     return dataset
     
     
 def prettify_dataset(dataset: pd.DataFrame):
-    sort_col        = [("test", "val", "train").index(row["set"]) for _, row in dataset.iterrows()]
+    sort_col        = [("test", "val", "train").index(row[SET]) for _, row in dataset.iterrows()]
     dataset["sort"] = sort_col
     dataset         = dataset.sort_values(by = ["sort", RANKIN])
     del dataset["sort"]
@@ -92,7 +93,7 @@ def prettify_dataset(dataset: pd.DataFrame):
 def get_augmentations(dataset: pd.DataFrame):
     augmentations   = {PATIENT_ID:[], AUGMENTATION:[]}
     n_augments      = len(AUGMENTS)                                 # number of available augmentations
-    train_set       = dataset[dataset["set"] == "train"]
+    train_set       = dataset[dataset[SET] == "train"]
     n_train         = np.bincount(train_set[BINARY_RANKIN].values)
     n_augment       = n_train[1]*(n_augments+1)                     # the desired number of examples in both classes, after augmentations (1 is the minority class)
     for label in (0, 1):
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     nccts           = [file for file in os.listdir(nccts_dir) if file.endswith(".nii")]
     
     dataset         = get_patients(table_data, nccts)
-    dataset         = kfold_split(dataset)
+    dataset         = dataset_split(dataset)
     dataset         = prettify_dataset(dataset)
     
     augmentations   = get_augmentations(dataset)

@@ -232,3 +232,4 @@ Escolher o melhor encoder e o melhor número de slices
 - 3D nets com inputed padded para que cada slice axial seja 224x224 (como vou fazer no Axial e MIL methods)
 - Tamanho VS número de 3D blocks no MILBlocks
 - **TALVEZ AINDA FAÇA** - MIL before, attention com uma CNN que gera a attention de cada instance
+ - **TALVEZ AINDA FAÇA** - 3.6. ensemble MIL style
