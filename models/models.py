@@ -25,7 +25,7 @@ def conv_2d(in_channels, out_channels, kernel_size, stride = 1, padding = None,
                         stride          = stride,
                         padding         = (kernel_size-1)//2 if padding is None else padding,
                         bias            = bias),
-        torch.nn.BatchNorm3d(num_features = out_channels),
+        torch.nn.BatchNorm2d(num_features = out_channels),
         torch.nn.ReLU(inplace = True))
         
 def custom_3D_cnn_v1(global_pool: str):
