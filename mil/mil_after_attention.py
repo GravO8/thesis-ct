@@ -1,7 +1,7 @@
 import torch, sys
 sys.path.append("..")
 from models.encoder import Encoder
-from models.models import get_timm_model
+from models.models import get_timm_model, custom_2D_cnn_v1
 from models.mil import MILEncoder, MILAfterAxial, AttentionMILPooling
 from utils.main import main
 

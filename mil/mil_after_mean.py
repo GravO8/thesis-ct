@@ -7,8 +7,8 @@ from utils.main import main
 
 def mil_after_mean(encoder):
     assert encoder.global_pool is not None
-    max_pooling = MeanMILPooling()
-    mil_encoder = MILEncoder(encoder = encoder, mil_pooling = max_pooling)
+    mean_pooling = MeanMILPooling()
+    mil_encoder = MILEncoder(encoder = encoder, mil_pooling = mean_pooling)
     return MILAfterAxial(mil_encoder)
     
 

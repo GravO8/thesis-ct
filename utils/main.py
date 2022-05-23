@@ -2,7 +2,8 @@ import torch
 from .ct_loader import CTLoader, CTLoader2D
 from .trainer import Trainer
 
-def main(to_test: list, N: int = 3, device: int = 3, slice_range: int = None):
+def main(to_test: list, N: int = 3, device: int = 3, slice: str = None, 
+    slice_range: int = None):
     if torch.cuda.is_available():
         dir = "/media/avcstorage/gravo"
         torch.cuda.set_device(device)
@@ -10,7 +11,8 @@ def main(to_test: list, N: int = 3, device: int = 3, slice_range: int = None):
         dir = "../../../data/gravo"
     
     if slice_range is not None:
-        ct_loader = CTLoader2D(slice_range = slice_range, data_dir = dir)
+        assert slice is not None
+        ct_loader = CTLoader2D(slice, slice_range = slice_range, data_dir = dir)
         for model in to_test:
             model.set_slice_range(slice_range)
     else:
