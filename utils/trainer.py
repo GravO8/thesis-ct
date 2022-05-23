@@ -181,22 +181,26 @@ class Trainer:
         self.model.load_state_dict(torch.load(self.weights_path))
         model_name       = self.model.get_name()
         metrics          = {}
-        metrics["train"] = compute_metrics( *self.get_probabilities(self.train_loader) )
-        metrics["val"]   = compute_metrics( *self.get_probabilities(self.val_loader) )
-        y_test, y_prob   = self.get_probabilities(self.test_loader)
-        y_pred           = (y_prob > .5).astype(int)
-        metrics["test"]  = compute_metrics(y_test, y_prob)
-        performance_row  = f"{model_name};{self.run};{self.best_epoch}" + (";{}"*6) + "\n"
-        test_ids         = [int(patient_id) for batch in self.test_loader for patient_id in batch["patient_id"]]
+        predictions      = {}
+        probabilities    = {}
+        set_loaders      = {"train": self.train_loader, "val": self.val_loader, "test": self.test_loader}
+        for set in sets:
+            y_test, y_prob     = self.get_probabilities(set_loaders[set])
+            metrics[set]       = compute_metrics(y_test, y_prob)
+            probabilities[set] = y_prob
+            predictions[set]   = (y_prob > .5).astype(int)
         with open(os.path.join(model_name, PERFORMANCE), "a") as f:
-            for set in metrics:
+            performance_row = f"{model_name};{self.run};{self.best_epoch}" + (";{}"*6) + "\n"
+            for set in set_loaders:
                 f.write(performance_row.format(set, metrics[set]["accuracy"], 
                 metrics[set]["precision"], metrics[set]["recall"], 
                 metrics[set]["f1-score"], metrics[set]["auc"]))
         with open(os.path.join(model_name, f"{model_name}-run{self.run}", PREDICTIONS), "w") as f:
-            f.write("patient_id;y_prob;y_pred\n")
-            for i in range(len(test_ids)):
-                f.write(f"{test_ids[i]};{y_prob[i]};{y_pred[i]}\n")
+            f.write("set;patient_id;y_prob;y_pred\n")
+            for set in set_loaders:
+                ids = [int(patient_id) for batch in set_loaders[set] for patient_id in batch["patient_id"]]
+                for i in range(len(ids)):
+                f.write(f"{set};{ids[i]};{probabilities[set][i]};{predictions[set][i]}\n")
     
     
 if __name__ == '__main__':
