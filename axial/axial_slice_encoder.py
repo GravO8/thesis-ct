@@ -13,5 +13,3 @@ if __name__ == "__main__":
     device  = ???
     for slice_range in slice_ranges:
         main(to_test, device = device, slice = "A", slice_range = ???)
-    
-    
