@@ -200,7 +200,7 @@ class Trainer:
             for set in set_loaders:
                 ids = [int(patient_id) for batch in set_loaders[set] for patient_id in batch["patient_id"]]
                 for i in range(len(ids)):
-                f.write(f"{set};{ids[i]};{probabilities[set][i]};{predictions[set][i]}\n")
+                    f.write(f"{set};{ids[i]};{probabilities[set][i]};{predictions[set][i]}\n")
     
     
 if __name__ == '__main__':
