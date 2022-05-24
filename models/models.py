@@ -1,8 +1,10 @@
 import torch, timm
 from encoder import Encoder
 
-def final_mlp(in_features):
-    return torch.nn.Sequential(torch.nn.Linear(in_features,1), torch.nn.Sigmoid())
+def final_mlp(in_features, bias = True):
+    return torch.nn.Sequential(
+        torch.nn.Linear(in_features,1, bias = bias), 
+        torch.nn.Sigmoid())
     
 def conv_3d(in_channels, out_channels, kernel_size, stride = 1, padding = None, 
     bias = True):

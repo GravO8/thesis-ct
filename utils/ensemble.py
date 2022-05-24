@@ -1,12 +1,13 @@
 import os, numpy
 import pandas as pd
 from .dataset_splitter import SET, PATIENT_ID, BINARY_RANKIN
-from .trainer import PERFORMANCE, PREDICTIONS
+from .trainer import PERFORMANCE, PREDICTIONS, compute_metrics
 from .models import final_mlp
 from abc import ABC, abstractmethod
 
 
 class Ensemble(ABC):
+    # model_names;voting;weights;accuracy;precision;recall;f1_score;auc_score
     def __init__(self, experiments: list, experiments_dir: str = None, 
         data_dir: str = None, labels_filename: str = "dataset.csv"):
         self.experiments_dir = experiments_dir
@@ -31,23 +32,16 @@ class Ensemble(ABC):
         best_run    = performance[performance[SET] == "val"]["f1_score"].argmax() + 1
         pred_df     = pd.read_csv(os.path.join(dir, f"{experiment}-run{best_run}", PREDICTIONS))
         return pred_df
-    @abstractmethod
-    def load_experiments(self, experiments):
-        pass
-    @abstractmethod        
-    def get_probabilities(self):
-        pass
-
-
-class MajorityEnsemble(Ensemble):
-    def load_experiments(self, experiments: list):
+    def load_experiments(self, experiments: list, probability = True):
+        col = "y_prob" if probability else "y_pred"
         self.predictions = {}
         for experiment in experiments:
             preds_df = self.get_best_run_preds(experiment)
             if SET in preds_df.columns:
-                self.predictions[experiment] = preds_df[preds_df[SET] == "test"]["y_pred"].values
+                self.predictions[experiment] = preds_df[preds_df[SET] == "test"][col].values
             else:
-                self.predictions[experiment] = preds_df["y_pred"].values
+                self.predictions[experiment] = preds_df[col].values
+        self.y_true = self.get_ytrue(pred_df, "test")
     def get_probabilities(self):
         y_prob = None
         for experiment in self.predictions:
@@ -56,26 +50,22 @@ class MajorityEnsemble(Ensemble):
             else:
                 y_prob += self.predictions[experiment]
         return y_prob/len(self.predictions)
+    def record_performance(self):
+        self.load_experiments()
+        self.get_probabilities()
+
+class MajorityEnsemble(Ensemble):
+    def load_experiments(self, experiments):
+        super().load_experiments(experiments, probability = False)
 
 class AverageEnsemble(Ensemble):
     def load_experiments(self, experiments):
-        self.probabilities = {}
-        for experiment in experiments:
-            preds_df = self.get_best_run_preds(experiment)
-            if SET in preds_df.columns:
-                self.probabilities[experiment] = preds_df[preds_df[SET] == "test"]["y_prob"].values
-            else:
-                self.probabilities[experiment] = preds_df["y_prob"].values
-    def get_probabilities(self):
-        y_prob = None
-        for experiment in self.probabilities:
-            if y_prob is None:
-                y_prob = self.probabilities[experiment]
-            else:
-                y_prob += self.probabilities[experiment]
-        return y_prob/len(self.probabilities)
+        super().load_experiments(experiments, probability = False)
 
-class WeightedEnsemble(Ensemble):
+class WeightedEnsemble(Ensemble, torch.nn.Module):
+    def __init__(self, experiments, **kwargs):
+        super().__init__(experiments, **kwargs)
+        self.mlp = final_mlp(len(experiments), bias = False)
     def load_experiments(self, experiments):
         self.sets = {"train": {"x": [], "y": []},
                      "val":   {"x": [], "y": []},
@@ -90,6 +80,6 @@ class WeightedEnsemble(Ensemble):
             self.sets[set]["x"] = numpy.stack(self.sets[set]["x"], axis = 0)
             self.sets[set]["y"] = numpy.stack(self.sets[set]["y"], axis = 0)
     def fit(self, epochs = 100):
-        self.lr = final_mlp( len(self.probabilities) )
+        
     def get_probabilities(self):
         ...
