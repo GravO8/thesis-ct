@@ -13,9 +13,7 @@ def mil_after_mean(encoder):
     
 
 if __name__ == "__main__":
-    to_test = [ mil_after_mean(custom_2D_cnn_v1(global_pool = "gap")),
-                mil_after_mean(get_timm_model("resnet18", global_pool = "gap")),
-                mil_after_mean(get_timm_model("resnet34", global_pool = "gap")),
-                mil_after_mean(get_timm_model("efficientnet_b0", global_pool = "gap")),
-                mil_after_mean(get_timm_model("efficientnet_b1", global_pool = "gap"))]
+    to_test = [ mil_after_mean(get_timm_model("resnet18", global_pool = "gap", pretrained = True, frozen = True)),
+                mil_after_mean(get_timm_model("resnet34", global_pool = "gap", pretrained = True, frozen = True)),
+                mil_after_mean(get_timm_model("resnet50", global_pool = "gap", pretrained = True, frozen = True))]
     main(to_test)

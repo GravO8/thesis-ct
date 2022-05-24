@@ -1,5 +1,5 @@
 import torch, timm
-from .encoder import Encoder
+from encoder import Encoder
 
 def final_mlp(in_features):
     return torch.nn.Sequential(torch.nn.Linear(in_features,1), torch.nn.Sigmoid())
@@ -47,7 +47,7 @@ def custom_2D_cnn_v1(global_pool: str):
 def get_timm_model(model_name: str, global_pool: str = None, 
     pretrained: bool = False, frozen: bool = False):
     appendix = "_pretrained" if pretrained else ""
-    supported_models = {"resnet18": 512, "resnet34": 512, "efficientnet_b0": 1280, "efficientnet_b1": 1280}
+    supported_models = {"resnet18": 512, "resnet34": 512, "resnet50": 2048, "efficientnet_b0": 1280, "efficientnet_b1": 1280}
     assert model_name in supported_models, f"get_timm_model: supported models are {[r for r in supported_models]}"
     model = timm.create_model(model_name, global_pool = "", num_classes = 0, in_chans = 1, pretrained = pretrained)
     if frozen:
@@ -64,5 +64,5 @@ def get_timm_model(model_name: str, global_pool: str = None,
                     
 if __name__ == '__main__':
     # r = get_timm_model("resnet18", global_pool = "gap")
-    r = timm.create_model("resnet18")
+    r = timm.create_model("resnet50")
     print(r)
