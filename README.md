@@ -22,6 +22,12 @@ Total = 5+6+12+15 = 38
  - [ ] mil cubes (all 3 pooling methods)
 
 
+## Motivos para o metodo axial estar a falhar
+
+ - overfit da ResNet34 (os melhores resultados obtidos na experiment 23 usavam dropout e dropblock de 0.5)
+ - pode ser que seja mesmo preciso usar slices 224x224
+ - o range [-1;+1] não funcione bem
+
 
 
 ## Experiments Hyperparameters

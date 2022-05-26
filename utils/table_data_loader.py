@@ -58,7 +58,15 @@ class TableDataLoader:
     def filter(self, to_remove: list = ["numRegistoGeral-1", "dataNascimento-1", 
         "rankin-2", "dataAVC-4", "data-7", "colaCTA1-8", "colaCTA2a-8", 
         "colaCTA2b-8", "ocEst-9", "localiz-9", "lado-9", "ocEst-10", "localiz-10", 
-        "lado-10"], stage: str = STAGE_PRETREATMENT):
+        "lado-10"], to_keep: list = None, stage: str = None):
+        if stage is None:
+            assert to_keep is not None
+            self.filter_keep(to_keep)
+        elif to_keep is None:
+            assert stage is not None
+            self.filter_remove(to_remove, stage)
+    
+    def filter_remove(self, to_remove: list, stage: str):
         to_remove.extend(["rankin-23", "NCCT", "CTA", "visible"])
         sections_to_remove = ["18"]
         if stage == STAGE_BASELINE:
@@ -73,8 +81,16 @@ class TableDataLoader:
             for section in sections_to_remove:
                 if col.endswith(section):
                     to_remove.append(col)
+        assert "idProcessoLocal" not in to_remove
         for col in set(to_remove):
             del self.table_df[col]
+            
+    def filter_keep(self, to_keep: list):
+        assert "rankin-23" not in to_keep
+        assert "idProcessoLocal" in to_keep
+        for col in self.table_df.columns:
+            if col not in to_keep:
+                del self.table_df[col]
         
 
 if __name__ == "__main__":
