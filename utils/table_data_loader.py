@@ -7,6 +7,16 @@ def str_to_datetime(date: str):
     if (date is None) or (date == "None"):
         return None
     return datetime.fromisoformat(date[:19])
+    
+def get_age(birthdate, day):
+    if (birthdate is None) or (day is None):
+        return None
+    return day.year - birthdate.year - ((day.month, day.day) < (birthdate.month, birthdate.day))
+    
+def get_hour_delta(time1, time2):
+    if (time1 is None) or (time2 is None):
+        return None
+    return (time2 - time1).seconds // (60*60)
 
 
 class TableDataLoader:
@@ -33,12 +43,11 @@ class TableDataLoader:
         '''
         birthdate   = [str_to_datetime(date) for date in self.table_df["dataNascimento-1"].values]
         stroke_date = [str_to_datetime(date) for date in self.table_df["dataAVC-4"].values]
-        c = 0
-        for d in stroke_date:
-            if d is None:
-                c+= 1
-        print(c)
-        # for _, row in self.table_df
+        ncct_time   = [str_to_datetime(date) for date in self.table_df["data-7"].values]
+        age         = [get_age(birthdate[i],stroke_date[i]) for i in range(len(birthdate))]
+        onset_time  = [get_hour_delta(stroke_date[i],ncct_time[i]) for i in range(len(birthdate))]
+        self.table_df["age"]              = age
+        self.table_df["time_since_onset"] = onset_time
 
 
 if __name__ == "__main__":
