@@ -1,5 +1,5 @@
 import torch, timm
-from encoder import Encoder
+from .encoder import Encoder
 
 def final_mlp(in_features, bias = True):
     return torch.nn.Sequential(
@@ -43,6 +43,13 @@ def custom_2D_cnn_v1(global_pool: str):
                    torch.nn.Sequential(conv_2d(1,8,5), conv_2d(8,16,3,2,1), 
                                        conv_2d(16,32,3), conv_2d(32,64,3,2,1)),
                    out_channels = 64, 
+                   global_pool = global_pool, 
+                   dim = 2)
+                   
+def custom_merged_encoder(in_channels: int, global_pool: str):
+    return Encoder("custom_merged_encoder", 
+                   torch.nn.Sequential(conv_3d(in_channels,64,3,1,0), conv_3d(64,128,3,1,0)),
+                   out_channels = 128,
                    global_pool = global_pool, 
                    dim = 2)
                    

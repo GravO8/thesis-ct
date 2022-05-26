@@ -1,5 +1,4 @@
 import torch, numpy
-from skimage.util import view_as_blocks
 from .encoder import Encoder
 from .model import Model
 from abc import ABC, abstractmethod
