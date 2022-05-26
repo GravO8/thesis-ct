@@ -2,6 +2,12 @@ import os
 import pandas as pd
 from datetime import datetime
 
+STAGE_BASELINE     = "baseline"
+STAGE_PRETREATMENT = "pretreatment"
+STAGE_24H          = "24h"
+STAGE_DISCHARGE    = "discharge"
+STAGES             = (STAGE_PRETREATMENT, STAGE_24H, STAGE_DISCHARGE)
+
 
 def str_to_datetime(date: str):
     if (date is None) or (date == "None"):
@@ -48,7 +54,29 @@ class TableDataLoader:
         onset_time  = [get_hour_delta(stroke_date[i],ncct_time[i]) for i in range(len(birthdate))]
         self.table_df["age"]              = age
         self.table_df["time_since_onset"] = onset_time
-
+        
+    def filter(self, to_remove: list = ["numRegistoGeral-1", "dataNascimento-1", 
+        "rankin-2", "dataAVC-4", "data-7", "colaCTA1-8", "colaCTA2a-8", 
+        "colaCTA2b-8", "ocEst-9", "localiz-9", "lado-9", "ocEst-10", "localiz-10", 
+        "lado-10"], stage: str = STAGE_PRETREATMENT):
+        to_remove.extend(["rankin-23", "NCCT", "CTA", "visible"])
+        sections_to_remove = ["18"]
+        if stage == STAGE_BASELINE:
+            sections_to_remove.extend( ["7", "11", "15", "19", "20", "21", "22"] )
+        elif stage == STAGE_PRETREATMENT:
+            sections_to_remove.extend( ["11", "15", "19", "20", "21", "22"] )
+        elif stage == STAGE_24H:
+            sections_to_remove.extend( ["19", "20", "21", "22"] )
+        elif stage != STAGE_DISCHARGE:
+            assert False, f"TableDataLoader.filter: the available are {STAGES}"
+        for col in self.table_df.columns:
+            for section in sections_to_remove:
+                if col.endswith(section):
+                    to_remove.append(col)
+        for col in set(to_remove):
+            del self.table_df[col]
+        
 
 if __name__ == "__main__":
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
+    table_loader.filter(stage = STAGE_BASELINE)
