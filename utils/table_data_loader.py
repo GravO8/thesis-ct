@@ -91,8 +91,19 @@ class TableDataLoader:
         for col in self.table_df.columns:
             if col not in to_keep:
                 del self.table_df[col]
-        
+                
+    def split(self):
+        train_ids = self.labels_df[self.labels_df["set"] == "train"]["patient_id"].values.astype(str)
+        val_ids   = self.labels_df[self.labels_df["set"] == "val"]["patient_id"].values.astype(str)
+        test_ids  = self.labels_df[self.labels_df["set"] == "test"]["patient_id"].values.astype(str)
+        self.train_set = self.table_df[self.table_df["idProcessoLocal"].isin(train_ids)]
+        self.val_set   = self.table_df[self.table_df["idProcessoLocal"].isin(val_ids)]
+        self.test_set  = self.table_df[self.table_df["idProcessoLocal"].isin(test_ids)]
+        del self.train_set["idProcessoLocal"]
+        del self.val_set["idProcessoLocal"]
+        del self.test_set["idProcessoLocal"]
 
 if __name__ == "__main__":
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
-    table_loader.filter(stage = STAGE_BASELINE)
+    table_loader.filter(stage = STAGE_PRETREATMENT)
+    table_loader.split()
