@@ -75,7 +75,10 @@ class Trainer:
                 f.write( str(self.model) )
                 f.write("\n")
                 with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
-                    summary(self.model, (1,91,109,91))
+                    if model_name.startswith("Axial"):
+                        summary(self.model, (1,91,109,1))
+                    else:
+                        summary(self.model, (1,91,109,91))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
@@ -184,7 +187,7 @@ class Trainer:
         predictions      = {}
         probabilities    = {}
         set_loaders      = {"train": self.train_loader, "val": self.val_loader, "test": self.test_loader}
-        for set in sets:
+        for set in set_loaders:
             y_test, y_prob     = self.get_probabilities(set_loaders[set])
             metrics[set]       = compute_metrics(y_test, y_prob)
             probabilities[set] = y_prob

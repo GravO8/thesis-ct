@@ -94,6 +94,15 @@ class CTLoader2D(CTLoader):
         
     def load_set(self, set_name: str):
         set = super().load_set(set_name)
+        set = self.select_slice(set)
+        return set
+        
+    def load_train_augmentations(self):
+        train_augmentations = super().load_train_augmentations()
+        train_augmentations = self.select_slice(train_augmentations)
+        return train_augmentations
+        
+    def select_slice(self, set):
         for subject in set:
             scores = []
             scan   = subject["ct"][torchio.DATA]
@@ -104,7 +113,7 @@ class CTLoader2D(CTLoader):
             i      = np.argmax(scores)
             scan   = scan[:,:,:,i-self.slice_range:i+self.slice_range].mean(axis = 3)
             scan   = scan.unsqueeze(dim = -1) # torchio expects 4D tensors
-            subject["ct"] = scan
+            subject["ct"][torchio.DATA] = scan
         return set
             
 if __name__ == "__main__":
