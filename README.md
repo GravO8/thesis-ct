@@ -17,9 +17,9 @@ Total = 5+6+12+15 = 38
  - [x] siamese-tangled with 3D ResNet18
  - [x] siamese-tangled with 3D ResNet34
  - [ ] siamese-tangled with simpler merger encoder (2 conv layers, kernel size 3)
- - [ ] frozen with mean pooling
+ - [x] frozen with mean pooling
  - [ ] mil frozen with attention pooling
- - [ ] mil cubes (all 3 pooling methods)
+ - [x] mil cubes (all 3 pooling methods)
 
 
 ## Motivos para o metodo axial estar a falhar

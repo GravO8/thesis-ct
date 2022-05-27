@@ -1,8 +1,21 @@
-import os, torchio
+import os, torch, torchio
 import numpy as np
 import pandas as pd
 from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
+
+def add_pad(scan, pad: int):
+    scan    = scan.unsqueeze(dim = 0)
+    scan    = torch.nn.functional.interpolate(scan, scale_factor = 2, mode = "bilinear")
+    scan    = scan.squeeze(dim = 0)
+    _, w, h = scan.shape
+    zeros   = torch.zeros(1, pad, pad)
+    pad_w   = (pad-w)//2
+    pad_h   = (pad-h)//2
+    zeros[:, pad_w:pad_w+w, pad_h:pad_h+h] = scan
+    scan = zeros
+    return scan
+    
 
 class CTLoader:
     def __init__(self, labels_filename: str = "dataset.csv", 
@@ -63,9 +76,11 @@ class CTLoader:
         
         
 class CTLoader2D(CTLoader):
-    def __init__(self, slice: str, slice_range: int = 2, **kwargs):
+    def __init__(self, slice: str, slice_range: int = 2, pad: int = None,
+        **kwargs):
         super().__init__(**kwargs)
         assert slice_range >= 0
+        self.pad              = pad
         self.slice_range      = slice_range
         self.slice            = slice
         self.reference_scans  = (2243971, 2520986, 2605128, 2505743, 1911947)
@@ -102,7 +117,7 @@ class CTLoader2D(CTLoader):
         train_augmentations = self.select_slice(train_augmentations)
         return train_augmentations
         
-    def select_slice(self, set):
+    def select_slice(self, set, debug = False):
         for subject in set:
             scores = []
             scan   = subject["ct"][torchio.DATA]
@@ -111,9 +126,14 @@ class CTLoader2D(CTLoader):
                 score    = (ax_slice*self.mask).sum() - (ax_slice*self.negative).sum()
                 scores.append(score)
             i      = np.argmax(scores)
-            scan   = scan[:,:,:,i-self.slice_range:i+self.slice_range].mean(axis = 3)
+            scan   = scan[:,:,:,i-self.slice_range:i+self.slice_range+1].mean(axis = 3)
+            scan   = scan if self.pad is None else add_pad(scan, self.pad)
             scan   = scan.unsqueeze(dim = -1) # torchio expects 4D tensors
             subject["ct"][torchio.DATA] = scan
+            if debug:
+                import matplotlib.pyplot as plt
+                plt.imshow(scan.squeeze().T.flip(0), cmap = "gray")
+                plt.show()
         return set
             
 if __name__ == "__main__":
