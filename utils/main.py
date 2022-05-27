@@ -14,7 +14,7 @@ def main(to_test: list, N: int = 3, device: int = 3, slice: str = None,
         assert slice is not None
         ct_loader = CTLoader2D(slice, slice_range = slice_range, data_dir = dir, pad = pad)
         for model in to_test:
-            model.set_slice_range(slice_range)
+            model.set_slice_info(slice_range, slice)
     else:
         ct_loader = CTLoader(data_dir = dir)
     trainer = Trainer(ct_loader, batch_size = 32)

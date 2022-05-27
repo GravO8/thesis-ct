@@ -50,7 +50,8 @@ class Axial2DCNN(Model):
     def process_input(self, x):
         assert x.shape[-1] == 1, "Axial2DCNN.process_input: expected only 1 axial slice"
         return self.normalize_input(x).squeeze(-1)
-    def set_slice_range(self, slice_range):
+    def set_slice_info(self, slice_range, height):
         self.slice_range = slice_range
+        self.height      = height
     def name_appendix(self):
-        return f"Axial{self.slice_range}-2DCNN"
+        return f"Axial{self.slice_range}{self.height}-2DCNN"
