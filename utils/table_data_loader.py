@@ -33,6 +33,9 @@ class TableDataLoader:
         labels_filename = os.path.join(data_dir, labels_filename)
         self.table_df   = pd.read_csv(table_filename)
         self.labels_df  = pd.read_csv(labels_filename)
+        self.train_set  = None
+        self.val_set    = None
+        self.test_set   = None
         self.filter_no_ncct()
         self.add_vars()
         
@@ -51,12 +54,14 @@ class TableDataLoader:
         stroke_date = [str_to_datetime(date) for date in self.table_df["dataAVC-4"].values]
         ncct_time   = [str_to_datetime(date) for date in self.table_df["data-7"].values]
         age         = [get_age(birthdate[i],stroke_date[i]) for i in range(len(birthdate))]
+        age         = [get_age(birthdate[i],ncct_time[i]) if age[i] is None else age[i] for i in range(len(birthdate))]
         onset_time  = [get_hour_delta(stroke_date[i],ncct_time[i]) for i in range(len(birthdate))]
         self.table_df["age"]              = age
         self.table_df["time_since_onset"] = onset_time
         
     def filter(self, to_remove: list = ["numRegistoGeral-1", "dataNascimento-1", 
-        "rankin-2", "dataAVC-4", "data-7", "colaCTA1-8", "colaCTA2a-8", 
+        "rankin-2", "dataAVC-4", "data-7", "enfAntOutro-7", "ouTerrIsqOutro-7",
+        "colaCTA1-8", "colaCTA2a-8", 
         "colaCTA2b-8", "ocEst-9", "localiz-9", "lado-9", "ocEst-10", "localiz-10", 
         "lado-10"], to_keep: list = None, stage: str = None):
         if stage is None:
@@ -102,8 +107,38 @@ class TableDataLoader:
         del self.train_set["idProcessoLocal"]
         del self.val_set["idProcessoLocal"]
         del self.test_set["idProcessoLocal"]
+        self.remove_rows()
+        
+    def missing_percentage(self, row):
+        '''
+        There are more patients with a lot of missing columns than columns with
+        missing patients. Thus, it is better to remove these patients with lots
+        of missing data
+        '''
+        missing = 0
+        for col in self.train_set.columns:
+            if (row[col] is None) or (row[col] == "None"):
+                missing += 1
+                print(col)
+        print("---------------------")
+        return missing/len(self.train_set.columns)
+        
+    def remove_rows(self):
+        missing_rows = [self.missing_percentage(row) for _, row in self.table_df.iterrows()]
+        d = {}
+        for m in missing_rows:
+            if m in d: d[m] += 1
+            else: d[m] = 1
+        print( dict(sorted(d.items())) ) 
+        
+        
+        
+    def normalize(self):
+        assert self.train_set is not None, "TableDataLoader.normalize: call the 'split' method first"
+        print(self.train_set.values)
 
 if __name__ == "__main__":
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
     table_loader.filter(stage = STAGE_PRETREATMENT)
     table_loader.split()
+    # table_loader.normalize()
