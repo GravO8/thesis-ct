@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 from datetime import datetime
 
@@ -61,8 +62,8 @@ class TableDataLoader:
         
     def filter(self, to_remove: list = ["numRegistoGeral-1", "dataNascimento-1", 
         "rankin-2", "dataAVC-4", "data-7", "enfAntOutro-7", "ouTerrIsqOutro-7",
-        "colaCTA1-8", "colaCTA2a-8", 
-        "colaCTA2b-8", "ocEst-9", "localiz-9", "lado-9", "ocEst-10", "localiz-10", 
+        "colaCTA1-8", "colaCTA2a-8", "colaCTA2b-8", "ocEst-9", "localiz-9", 
+        "lado-9", "ocEst-10", "localiz-10", 
         "lado-10"], to_keep: list = None, stage: str = None):
         if stage is None:
             assert to_keep is not None
@@ -98,6 +99,8 @@ class TableDataLoader:
                 del self.table_df[col]
                 
     def split(self):
+        self.convert_boolean_sequences()
+        self.amputate()
         train_ids = self.labels_df[self.labels_df["set"] == "train"]["patient_id"].values.astype(str)
         val_ids   = self.labels_df[self.labels_df["set"] == "val"]["patient_id"].values.astype(str)
         test_ids  = self.labels_df[self.labels_df["set"] == "test"]["patient_id"].values.astype(str)
@@ -107,31 +110,33 @@ class TableDataLoader:
         del self.train_set["idProcessoLocal"]
         del self.val_set["idProcessoLocal"]
         del self.test_set["idProcessoLocal"]
-        self.remove_rows()
         
-    def missing_percentage(self, row):
-        '''
-        There are more patients with a lot of missing columns than columns with
-        missing patients. Thus, it is better to remove these patients with lots
-        of missing data
-        '''
-        missing = 0
-        for col in self.train_set.columns:
-            if (row[col] is None) or (row[col] == "None"):
-                missing += 1
-                print(col)
-        print("---------------------")
-        return missing/len(self.train_set.columns)
-        
-    def remove_rows(self):
-        missing_rows = [self.missing_percentage(row) for _, row in self.table_df.iterrows()]
-        d = {}
-        for m in missing_rows:
-            if m in d: d[m] += 1
-            else: d[m] = 1
-        print( dict(sorted(d.items())) ) 
-        
-        
+    def convert_boolean_sequences(self):
+        boolean_cols = {"ouTerrIsq-7": 4, "ouTerrIsqL-7": 2, "lacAntL-7": 2, 
+                        "enfAnt-7": 9, "enfAntL-7": 2, "compRtPA": 5, 
+                        "TCCEter": 11, "TCCElac": 7, "RMNter": 11, "RMNlac": 7, 
+                        "outProc": 4, "outCom": 8, "ecocarAnormal": 19}
+        for col in boolean_cols:
+            if col not in self.table_df.columns: continue
+            splitted = [None if v == "None" else v.split(",") for v in self.table_df[col].values]
+            new_cols = {f"{col}-{i+1}":[] for i in range(boolean_cols[col])}
+            for s in splitted:
+                if s is None:
+                    for i in range(boolean_cols[col]):
+                        new_cols[f"{col}-{i+1}"].append(None)
+                else:
+                    assert len(s) == boolean_cols[col]
+                    for i in range(boolean_cols[col]):
+                        new_cols[f"{col}-{i+1}"].append(int(s[i].lower() == "true"))
+            del self.table_df[col]
+            for col in new_cols:
+                self.table_df[col] = new_cols[col]
+
+    def amputate(self):
+        for col in self.table_df.columns:
+            self.table_df[col] = [np.nan if (v is None) or (v == "None")  else v for v in self.table_df[col]]
+            self.table_df[col].astype("float")
+        print(self.table_df.values)
         
     def normalize(self):
         assert self.train_set is not None, "TableDataLoader.normalize: call the 'split' method first"
