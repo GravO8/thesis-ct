@@ -105,7 +105,7 @@ class TableDataLoader:
             
     def filter_keep(self, to_keep: list):
         assert "rankin-23" not in to_keep
-        assert "idProcessoLocal" in to_keep
+        to_keep.append("idProcessoLocal")
         for col in self.table_df.columns:
             if col not in to_keep:
                 del self.table_df[col]
