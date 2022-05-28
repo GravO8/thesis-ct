@@ -54,11 +54,11 @@ def custom_merged_encoder(in_channels: int, global_pool: str):
                    dim = 2)
                    
 def get_timm_model(model_name: str, global_pool: str = None, 
-    pretrained: bool = False, frozen: bool = False):
+    pretrained: bool = False, frozen: bool = False, **kwargs):
     appendix = "_pretrained" if pretrained else ""
     supported_models = {"resnet18": 512, "resnet34": 512, "resnet50": 2048, "efficientnet_b0": 1280, "efficientnet_b1": 1280}
     assert model_name in supported_models, f"get_timm_model: supported models are {[r for r in supported_models]}"
-    model = timm.create_model(model_name, global_pool = "", num_classes = 0, in_chans = 1, pretrained = pretrained)
+    model = timm.create_model(model_name, global_pool = "", num_classes = 0, in_chans = 1, pretrained = pretrained, **kwargs)
     if frozen:
         appendix = "_frozen"
         assert pretrained, "get_timm_model: 'frozen' = True only available for 'pretrained' = True"

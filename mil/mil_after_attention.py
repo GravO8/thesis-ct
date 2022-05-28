@@ -13,7 +13,8 @@ def mil_after_attention(encoder):
     
 
 if __name__ == "__main__":
-    to_test = [ mil_after_attention(get_timm_model("resnet34", global_pool = "gap")),
+    to_test = [ mil_after_attention(get_timm_model("resnet18", global_pool = "gap")),
+                mil_after_attention(get_timm_model("resnet34", global_pool = "gap")),
                 mil_after_attention(get_timm_model("resnet18", global_pool = "gap", pretrained = True, frozen = True)),
                 mil_after_attention(get_timm_model("resnet34", global_pool = "gap", pretrained = True, frozen = True)),
                 mil_after_attention(get_timm_model("resnet50", global_pool = "gap", pretrained = True, frozen = True))]

@@ -1,6 +1,9 @@
+import sys, os, torch, numpy
+sys.path.append("..")
+import pandas as pd
 from .dataset_splitter import SET, PATIENT_ID, BINARY_RANKIN
+from models.models import final_mlp
 from .trainer import LR, WD, LOSS, OPTIMIZER, PERFORMANCE, PREDICTIONS, compute_metrics
-from .models import final_mlp
 from abc import ABC, abstractmethod
 
 ENSEMBLE = "ensemble.csv"
@@ -26,7 +29,7 @@ class Ensemble:
         self.probability     = probability
         self.col             = "y_prob" if probability else "y_pred"
         self.experiments_dir = experiments_dir
-        self.data_dir        = data_dir
+        self.data_dir        = "" if data_dir is None else data_dir
         self.labels_filename = labels_filename
         self.mlp             = final_mlp(len(experiments), bias = False)
         self.load_experiments(sets)
@@ -41,37 +44,38 @@ class Ensemble:
         else:
             assert set == "test"
             predictions = preds_df
-        labels_df = self.labels_filename if self.data_dir is None else os.path.join(self.data_dir, self.labels_filename)
+        labels_df = pd.read_csv(os.path.join(self.data_dir, self.labels_filename), sep = ",")
         labels_df = labels_df[labels_df[SET] == set]
         y         = []
         for _, row in predictions.iterrows():
-            y.append( labels_df[labels_df[PATIENT_ID] == row[PATIENT_ID]][BINARY_RANKIN] )
+            y.append( labels_df[labels_df[PATIENT_ID] == row[PATIENT_ID]][BINARY_RANKIN].values[0] )
         return y
     
     def get_best_run_preds(self, experiment):
-        dir         = experiment if self.experiments_dir is None else os.path.join(experiments_dir, experiment)
-        performance = pd.read_csv(os.path.join(dir, PERFORMANCE))
+        dir         = experiment if self.experiments_dir is None else os.path.join(self.experiments_dir, experiment)
+        performance = pd.read_csv(os.path.join(dir, PERFORMANCE), sep = ";")
         best_run    = performance[performance[SET] == "val"]["f1_score"].argmax() + 1
-        pred_df     = pd.read_csv(os.path.join(dir, f"{experiment}-run{best_run}", PREDICTIONS))
+        best_run    = f'{experiment.split("/")[1]}-run{best_run}'
+        pred_df     = pd.read_csv(os.path.join(dir, best_run, PREDICTIONS), sep = ";")
         return pred_df
     
-    def load_experiments(sets: list):
+    def load_experiments(self, sets: list):
         self.sets = {set: {"x": [], "y": None} for set in sets}
-        if ("train" in sets) or ("val" in sets):
-            assert SET in preds_df.columns, "WeightedEnsemble.load_experiments:"
-            "only available for runs whose val and train sets probabilities are also stored."
         for set in self.sets:
             for experiment in self.experiments:
                 preds_df = self.get_best_run_preds(experiment)
+                if ("train" in sets) or ("val" in sets):
+                    assert SET in preds_df.columns, "WeightedEnsemble.load_experiments:"
+                    "only available for runs whose val and train sets probabilities are also stored."
                 self.sets[set]["x"].append( preds_df[preds_df[SET] == set][self.col].values )
             self.sets[set]["x"] = torch.Tensor(numpy.stack(self.sets[set]["x"], axis = 0))
             self.sets[set]["y"] = torch.Tensor(self.get_ytrue(preds_df, set))
             
     def get_probabilities(self, set: str = "test"):
-        return self.mlp(self.sets[set]["x"])
+        return self.mlp(self.sets[set]["x"].T)
         
     def evaluate(self, set: str = "test"):
-        y_pred = self.get_probabilities(set)
+        y_pred = self.get_probabilities(set).detach().numpy().squeeze()
         y_true = self.sets[set]["y"]
         return compute_metrics(y_true, y_pred)
         
@@ -90,26 +94,27 @@ class Ensemble:
             loss.backward()              # compute the loss and its gradients
             train_optimizer.step()       # adjust learning weights
             metrics = self.evaluate("val")
-            if (best_score is None) or (metrics["f1_score"] > best_score):
-                best_score   = metrics["f1_score"]
-                best_weights = self.mlp[0].weights.detach().numpy()
+            if (best_score is None) or (metrics["f1-score"] > best_score):
+                best_score   = metrics["f1-score"]
+                best_weights = self.mlp[0].weight.detach().numpy()
         with torch.no_grad():
             self.mlp[0].weight = torch.nn.Parameter(torch.from_numpy(best_weights).float())
             
     def record_performance(self, train: bool = True, epochs: int = 100):
-        file = os.path.join(experiments_dir, ENSEMBLE)
+        file = os.path.join(self.experiments_dir, ENSEMBLE)
         if not os.path.isfile(file):
             with open(file, "w") as f:
                 f.write("experiment_names;probability;weights;accuracy;precision;recall;f1_score;auc_score\n")
         if self.trainable and train:
             self.fit(epochs)
         metrics = self.evaluate("test")
-        with open(file, "w") as f:
+        with open(file, "a") as f:
             f.write(f'"{self.experiments[0]}')
             for experiment in self.experiments[1:]:
                 f.write(f",{experiment}")
-            f.write(f'";{self.probability};"')
-            for w in self.mlp[0].weight.detach().numpy()[0]:
+            weights = self.mlp[0].weight.detach().numpy()[0]
+            f.write(f'";{self.probability};{weights[0]}"')
+            for w in weights[1:]:
                 f.write(f",{w}")
             f.write('";{};{};{};{};{}\n'.format(metrics["accuracy"], metrics["precision"],
                 metrics["recall"], metrics["f1-score"], metrics["auc"]))

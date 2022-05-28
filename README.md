@@ -20,6 +20,8 @@ Total = 5+6+12+15 = 38
  - [x] frozen with mean pooling
  - [ ] mil frozen with attention pooling
  - [x] mil cubes (all 3 pooling methods)
+ - [ ] baseline with 3D ResNet50
+ - [ ] baseline mirror with 3D ResNet50
 
 
 ## Motivos para o metodo axial estar a falhar
