@@ -152,28 +152,32 @@ class TableDataLoader:
         if self.imputed:
             return
         self.imputed        = True
+        columns             = self.train_set["x"].columns
         self.train_set["x"] = to_float(self.train_set["x"])
         self.val_set["x"]   = to_float(self.val_set["x"])
         self.test_set["x"]  = to_float(self.test_set["x"])
         imp = IterativeImputer(max_iter = 40, random_state = 0)
         imp.fit(self.train_set["x"])
-        self.train_set["x"] = imp.transform(self.train_set["x"])
-        self.val_set["x"]   = imp.transform(self.val_set["x"])
-        self.test_set["x"]  = imp.transform(self.test_set["x"])
+        self.train_set["x"] = pd.DataFrame(imp.transform(self.train_set["x"]), columns = columns)
+        self.val_set["x"]   = pd.DataFrame(imp.transform(self.val_set["x"]), columns = columns)
+        self.test_set["x"]  = pd.DataFrame(imp.transform(self.test_set["x"]), columns = columns)
         
     def normalize(self):
         assert self.train_set["x"] is not None, "TableDataLoader.normalize: call the 'split' method first"
         assert self.imputed, "TableDataLoader.normalize: call the 'impute' method first"
-        scaler = StandardScaler()
+        columns = self.train_set["x"].columns
+        scaler  = StandardScaler()
         scaler.fit(self.train_set["x"])
-        self.train_set["x"] = scaler.transform(self.train_set["x"])
-        self.val_set["x"]   = scaler.transform(self.val_set["x"])
-        self.test_set["x"]  = scaler.transform(self.test_set["x"])
-        print(self.train_set["x"])
+        self.train_set["x"] = pd.DataFrame(scaler.transform(self.train_set["x"]), columns = columns)
+        self.val_set["x"]   = pd.DataFrame(scaler.transform(self.val_set["x"]), columns = columns)
+        self.test_set["x"]  = pd.DataFrame(scaler.transform(self.test_set["x"]), columns = columns)
 
 if __name__ == "__main__":
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
     table_loader.filter(stage = STAGE_PRETREATMENT)
     table_loader.split()
+    print(type(table_loader.train_set["x"]))
     table_loader.impute()
+    print(type(table_loader.train_set["x"]))
     table_loader.normalize()
+    print(type(table_loader.train_set["x"]))
