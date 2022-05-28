@@ -48,10 +48,10 @@ def custom_2D_cnn_v1(global_pool: str):
                    
 def custom_merged_encoder(in_channels: int, global_pool: str):
     return Encoder("custom_merged_encoder", 
-                   torch.nn.Sequential(conv_3d(in_channels,64,3,1,0), conv_3d(64,128,3,1,0)),
+                   torch.nn.Sequential(conv_3d(in_channels,64,3), conv_3d(64,128,1)),
                    out_channels = 128,
                    global_pool = global_pool, 
-                   dim = 2)
+                   dim = 3)
                    
 def get_timm_model(model_name: str, global_pool: str = None, 
     pretrained: bool = False, frozen: bool = False, **kwargs):

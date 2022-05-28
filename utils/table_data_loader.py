@@ -2,6 +2,9 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from sklearn.preprocessing import StandardScaler
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
 
 STAGE_BASELINE     = "baseline"
 STAGE_PRETREATMENT = "pretreatment"
@@ -24,6 +27,14 @@ def get_hour_delta(time1, time2):
     if (time1 is None) or (time2 is None):
         return None
     return (time2 - time1).seconds // (60*60)
+    
+def convert_missing_to_nan(col):
+    return [np.nan if (v == "None") or (v is None) else v for v in col]
+    
+def to_float(df: pd.DataFrame):
+    for col in df.columns:
+        df[col] = convert_missing_to_nan(df[col])
+    return df.astype("float")
 
 
 class TableDataLoader:
@@ -34,9 +45,10 @@ class TableDataLoader:
         labels_filename = os.path.join(data_dir, labels_filename)
         self.table_df   = pd.read_csv(table_filename)
         self.labels_df  = pd.read_csv(labels_filename)
-        self.train_set  = None
-        self.val_set    = None
-        self.test_set   = None
+        self.train_set  = {"x": None, "y": None}
+        self.val_set    = {"x": None, "y": None}
+        self.test_set   = {"x": None, "y": None}
+        self.imputed    = False
         self.filter_no_ncct()
         self.add_vars()
         
@@ -98,18 +110,21 @@ class TableDataLoader:
             if col not in to_keep:
                 del self.table_df[col]
                 
+    def get_set(self, set: str):
+        out        = {"x": None, "y": None}
+        set_labels = self.labels_df[self.labels_df["set"] == set]
+        set_ids    = set_labels["patient_id"].values.astype(str)
+        out["x"]   = self.table_df[self.table_df["idProcessoLocal"].isin(set_ids)].copy()
+        out["y"]   = set_labels["binary_rankin"]
+        del out["x"]["idProcessoLocal"]
+        return out
+        
     def split(self):
         self.convert_boolean_sequences()
-        self.amputate()
-        train_ids = self.labels_df[self.labels_df["set"] == "train"]["patient_id"].values.astype(str)
-        val_ids   = self.labels_df[self.labels_df["set"] == "val"]["patient_id"].values.astype(str)
-        test_ids  = self.labels_df[self.labels_df["set"] == "test"]["patient_id"].values.astype(str)
-        self.train_set = self.table_df[self.table_df["idProcessoLocal"].isin(train_ids)]
-        self.val_set   = self.table_df[self.table_df["idProcessoLocal"].isin(val_ids)]
-        self.test_set  = self.table_df[self.table_df["idProcessoLocal"].isin(test_ids)]
-        del self.train_set["idProcessoLocal"]
-        del self.val_set["idProcessoLocal"]
-        del self.test_set["idProcessoLocal"]
+        self.train_set = self.get_set("train")
+        self.val_set   = self.get_set("val")
+        self.test_set  = self.get_set("test")
+        del self.table_df
         
     def convert_boolean_sequences(self):
         boolean_cols = {"ouTerrIsq-7": 4, "ouTerrIsqL-7": 2, "lacAntL-7": 2, 
@@ -132,18 +147,33 @@ class TableDataLoader:
             for col in new_cols:
                 self.table_df[col] = new_cols[col]
 
-    def amputate(self):
-        for col in self.table_df.columns:
-            self.table_df[col] = [np.nan if (v is None) or (v == "None")  else v for v in self.table_df[col]]
-            self.table_df[col].astype("float")
-        print(self.table_df.values)
+    def impute(self):
+        assert self.train_set["x"] is not None, "TableDataLoader.impute: call the 'split' method first"
+        if self.imputed:
+            return
+        self.imputed        = True
+        self.train_set["x"] = to_float(self.train_set["x"])
+        self.val_set["x"]   = to_float(self.val_set["x"])
+        self.test_set["x"]  = to_float(self.test_set["x"])
+        imp = IterativeImputer(max_iter = 40, random_state = 0)
+        imp.fit(self.train_set["x"])
+        self.train_set["x"] = imp.transform(self.train_set["x"])
+        self.val_set["x"]   = imp.transform(self.val_set["x"])
+        self.test_set["x"]  = imp.transform(self.test_set["x"])
         
     def normalize(self):
-        assert self.train_set is not None, "TableDataLoader.normalize: call the 'split' method first"
-        print(self.train_set.values)
+        assert self.train_set["x"] is not None, "TableDataLoader.normalize: call the 'split' method first"
+        assert self.imputed, "TableDataLoader.normalize: call the 'impute' method first"
+        scaler = StandardScaler()
+        scaler.fit(self.train_set["x"])
+        self.train_set["x"] = scaler.transform(self.train_set["x"])
+        self.val_set["x"]   = scaler.transform(self.val_set["x"])
+        self.test_set["x"]  = scaler.transform(self.test_set["x"])
+        print(self.train_set["x"])
 
 if __name__ == "__main__":
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
     table_loader.filter(stage = STAGE_PRETREATMENT)
     table_loader.split()
-    # table_loader.normalize()
+    table_loader.impute()
+    table_loader.normalize()
