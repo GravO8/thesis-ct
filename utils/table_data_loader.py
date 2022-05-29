@@ -29,12 +29,7 @@ def get_hour_delta(time1, time2):
     return (time2 - time1).seconds // (60*60)
     
 def convert_missing_to_nan(col):
-    return [np.nan if (v == "None") or (v is None) else v for v in col]
-    
-def to_float(df: pd.DataFrame):
-    for col in df.columns:
-        df[col] = convert_missing_to_nan(df[col])
-    return df.astype("float")
+    return np.array([np.nan if (v == "None") or (v is None) else v for v in col]).astype("float")
 
 
 class TableDataLoader:
@@ -45,9 +40,9 @@ class TableDataLoader:
         labels_filename = os.path.join(data_dir, labels_filename)
         self.table_df   = pd.read_csv(table_filename)
         self.labels_df  = pd.read_csv(labels_filename)
-        self.train_set  = {"x": None, "y": None}
-        self.val_set    = {"x": None, "y": None}
-        self.test_set   = {"x": None, "y": None}
+        self.train_set  = None
+        self.val_set    = None
+        self.test_set   = None
         self.imputed    = False
         self.filter_no_ncct()
         self.add_vars()
@@ -67,7 +62,6 @@ class TableDataLoader:
         stroke_date = [str_to_datetime(date) for date in self.table_df["dataAVC-4"].values]
         ncct_time   = [str_to_datetime(date) for date in self.table_df["data-7"].values]
         age         = [get_age(birthdate[i],stroke_date[i]) for i in range(len(birthdate))]
-        age         = [get_age(birthdate[i],ncct_time[i]) if age[i] is None else age[i] for i in range(len(birthdate))]
         onset_time  = [get_hour_delta(stroke_date[i],ncct_time[i]) for i in range(len(birthdate))]
         self.table_df["age"]              = age
         self.table_df["time_since_onset"] = onset_time
@@ -102,6 +96,11 @@ class TableDataLoader:
         assert "idProcessoLocal" not in to_remove
         for col in set(to_remove):
             del self.table_df[col]
+        self.set_columns()
+    
+    def set_columns(self):
+        self.columns = list(self.table_df.columns)
+        del self.columns[self.columns.index("idProcessoLocal")]
             
     def filter_keep(self, to_keep: list):
         assert "rankin-23" not in to_keep
@@ -109,14 +108,13 @@ class TableDataLoader:
         for col in self.table_df.columns:
             if col not in to_keep:
                 del self.table_df[col]
+        self.set_columns()
                 
     def get_set(self, set: str):
-        out        = {"x": None, "y": None}
         set_labels = self.labels_df[self.labels_df["set"] == set]
         set_ids    = set_labels["patient_id"].values.astype(str)
-        out["x"]   = self.table_df[self.table_df["idProcessoLocal"].isin(set_ids)].copy()
-        out["y"]   = set_labels["binary_rankin"]
-        del out["x"]["idProcessoLocal"]
+        out        = self.table_df[self.table_df["idProcessoLocal"].isin(set_ids)].copy()
+        out["binary_rankin"] = set_labels["binary_rankin"].values
         return out
         
     def split(self):
@@ -146,38 +144,47 @@ class TableDataLoader:
             del self.table_df[col]
             for col in new_cols:
                 self.table_df[col] = new_cols[col]
+                
+    def to_float(self):
+        for col in self.columns:
+            self.train_set[col] = convert_missing_to_nan(self.train_set[col])
+            self.val_set[col]   = convert_missing_to_nan(self.val_set[col])
+            self.test_set[col]  = convert_missing_to_nan(self.test_set[col])
 
     def impute(self):
-        assert self.train_set["x"] is not None, "TableDataLoader.impute: call the 'split' method first"
+        assert self.train_set is not None, "TableDataLoader.impute: call the 'split' method first"
         if self.imputed:
             return
         self.imputed        = True
-        columns             = self.train_set["x"].columns
-        self.train_set["x"] = to_float(self.train_set["x"])
-        self.val_set["x"]   = to_float(self.val_set["x"])
-        self.test_set["x"]  = to_float(self.test_set["x"])
-        imp = IterativeImputer(max_iter = 40, random_state = 0)
-        imp.fit(self.train_set["x"])
-        self.train_set["x"] = pd.DataFrame(imp.transform(self.train_set["x"]), columns = columns)
-        self.val_set["x"]   = pd.DataFrame(imp.transform(self.val_set["x"]), columns = columns)
-        self.test_set["x"]  = pd.DataFrame(imp.transform(self.test_set["x"]), columns = columns)
+        columns             = self.train_set.columns
+        self.to_float()
+        imp                 = IterativeImputer(max_iter = 40, random_state = 0)
+        imp.fit(self.train_set[self.columns])
+        self.train_set[self.columns] = imp.transform(self.train_set[self.columns])
+        self.val_set[self.columns]   = imp.transform(self.val_set[self.columns])
+        self.test_set[self.columns]  = imp.transform(self.test_set[self.columns])
+        
+    def amputate(self):
+        self.to_float()
+        self.train_set = self.train_set.dropna()
+        self.val_set   = self.val_set.dropna()
+        self.test_set  = self.test_set.dropna()
         
     def normalize(self):
-        assert self.train_set["x"] is not None, "TableDataLoader.normalize: call the 'split' method first"
+        assert self.train_set is not None, "TableDataLoader.normalize: call the 'split' method first"
         assert self.imputed, "TableDataLoader.normalize: call the 'impute' method first"
-        columns = self.train_set["x"].columns
         scaler  = StandardScaler()
-        scaler.fit(self.train_set["x"])
-        self.train_set["x"] = pd.DataFrame(scaler.transform(self.train_set["x"]), columns = columns)
-        self.val_set["x"]   = pd.DataFrame(scaler.transform(self.val_set["x"]), columns = columns)
-        self.test_set["x"]  = pd.DataFrame(scaler.transform(self.test_set["x"]), columns = columns)
+        scaler.fit(self.train_set[self.columns])
+        self.train_set[self.columns] = scaler.transform(self.train_set[self.columns])
+        self.val_set[self.columns]   = scaler.transform(self.val_set[self.columns])
+        self.test_set[self.columns]  = scaler.transform(self.test_set[self.columns])
 
 if __name__ == "__main__":
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
     table_loader.filter(stage = STAGE_PRETREATMENT)
     table_loader.split()
-    print(type(table_loader.train_set["x"]))
+    print(type(table_loader.train_set))
     table_loader.impute()
-    print(type(table_loader.train_set["x"]))
+    print(type(table_loader.train_set))
     table_loader.normalize()
-    print(type(table_loader.train_set["x"]))
+    print(type(table_loader.train_set))
