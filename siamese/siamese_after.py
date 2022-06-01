@@ -21,8 +21,13 @@ def siamese_after(encoder):
     return SiameseNetAfter(siamese_encoder)
     
 if __name__ == "__main__":
-    to_test = [ siamese_after(custom_3D_cnn_v1(global_pool = "gap")),
-                siamese_after(deep_sym_encoder(1, global_pool = "gap")),
-                siamese_after(resnet_3d(18, global_pool = "gap")),
-                siamese_after(resnet_3d(34, global_pool = "gap"))]
-    main(to_test[3:])
+    # to_test = [ siamese_after(custom_3D_cnn_v1(global_pool = "gap")),
+    #             siamese_after(deep_sym_encoder(1, global_pool = "gap")),
+    #             siamese_after(resnet_3d(18, global_pool = "gap")),
+    #             siamese_after(resnet_3d(34, global_pool = "gap"))]
+    to_test = [ siamese_after(custom_3D_cnn_v1(global_pool = "gmp")),
+                siamese_after(deep_sym_encoder(1, global_pool = "gmp")),
+                siamese_after(resnet_3d(18, global_pool = "gmp")),
+                siamese_after(resnet_3d(34, global_pool = "gmp")),
+                siamese_after(resnet_3d(50, global_pool = "gmp"))]
+    main(to_test, device = 0)

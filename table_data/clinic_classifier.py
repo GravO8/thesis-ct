@@ -1,42 +1,22 @@
-import sys
-sys.path.append("..")
-from utils.table_data_loader import TableDataLoader
-from utils.trainer import compute_metrics
-from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
 
-class ClinicClassifier:
+
+class ClinicClassifier(TableClassifier):
     def __init__(self, table_loader):
+        super().__init__()
         table_loader.filter(to_keep = self.get_columns())
         table_loader.split()
         # table_loader.impute()
         table_loader.amputate()
-        train     = pd.concat([table_loader.train_set, table_loader.val_set])
-        self.sets = {"train": train, "test": table_loader.test_set}
+        self.sets["train"] = pd.concat([table_loader.train_set, table_loader.val_set])
+        self.sets["test"]  = table_loader.test_set
         self.preprocess("train")
         self.preprocess("test")
-    
-    @abstractmethod
-    def preprocess(self, set: str):
-        pass
         
-    @abstractmethod
-    def get_scores(self, x):
-        pass
-        
-    @abstractmethod
-    def get_probabilities(self, x):
-        pass
-    
-    @abstractmethod
-    def get_columns(self) -> list:
-        pass
-        
-    def compute_metrics(self, set: str):
-        y_prob = self.get_probabilities(self.sets[set][self.get_columns()].values)
-        y_true = self.sets[set]["binary_rankin"].values
-        return compute_metrics(y_true, y_prob)
+        @abstractmethod
+        def preprocess(self, set: str):
+            pass
         
         
 class ASTRALClinicClassifier(ClinicClassifier):
@@ -63,9 +43,14 @@ class ASTRALClinicClassifier(ClinicClassifier):
         
     def get_columns(self):
         return ["age", "totalNIHSS-5", "time_since_onset", "altVis-5", "altCons-5", "gliceAd-4"]
-        
+
+    
     
 if __name__ == "__main__":
+    import sys
+    sys.path.append("..")
+    from utils.table_data_loader import TableDataLoader
+    
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
     astral       = ASTRALClinicClassifier(table_loader)
     metrics      = astral.compute_metrics("train")
