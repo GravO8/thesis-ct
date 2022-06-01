@@ -1,10 +1,11 @@
 import pandas as pd
 import numpy as np
+from table_classifier import TableClassifier
+from abc import abstractmethod
 
 
 class ClinicClassifier(TableClassifier):
-    def __init__(self, table_loader):
-        super().__init__()
+    def load_sets(self, table_loader):
         table_loader.filter(to_keep = self.get_columns())
         table_loader.split()
         # table_loader.impute()
@@ -17,6 +18,10 @@ class ClinicClassifier(TableClassifier):
         @abstractmethod
         def preprocess(self, set: str):
             pass
+            
+        @abstractmethod
+        def get_scores(self, x):
+            return x.sum(axis = 1)
         
         
 class ASTRALClinicClassifier(ClinicClassifier):
@@ -33,10 +38,7 @@ class ASTRALClinicClassifier(ClinicClassifier):
         self.sets[set]["gliceAd-4"]        = (glucose > 131) | (glucose < 66)
         self.sets[set]                     = self.sets[set].astype(int)
         
-    def get_scores(self, x):
-        return x.sum(axis = 1)
-        
-    def get_probabilities(self, x):
+    def get_predictions(self, x):
         x = self.get_scores(x)
         x = x > 30
         return x.astype(int)
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     metrics      = astral.compute_metrics("train")
     print(metrics)
     
-    # pred   = astral.get_probabilities( astral.sets["test"][astral.get_columns()].values )
+    # pred   = astral.get_predictions( astral.sets["test"][astral.get_columns()].values )
     # scores = astral.get_scores( astral.sets["test"][astral.get_columns()].values )
     # astral.sets["test"]["pred"]   = pred
     # astral.sets["test"]["astral"] = scores

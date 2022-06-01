@@ -10,7 +10,7 @@ STAGE_BASELINE     = "baseline"
 STAGE_PRETREATMENT = "pretreatment"
 STAGE_24H          = "24h"
 STAGE_DISCHARGE    = "discharge"
-STAGES             = (STAGE_PRETREATMENT, STAGE_24H, STAGE_DISCHARGE)
+STAGES             = (STAGE_BASELINE, STAGE_PRETREATMENT, STAGE_24H, STAGE_DISCHARGE)
 
 
 def str_to_datetime(date: str):
@@ -80,7 +80,7 @@ class TableDataLoader:
             self.filter_remove(to_remove, stage)
     
     def filter_remove(self, to_remove: list, stage: str):
-        to_remove.extend(["rankin-23", "NCCT", "CTA", "visible"])
+        to_remove.extend(["rankin-23", "NCCT", "CTA"])
         sections_to_remove = ["18"]
         if stage == STAGE_BASELINE:
             sections_to_remove.extend( ["7", "11", "15", "19", "20", "21", "22"] )

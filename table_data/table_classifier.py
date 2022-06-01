@@ -5,23 +5,30 @@ from utils.trainer import compute_metrics
 
 
 class TableClassifier(ABC):
-    def __init__(self):
+    def __init__(self, table_loader, **kwargs):
         self.sets = {}
-        
-    @abstractmethod
-    def get_scores(self, x):
+        self.load_sets(table_loader, **kwargs)
+    
+    @abstractmethod    
+    def load_sets(self, **kwargs):
         pass
         
     @abstractmethod
-    def get_probabilities(self, x):
+    def get_predictions(self, x):
         pass
     
     @abstractmethod
     def get_columns(self) -> list:
         pass
         
+    def get_x(self, set: str):
+        return self.sets[set][self.get_columns()].values
+        
+    def get_y(self, set: str):
+        return self.sets[set]["binary_rankin"].values
+        
     def compute_metrics(self, set: str):
-        assert set, f"TableClassifier.compute_metrics: Unknown set {set}. Available sets are {[s for s in self.sets]}"
-        y_prob = self.get_probabilities(self.sets[set][self.get_columns()].values)
-        y_true = self.sets[set]["binary_rankin"].values
+        assert set, f"TableClassifier.get_predictions: Unknown set {set}. Available sets are {[s for s in self.sets]}"
+        y_prob = self.get_predictions(self.get_x(set))
+        y_true = self.get_y(set)
         return compute_metrics(y_true, y_prob)
