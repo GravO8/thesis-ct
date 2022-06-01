@@ -38,6 +38,7 @@ class ClassicClassifier(TableClassifier):
         table_loader.filter(stage = stage)
         table_loader.split()
         table_loader.amputate()
+        # table_loader.impute()
         self.sets["train"] = table_loader.train_set
         self.sets["val"]   = table_loader.val_set
         self.sets["test"]  = table_loader.test_set
@@ -51,7 +52,7 @@ class ClassicClassifier(TableClassifier):
         
 
 
-def knn(loader):
+def knns(loader):
     from sklearn.neighbors import KNeighborsClassifier as KNN
     knn = ClassicClassifier(model = KNN(), 
                             param_grid = {
@@ -63,16 +64,63 @@ def knn(loader):
     print( knn.params )
     
     
-# def decision_trees():
-#     from sklearn.tree import DecisionTreeClassifier as DT
-#     dt = ClassicClassifier(model = DT(),
-#                            param_grid = {
-#                                 "": ,
-# 
-#                            })
-#     print( dt.compute_metrics("test") )
-#     print( dt.params )
+def decision_trees(loader):
+    from sklearn.tree import DecisionTreeClassifier as DT
+    dt = ClassicClassifier(model = DT(),
+                           param_grid = {
+                                "criterion": ["entropy", "gini"],
+                                "max_depth": [2, 5, 10, 15, 20, 25],
+                                "min_impurity_decrease": [0.025, 0.01, 0.005, 0.0025, 0.001],
+                                "random_state": [0]
+                           },
+                           table_loader = loader)
+    print( dt.compute_metrics("test") )
+    print( dt.params )
+    
+    
+def random_forests(loader):
+    from sklearn.ensemble import RandomForestClassifier as RF
+    rf = ClassicClassifier(model = RF(),
+                           param_grid = {
+                                "criterion": ["entropy", "gini"],
+                                "max_depth": [5, 10, 20, 25],
+                                "n_estimators": [5, 10, 25, 50, 75, 100, 150, 200, 250, 300],
+                                "max_features": [.1, .3, .5, .7, .9, 1],
+                                "random_state": [0]
+                           },
+                           table_loader = loader)
+    print( rf.compute_metrics("test") )
+    print( rf.params )
 
+
+def logistic_regression(loader):
+    from sklearn.linear_model import LogisticRegression as LR
+    lr = ClassicClassifier(model = LR(),
+                           param_grid = {
+                                "C": [0.01, 0.1, 0.2, 0.5, 1, 2, 3],
+                                "tol": [1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
+                                "penalty": ["l1", "l2"],
+                                "solver": ["saga"],
+                                "random_state": [0],
+                           },
+                           table_loader = loader)
+    print( lr.compute_metrics("test") )
+    print( lr.params )
+    
+    
+def gradient_boosting(loader):
+    from sklearn.ensemble import GradientBoostingClassifier as GB
+    gb = ClassicClassifier(model = GB(),
+                           param_grid = {
+                                "n_estimators": [5, 10, 25, 50, 75, 100, 150, 200, 250, 300],
+                                "max_depth": [5, 10, 20, 25],
+                                "learning_rate": [.1, .3, .5, .7, .9],
+                                "random_state": [0],
+                           },
+                           table_loader = loader)
+    print( gb.compute_metrics("test") )
+    print( gb.params )
+    
 
 if __name__ == "__main__":
     import sys
@@ -80,4 +128,4 @@ if __name__ == "__main__":
     from utils.table_data_loader import TableDataLoader
     
     loader = TableDataLoader(data_dir = "../../../data/gravo/")
-    knn(loader)
+    gradient_boosting(loader)
