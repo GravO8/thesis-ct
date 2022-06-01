@@ -7,8 +7,9 @@ from models.model import Baseline3DCNN
 from utils.main import main
 
 if __name__ == "__main__":
-    to_test = [ Baseline3DCNN(custom_3D_cnn_v1(global_pool = "gap")),
-                Baseline3DCNN(resnet_3d(18, global_pool = "gap")),
-                Baseline3DCNN(resnet_3d(34, global_pool = "gap")),
-                Baseline3DCNN(deep_sym_encoder(1, global_pool = "gap"))]
-    main(to_test[3:], device = 1)
+    # to_test = [ Baseline3DCNN(custom_3D_cnn_v1(global_pool = "gap")),
+    #             Baseline3DCNN(resnet_3d(18, global_pool = "gap")),
+    #             Baseline3DCNN(resnet_3d(34, global_pool = "gap")),
+    #             Baseline3DCNN(deep_sym_encoder(1, global_pool = "gap"))]
+    to_test = [ Baseline3DCNN(resnet_3d(50, global_pool = "gap")) ]
+    main(to_test, device = 1)

@@ -35,7 +35,7 @@ class ClinicClassifier:
         
     def compute_metrics(self, set: str):
         y_prob = self.get_probabilities(self.sets[set][self.get_columns()].values)
-        y_true = self.sets[set]["binary_rankin"]
+        y_true = self.sets[set]["binary_rankin"].values
         return compute_metrics(y_true, y_prob)
         
         
@@ -46,7 +46,7 @@ class ASTRALClinicClassifier(ClinicClassifier):
     def preprocess(self, set: str):
         self.sets[set]["age"]              = self.sets[set]["age"].values // 5
         self.sets[set]["totalNIHSS-5"]     = self.sets[set]["totalNIHSS-5"].astype(int)
-        self.sets[set]["time_since_onset"] = 2*(self.sets[set]["time_since_onset"].values > 3)
+        self.sets[set]["time_since_onset"] = 2*(self.sets[set]["time_since_onset"].values >= 3)
         self.sets[set]["altVis-5"]         = 2*(self.sets[set]["altVis-5"].values > 0)
         self.sets[set]["altCons-5"]        = 3*(self.sets[set]["altCons-5"].values > 0)
         glucose                            = self.sets[set]["gliceAd-4"].values
@@ -58,7 +58,7 @@ class ASTRALClinicClassifier(ClinicClassifier):
         
     def get_probabilities(self, x):
         x = self.get_scores(x)
-        x = x > 31
+        x = x > 30
         return x.astype(int)
         
     def get_columns(self):
@@ -68,11 +68,11 @@ class ASTRALClinicClassifier(ClinicClassifier):
 if __name__ == "__main__":
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
     astral       = ASTRALClinicClassifier(table_loader)
-    # metrics      = astral.compute_metrics("train")
-    # print(metrics)
+    metrics      = astral.compute_metrics("train")
+    print(metrics)
     
-    pred   = astral.get_probabilities( astral.sets["test"][astral.get_columns()].values )
-    scores = astral.get_scores( astral.sets["test"][astral.get_columns()].values )
-    astral.sets["test"]["pred"]   = pred
-    astral.sets["test"]["astral"] = scores
-    print(astral.sets["test"][["idProcessoLocal", "astral", "pred"]])
+    # pred   = astral.get_probabilities( astral.sets["test"][astral.get_columns()].values )
+    # scores = astral.get_scores( astral.sets["test"][astral.get_columns()].values )
+    # astral.sets["test"]["pred"]   = pred
+    # astral.sets["test"]["astral"] = scores
+    # # astral.sets["test"].to_csv("test.csv", index = False)
