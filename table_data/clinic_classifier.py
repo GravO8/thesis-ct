@@ -21,7 +21,7 @@ class ClinicClassifier(TableClassifier):
             
         @abstractmethod
         def get_scores(self, x):
-            return x.sum(axis = 1)
+            pass
         
         
 class ASTRALClinicClassifier(ClinicClassifier):
@@ -37,6 +37,9 @@ class ASTRALClinicClassifier(ClinicClassifier):
         glucose                            = self.sets[set]["gliceAd-4"].values
         self.sets[set]["gliceAd-4"]        = (glucose > 131) | (glucose < 66)
         self.sets[set]                     = self.sets[set].astype(int)
+        
+    def get_scores(self, x):
+        return x.sum(axis = 1)
         
     def get_predictions(self, x):
         x = self.get_scores(x)
@@ -55,7 +58,7 @@ if __name__ == "__main__":
     
     table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
     astral       = ASTRALClinicClassifier(table_loader)
-    metrics      = astral.compute_metrics("train")
+    metrics      = astral.compute_metrics("test")
     print(metrics)
     
     # pred   = astral.get_predictions( astral.sets["test"][astral.get_columns()].values )
