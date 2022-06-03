@@ -1,7 +1,8 @@
-import os, torchio
+import sys, os, torchio
+sys.path.append("..")
 import numpy as np
 import pandas as pd
-from ct_loader import BINARY_RANKIN, RANKIN
+from utils.ct_loader import BINARY_RANKIN, RANKIN
 
 
 class UnSupCTLoader:
@@ -13,14 +14,16 @@ class UnSupCTLoader:
         np.random.seed(0)
         
     def load_dataset(self):
-        train   = self.load_train("train")
-        val     = self.load_not_train("val")
-        test    = self.load_not_train("test")
+        train         = self.load_train("train")
+        val           = self.load_labeled_set("val")
+        test          = self.load_labeled_set("test")
+        labeled_train = self.load_labeled_set("train")
         np.random.shuffle(train)
         np.random.shuffle(val)
         np.random.shuffle(test)
         print(len(train), len(val), len(test))
-        return (torchio.SubjectsDataset(train),
+        return (torchio.SubjectsDataset(labeled_train),
+                torchio.SubjectsDataset(train),
                 torchio.SubjectsDataset(val),
                 torchio.SubjectsDataset(test))
 
@@ -41,8 +44,8 @@ class UnSupCTLoader:
                     train_set.append(subject)
         return train_set
 
-    def load_not_train(self, set_name: str):
-        assert set_name in ("val", "test")
+    def load_labeled_set(self, set_name: str):
+        assert set_name in ("train", "val", "test")
         set = []
         for _, row in self.labels[self.labels["set"] == set_name].iterrows():
             patient_id  = row[PATIENT_ID]
