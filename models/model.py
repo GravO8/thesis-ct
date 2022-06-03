@@ -55,3 +55,19 @@ class Axial2DCNN(Model):
         self.height      = height
     def name_appendix(self):
         return f"Axial{self.slice_range}{self.height}-2DCNN"
+        
+        
+class UnSup3DCNN(Model):
+    def __init__(self, encoder: Encoder):
+        super().__init__(encoder)
+        assert self.encoder.global_pool is not None
+        self.mlp = Encoder("projection_head",
+                          torch.nn.Sequential(
+                                torch.nn.Linear(encoder.out_channels, 512),
+                                torch.nn.ReLU(inplace = True),
+                                torch.nn.Linear(512, 128)),
+                          128, global_pool = None, dim = 1)      
+    def process_input(self, x):
+        return self.normalize_input(x)
+    def name_appendix(self):
+        return "UnSup"
