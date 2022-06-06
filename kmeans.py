@@ -27,6 +27,8 @@ def cmeans(array, c = 3, m = 2):
     shape    = array.shape
     array    = array.reshape((-1,1)).T
     cluster_centers, labels, _, _, _, _, _ = skfuzzy.cmeans(array, c, m, ERROR, MAX_ITER, seed = SEED)
+    if np.isclose(labels[0,0], 0, atol = .01):
+        return labels[0,:].reshape((shape))
     return labels[1,:].reshape((shape))
 
 
@@ -103,7 +105,8 @@ def fix_tilt(array):
             angles[angle] = 1
         current_max = max(angles, key = angles.get)
         if current_max == angle:
-            M = cv2.getRotationMatrix2D((x, y), angle+180, 1)  #transformation matrix
+            angle = -1
+            M = cv2.getRotationMatrix2D((x, y), angle, 1)  #transformation matrix
     for i in range(array.shape[-1]):
         array[:,:,i] = cv2.warpAffine(array[:,:,i], M, (a.shape[1], a.shape[0]), cv2.INTER_CUBIC)
     return array
@@ -114,16 +117,77 @@ def cut_edges(array):
     mask = (mask == 1) & (flip(mask) == 1)
     array[mask != 1] = 0
     return array
+    
+    
+def mirror(array):
+    T = 50
+    mirrored                = segmented - flip(segmented)
+    # mirrored[mirrored > T]  = T
+    # mirrored[mirrored < T]  = 0
+    # mirrored[mirrored == T] = 1
+    return mirrored
+    
+    
+def rotate_coronal(array):
+    slice = array[:,0,:]
+    x, y  = np.array(slice.shape)/2
+    ANGLE = -5.33856201171875
+    M = cv2.getRotationMatrix2D((x, y), ANGLE, 1)  #transformation matrix
+    for i in range(array.shape[1]):
+        array[:,i,:] = cv2.warpAffine(array[:,i,:], M, (slice.shape[1], slice.shape[0]), cv2.INTER_CUBIC)
+    return array
+    
+def rotate_axial(array):
+    slice = array[:,:,0]
+    x, y  = np.array(slice.shape)/2
+    ANGLE = -3
+    M = cv2.getRotationMatrix2D((x, y), ANGLE, 1)  #transformation matrix
+    for i in range(array.shape[2]):
+        array[:,:,i] = cv2.warpAffine(array[:,:,i], M, (slice.shape[1], slice.shape[0]), cv2.INTER_CUBIC)
+    return array
+    
+    
+def test(array):
+    import matplotlib.pyplot as plt
+    import math
+    coronal     = array[:,array.shape[1]//2,:].astype("uint8")
+    contours, _ = cv2.findContours(coronal, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnt         = max(contours, key = cv2.contourArea)
+    rect        = cv2.fitEllipse(cnt)
+    ((x,y),(MA,ma),angle) = rect
+    print(rect)
+    gray = cv2.cvtColor(np.float32(coronal), cv2.COLOR_GRAY2RGB)
+    # coronal = cv2.ellipse(gray,rect, color=(0,0,255),thickness =1)
+    rmajor = max(MA,ma)/2
+    # if angle > 90:
+    #     angle -= 90
+    # else:
+    #     angle += 96
+    if angle > 90:
+        angle -= 180
+    print(angle)
+    xtop = x + math.cos(math.radians(angle))*rmajor
+    ytop = y + math.sin(math.radians(angle))*rmajor
+    xbot = x + math.cos(math.radians(angle+180))*rmajor
+    ybot = y + math.sin(math.radians(angle+180))*rmajor
+    # cv2.line(coronal, (int(xtop),int(ytop)), (int(xbot),int(ybot)), (0, 0, 255), 1)
+    
+    M = cv2.getRotationMatrix2D((x, y), angle, 1)  #transformation matrix
+    coronal = cv2.warpAffine(coronal, M, (coronal.shape[1],coronal.shape[0]), cv2.INTER_CUBIC)
+    plt.imshow(np.flip(coronal.T, axis = (0,)), cmap = "gray")
+    plt.show()
 
 
 if __name__ == "__main__":    
-    ncct = load_ct(1)
+    ncct = load_ct(1044782)
+    # ncct      = fix_tilt(ncct)
+    # ncct      = cut_edges(ncct)
+    # segmented = cmeans(ncct, c = 2, m = 2)
+    # segmented = denoise_2d(segmented*100)
+    # mirrored  = mirror(segmented)
     
-    ncct      = fix_tilt(ncct)
-    ncct      = cut_edges(ncct)
-    segmented = cmeans(ncct, c = 2, m = 2)
-    segmented = denoise_2d(segmented*100)
-    mirrored  = segmented - flip(segmented)
-    
-    
-    save(mirrored)
+    ncct = rotate_coronal(ncct)
+    # test(ncct)
+    save(ncct)
+    # save(mirrored)
+    # save(segmented)
