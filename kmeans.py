@@ -206,19 +206,94 @@ def fix_coronal_rotation(array):
     return array
     
 
+def get_brain_outline(array):
+    cnt = []
+    for z in range(array.shape[2]):
+        for y in range(array.shape[1]):
+            for x in range(array.shape[0]):
+                if array[x][y][z] > 0:
+                    cnt.append( (x,y,z) )
+                    break
+            for x in range(array.shape[0]-1,0,-1):
+                if array[x][y][z] > 0:
+                    cnt.append( (x,y,z) )
+                    break
+    for z in range(array.shape[2]):
+        for x in range(array.shape[0]):
+            for y in range(array.shape[1]):
+                if array[x][y][z] > 0:
+                    cnt.append( (x,y,z) )
+                    break
+            for y in range(array.shape[1]-1,0,-1):
+                if array[x][y][z] > 0:
+                    cnt.append( (x,y,z) )
+                    break
+    for x in range(array.shape[0]):
+        for y in range(array.shape[1]):
+            for z in range(array.shape[2]):
+                if array[x][y][z] > 0:
+                    cnt.append( (x,y,z) )
+                    break
+            for z in range(array.shape[2]-1,0,-1):
+                if array[x][y][z] > 0:
+                    cnt.append( (x,y,z) )
+                    break
+    return cnt
+    
+    
+def extend_line(p1, p2, distance=10000):
+    # copied from https://stackoverflow.com/a/72084363 
+    diff = np.arctan2(p1[1] - p2[1], p1[0] - p2[0])
+    p3_x = int(p1[0] + distance*np.cos(diff))
+    p3_y = int(p1[1] + distance*np.sin(diff))
+    p4_x = int(p1[0] - distance*np.cos(diff))
+    p4_y = int(p1[1] - distance*np.sin(diff))
+    return ((p3_x, p3_y), (p4_x, p4_y))    
+    
+def test_pca(array):
+    import matplotlib.pyplot as plt
+    from sklearn.decomposition import PCA
+    coronal     = array[:,array.shape[1]//2,:].astype("uint8")
+    contours, _ = cv2.findContours(coronal, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnt         = max(contours, key = cv2.contourArea).squeeze()
+    cnt = []
+    for i in range(array.shape[0]):
+        for j in range(array.shape[1]):
+            for k in range(array.shape[2]):
+                if array[i][j][k] > 0:
+                    cnt.append( (i,j,k) )
+    pca = PCA(n_components = 3)
+    pca.fit(cnt)
+    x, y, z = [round(v) for v in pca.mean_]
+    components = (pca.components_*100000).astype(int)
+    print(pca.mean_, x, y, z)
+    print(pca.components_)
+    print(pca.explained_variance_)
+    coronal = cv2.cvtColor(np.float32(coronal), cv2.COLOR_GRAY2RGB)
+    line_   = extend_line((x, z), tuple(components[1,[0,2]])) 
+    coronal = cv2.line(coronal, line_[0], line_[1], (0, 255, 0), thickness=1)
+    line_   = extend_line((x, z), tuple(components[2,[0,2]])) 
+    coronal = cv2.line(coronal, line_[0], line_[1], (0, 255, 0), thickness=1)
+    plt.imshow(np.flip(coronal[:,:,1].T, axis = (0,)), cmap = "gray")
+    # plt.imshow(np.flip(coronal.T, axis = (0,)), cmap = "gray")
+    plt.show()
+    
+
 if __name__ == "__main__":
     # for file in [f for f in os.listdir("../../data/gravo/NCCT") if "-" not in f]:
         # ncct = load_ct(int(file.split(".")[0]))
-    ncct = load_ct(46149)
-    ncct = fix_coronal_rotation(ncct)
-    # ncct      = fix_tilt(ncct)
-    ncct      = cut_edges(ncct)
-    segmented = cmeans(ncct, c = 2, m = 2)
-    segmented = denoise_2d(segmented*100)
-    mirrored  = mirror(segmented)
+    ncct = load_ct(131026)
+    # 46149
     
+    test_pca(ncct)
+    # ncct = fix_coronal_rotation(ncct)
+    # ncct      = fix_tilt(ncct)
+    # ncct      = cut_edges(ncct)
+    # segmented = cmeans(ncct, c = 2, m = 2)
+    # segmented = denoise_2d(segmented*100)
+    # mirrored  = mirror(segmented)
     
     # test(ncct)
     # save(ncct)
-    save(mirrored)
+    # save(mirrored)
     # save(segmented)
