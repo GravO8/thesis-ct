@@ -176,18 +176,49 @@ def test(array):
     coronal = cv2.warpAffine(coronal, M, (coronal.shape[1],coronal.shape[0]), cv2.INTER_CUBIC)
     plt.imshow(np.flip(coronal.T, axis = (0,)), cmap = "gray")
     plt.show()
-
-
-if __name__ == "__main__":    
-    ncct = load_ct(1044782)
-    # ncct      = fix_tilt(ncct)
-    # ncct      = cut_edges(ncct)
-    # segmented = cmeans(ncct, c = 2, m = 2)
-    # segmented = denoise_2d(segmented*100)
-    # mirrored  = mirror(segmented)
     
-    ncct = rotate_coronal(ncct)
+    
+def fix_coronal_rotation(array):
+    middle_i = array.shape[1]//2
+    x_cml, y_cml, angle_cml = [], [], []
+    range_ = list(range(0,20,4))
+    for j in range_:
+        i     = middle_i+j
+        slice = array[:,i,:].astype("uint8")
+        contours, _ = cv2.findContours(slice, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cnt         = max(contours, key = cv2.contourArea)
+        rect        = cv2.fitEllipse(cnt)
+        (x,y),_,angle = rect
+        if angle > 90:
+            angle -= 180
+        x_cml.append(x)
+        y_cml.append(y)
+        angle_cml.append(angle)
+    x, y, angle = np.array(x_cml), np.array(y_cml), np.array(angle_cml)
+    if angle.std() > 3:
+        print(x)
+        print( angle )
+        return array
+    print("rotated")
+    M = cv2.getRotationMatrix2D((x.mean(), y.mean()), angle.mean(), 1)  #transformation matrix
+    for i in range(array.shape[1]):
+        array[:,i,:] = cv2.warpAffine(array[:,i,:], M, (slice.shape[1], slice.shape[0]), cv2.INTER_CUBIC)
+    return array
+    
+
+if __name__ == "__main__":
+    # for file in [f for f in os.listdir("../../data/gravo/NCCT") if "-" not in f]:
+        # ncct = load_ct(int(file.split(".")[0]))
+    ncct = load_ct(46149)
+    ncct = fix_coronal_rotation(ncct)
+    # ncct      = fix_tilt(ncct)
+    ncct      = cut_edges(ncct)
+    segmented = cmeans(ncct, c = 2, m = 2)
+    segmented = denoise_2d(segmented*100)
+    mirrored  = mirror(segmented)
+    
+    
     # test(ncct)
-    save(ncct)
-    # save(mirrored)
+    # save(ncct)
+    save(mirrored)
     # save(segmented)
