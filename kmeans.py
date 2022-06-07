@@ -136,7 +136,8 @@ def rotate_coronal(array):
     for i in range(array.shape[1]):
         array[:,i,:] = cv2.warpAffine(array[:,i,:], M, (slice.shape[1], slice.shape[0]), cv2.INTER_CUBIC)
     return array
-    
+
+
 def rotate_axial(array):
     slice = array[:,:,0]
     x, y  = np.array(slice.shape)/2
@@ -249,6 +250,7 @@ def extend_line(p1, p2, distance=10000):
     p4_x = int(p1[0] - distance*np.cos(diff))
     p4_y = int(p1[1] - distance*np.sin(diff))
     return ((p3_x, p3_y), (p4_x, p4_y))    
+
     
 def test_pca(array):
     import matplotlib.pyplot as plt
@@ -278,6 +280,73 @@ def test_pca(array):
     # plt.imshow(np.flip(coronal.T, axis = (0,)), cmap = "gray")
     plt.show()
     
+    
+def get_random_point(center: tuple):
+    pt = []
+    for i in range(len(center)):
+        dim_center = center[i]
+        pt.append( np.random.randint(dim_center-20, dim_center+20) )
+    return pt
+    
+    
+def get_normal_vector(array):
+    x = np.random.uniform(.8,1)*10000
+    y = np.random.uniform(0,.2)*10000
+    z = np.random.uniform(0,.2)*10000
+    return (x,y,z)
+    
+    
+def get_bounding_box(array):
+    dim_extreme = []
+    for i in range(len(array.shape)):
+        for j in range(array.shape[i]):
+            index = tuple([[j] if c==i else slice(None) for c in range(len(array.shape))])
+            if (array[index] > 0).any():
+                dim_extreme.append( [j] )
+                break
+        for j in range(array.shape[i]-1,0,-1):
+            index = tuple([[j] if c==i else slice(None) for c in range(len(array.shape))])
+            if (array[index] > 0).any():
+                dim_extreme[-1].append(j)
+                break
+    return dim_extreme
+    
+    
+def monte_carlo_tilt_fix(array, N = 1000):
+    '''
+    a(x - x0) + b(y - y0) + c(z - z0) = 0
+    a(x - x0) = -b(y - y0) - c(z - z0)
+    x - x0 = (-b(y - y0) - c(z - z0))/a
+    x = (-b(y - y0) - c(z - z0))/a + x0
+    '''
+    x, y, z = [], [], []
+    (x_range, y_range, z_range) = get_bounding_box(array)
+    center = ((x_range[0]+x_range[1])/2, (y_range[0]+y_range[1])/2, (z_range[0]+z_range[1])/2)
+    for i in range(array.shape[2]):
+        for j in range(array.shape[1]):
+            for k in range(array.shape[0]):
+                x.append(k)
+                y.append(j)
+                z.append(i)
+    x, y, z = np.array(z), np.array(y), np.array(x)
+    best_diff = np.inf
+    best_pt = None
+    best_n  = None
+    while best_diff > 400:
+        (x0,y0,z0) = get_random_point(center)
+        (a,b,c)    = get_normal_vector(array)
+        mask = (x > (1/a)*(-b*(y - y0) - c*(z - z0)) + x0 ).reshape(array.shape)
+        diff = np.abs( np.count_nonzero(array[mask] > 0) - np.count_nonzero(array[mask == False] > 0) )
+        if diff < best_diff:
+            best_diff = diff
+            best_pt = (x0,y0,z0)
+            best_n  = (a,b,c)
+    print(best_diff)
+    (x0,y0,z0) = best_pt
+    (a,b,c)    = best_n
+    mask = (x > (1/a)*(-b*(y - y0) - c*(z - z0)) + x0 ).reshape(array.shape)
+    array[mask] = 0
+
 
 if __name__ == "__main__":
     # for file in [f for f in os.listdir("../../data/gravo/NCCT") if "-" not in f]:
@@ -285,7 +354,7 @@ if __name__ == "__main__":
     ncct = load_ct(131026)
     # 46149
     
-    test_pca(ncct)
+    monte_carlo_tilt_fix(ncct, N = 100)
     # ncct = fix_coronal_rotation(ncct)
     # ncct      = fix_tilt(ncct)
     # ncct      = cut_edges(ncct)
@@ -294,6 +363,6 @@ if __name__ == "__main__":
     # mirrored  = mirror(segmented)
     
     # test(ncct)
-    # save(ncct)
+    save(ncct)
     # save(mirrored)
     # save(segmented)
