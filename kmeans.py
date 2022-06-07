@@ -355,7 +355,7 @@ def get_rotation_matrix(n, pt, axis = np.array([1,0,0])):
     d     = get_d(n, pt)
     t     = get_translation(n, d)
     theta = angle_between(n, axis)
-    u     = unit_vector(np.cross(n, axis)) # rotation axis
+    u     = unit_vector(np.cross(axis, n)) # rotation axis
     assert u[np.argwhere(axis == 1)] == 0
     cos = np.cos(theta)
     sin = np.sin(theta)
@@ -374,11 +374,12 @@ def mirror_points(n, pt, points):
     m, t   = get_rotation_matrix(n, pt)
     m_inv  = np.linalg.inv(m)
     assert np.allclose(np.dot(m, m_inv), np.eye(3))
-    mirror = np.array([[.8,0,0],[0,1,0],[0,0,1]])
-    mirror = np.array([[1,0,0],[0,1,0],[0,0,1]])
-    print(mirror)
-    # return t + m.dot(mirror.dot(m_inv.dot(points - t)))
-    return t + m.dot(np.array([[5,5,0]]).T + m_inv.dot(points - t))
+    mirror = np.array([[-1,0,0],[0,1,0],[0,0,1]])
+    a = m_inv.dot(points - t)
+    # print(a)
+    # print(mirror.dot(a))
+    return t + m.dot(mirror.dot(a))
+    # return t + m.dot(np.array([[5,5,0]]).T + m_inv.dot(points - t))
 
 
 def monte_carlo_tilt_fix(array, N = 1000):
@@ -402,10 +403,10 @@ def monte_carlo_tilt_fix(array, N = 1000):
     best_pt = None
     best_n  = None
     while best_diff > 400:
-        # pt      = get_random_point(center)
-        # n       = get_normal_vector(array)
-        pt = np.array(center)
-        n = np.array([1,.5,0])
+        pt      = get_random_point(center)
+        n       = get_normal_vector(array)
+        # pt = np.array(center)
+        # n = np.array([1,.5,0])
         (a,b,c) = n
         (x0,y0,z0) = pt
         n       = unit_vector(n)
@@ -425,6 +426,8 @@ def monte_carlo_tilt_fix(array, N = 1000):
         coords = np.stack([x_rot,y_rot,z_rot], axis = 0)
         coords_mirrored = mirror_points(n, pt, coords).astype(int).T
         print(coords_mirrored.T.shape)
+        # for point in coords_mirrored:
+        #     print(point)
         coords_mirrored = coords_mirrored[(coords_mirrored[:,0] < array.shape[0]) & (coords_mirrored[:,0] > 0)]
         coords_mirrored = coords_mirrored[(coords_mirrored[:,1] < array.shape[1]) & (coords_mirrored[:,1] > 0)]
         coords_mirrored = coords_mirrored[(coords_mirrored[:,2] < array.shape[2]) & (coords_mirrored[:,2] > 0)]
