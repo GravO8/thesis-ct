@@ -281,19 +281,19 @@ def test_pca(array):
     plt.show()
     
     
-def get_random_point(center: tuple):
+def get_random_point(center: tuple, window = 10):
     pt = []
     for i in range(len(center)):
         dim_center = center[i]
-        pt.append( np.random.randint(dim_center-20, dim_center+20) )
-    return pt
+        pt.append( np.random.randint(dim_center-window, dim_center+window) )
+    return np.array(pt)
     
     
-def get_normal_vector(array):
-    x = np.random.uniform(.8,1)*10000
-    y = np.random.uniform(0,.2)*10000
-    z = np.random.uniform(0,.2)*10000
-    return (x,y,z)
+def get_normal_vector(array, multiplier = 1):
+    x = np.random.uniform(.8,1)*multiplier
+    y = np.random.uniform(0,.2)*multiplier
+    z = np.random.uniform(0,.2)*multiplier
+    return np.array([x,y,z])
     
     
 def get_bounding_box(array):
@@ -312,6 +312,75 @@ def get_bounding_box(array):
     return dim_extreme
     
     
+def get_translation(n, d):
+    '''
+    compute the intersection of the plane with the x axis (the axis perpendicular to yOz)
+    a.x + b.y + c.z + d = 0    ^    (y = 0 ^ z = 0)
+    a.x + d = 0
+    x = -d/a
+    '''
+    a, _, _ = n
+    return np.array([[-d/a,0,0]]).T
+    
+
+def get_d(n, pt):
+    '''
+    pt = (x0, y0, z0);     n = (a,b,c)
+    a(x - x0) + b(y - y0) + c(z - z0) = 0 
+    a.x -a.x0 + b.y -b.y0 + c.z -c.z0 = 0
+    a.x + b.y + c.z + (-a.x0 -b.y0 -c.z0) = 0
+    d = -(a.x0 + b.y0 + c.z0)
+    d = - n.pt
+    '''
+    return - n.dot(pt)
+    
+    
+def angle_between(v1, v2):
+    # copied from https://stackoverflow.com/a/13849249
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    
+
+def unit_vector(vector):
+    return vector / np.linalg.norm(vector)
+    
+    
+def get_rotation_matrix(n, pt, axis = np.array([1,0,0])):
+    '''
+    returns the rotation matrix that moves the plane defined by the normal vector 
+    'n' and the point 'pt' into the orthonormed plane perpendicular to the 'axis' vector
+    follows the procedure described here https://math.stackexchange.com/a/1167779
+    '''
+    d     = get_d(n, pt)
+    t     = get_translation(n, d)
+    theta = angle_between(n, axis)
+    u     = unit_vector(np.cross(n, axis)) # rotation axis
+    assert u[np.argwhere(axis == 1)] == 0
+    cos = np.cos(theta)
+    sin = np.sin(theta)
+    ux, uy, uz = u
+    return np.array(
+        [[cos+ux*ux*(1-cos),    ux*uy*(1-cos)-uz*sin, ux*uz*(1-cos)+uy*sin],
+         [uy*ux*(1-cos)+uz*sin, cos+uy*uy*(1-cos),    uy*uz*(1-cos)-ux*sin],
+         [uz*ux*(1-cos)-uy*sin, uz*uy*(1-cos)*ux*sin, cos+uz*uz*(1-cos)]]), t
+
+     
+def mirror_points(n, pt, points):
+    '''
+    mirrors the list of points 'points' along the plane defined by the normal vector
+    'n' and the point 'pt'
+    '''
+    m, t   = get_rotation_matrix(n, pt)
+    m_inv  = np.linalg.inv(m)
+    assert np.allclose(np.dot(m, m_inv), np.eye(3))
+    mirror = np.array([[.8,0,0],[0,1,0],[0,0,1]])
+    mirror = np.array([[1,0,0],[0,1,0],[0,0,1]])
+    print(mirror)
+    # return t + m.dot(mirror.dot(m_inv.dot(points - t)))
+    return t + m.dot(np.array([[5,5,0]]).T + m_inv.dot(points - t))
+
+
 def monte_carlo_tilt_fix(array, N = 1000):
     '''
     a(x - x0) + b(y - y0) + c(z - z0) = 0
@@ -333,19 +402,49 @@ def monte_carlo_tilt_fix(array, N = 1000):
     best_pt = None
     best_n  = None
     while best_diff > 400:
-        (x0,y0,z0) = get_random_point(center)
-        (a,b,c)    = get_normal_vector(array)
+        # pt      = get_random_point(center)
+        # n       = get_normal_vector(array)
+        pt = np.array(center)
+        n = np.array([1,.5,0])
+        (a,b,c) = n
+        (x0,y0,z0) = pt
+        n       = unit_vector(n)
+        print(n)
         mask = (x > (1/a)*(-b*(y - y0) - c*(z - z0)) + x0 ).reshape(array.shape)
         diff = np.abs( np.count_nonzero(array[mask] > 0) - np.count_nonzero(array[mask == False] > 0) )
         if diff < best_diff:
             best_diff = diff
             best_pt = (x0,y0,z0)
             best_n  = (a,b,c)
-    print(best_diff)
-    (x0,y0,z0) = best_pt
-    (a,b,c)    = best_n
-    mask = (x > (1/a)*(-b*(y - y0) - c*(z - z0)) + x0 ).reshape(array.shape)
-    array[mask] = 0
+            
+        brain_slice_mask = (array > 0) & mask
+        values = array[brain_slice_mask]
+        x_rot = x[brain_slice_mask.ravel()]
+        y_rot = y[brain_slice_mask.ravel()]
+        z_rot = z[brain_slice_mask.ravel()]
+        coords = np.stack([x_rot,y_rot,z_rot], axis = 0)
+        coords_mirrored = mirror_points(n, pt, coords).astype(int).T
+        print(coords_mirrored.T.shape)
+        coords_mirrored = coords_mirrored[(coords_mirrored[:,0] < array.shape[0]) & (coords_mirrored[:,0] > 0)]
+        coords_mirrored = coords_mirrored[(coords_mirrored[:,1] < array.shape[1]) & (coords_mirrored[:,1] > 0)]
+        coords_mirrored = coords_mirrored[(coords_mirrored[:,2] < array.shape[2]) & (coords_mirrored[:,2] > 0)]
+        coords_mirrored = coords_mirrored.T
+        print(coords_mirrored.shape)
+        # sapo = coords.T
+        array[mask] = 0
+        array[tuple(coords_mirrored)] = 100
+        # print(coords[0])
+        # coords_flipped = np.round(coords * n).astype(int).T
+        # print(coords_flipped.T[0])
+        # array[mask] = 0
+        # array[tuple(coords_flipped)] = 100
+        # array[tuple(coords_flipped)] = values
+        break
+    # print(best_diff)
+    # (x0,y0,z0) = best_pt
+    # (a,b,c)    = best_n
+    # mask = (x > (1/a)*(-b*(y - y0) - c*(z - z0)) + x0 ).reshape(array.shape)
+    # array[mask] = 0
 
 
 if __name__ == "__main__":
