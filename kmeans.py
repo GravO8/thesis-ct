@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import skfuzzy
 import torch
+from scipy import ndimage
 
 
 def kmeans(array, k = 3):
@@ -312,15 +313,15 @@ def get_bounding_box(array):
     return dim_extreme
     
     
-def get_translation(n, d):
+def get_translation(n, d, axis = np.array([1,0,0])):
     '''
     compute the intersection of the plane with the x axis (the axis perpendicular to yOz)
     a.x + b.y + c.z + d = 0    ^    (y = 0 ^ z = 0)
     a.x + d = 0
     x = -d/a
     '''
-    a, _, _ = n
-    return np.array([[-d/a,0,0]]).T
+    e = n[np.argwhere(axis == 1)]
+    return (axis*(-d/e)).T
     
 
 def get_d(n, pt):
@@ -346,14 +347,14 @@ def unit_vector(vector):
     return vector / np.linalg.norm(vector)
     
     
-def get_rotation_matrix(n, pt, axis = np.array([1,0,0])):
+def get_rotation_matrix(n, d, axis = np.array([1,0,0])):
     '''
     returns the rotation matrix that moves the plane defined by the normal vector 
-    'n' and the point 'pt' into the orthonormed plane perpendicular to the 'axis' vector
+    'n' and the bias point 'd' into the orthonormed plane perpendicular to the 
+    'axis' vector
     follows the procedure described here https://math.stackexchange.com/a/1167779
     '''
-    d     = get_d(n, pt)
-    t     = get_translation(n, d)
+    t     = get_translation(n, d, axis)
     theta = angle_between(n, axis)
     u     = unit_vector(np.cross(axis, n)) # rotation axis
     assert u[np.argwhere(axis == 1)] == 0
@@ -366,89 +367,95 @@ def get_rotation_matrix(n, pt, axis = np.array([1,0,0])):
          [uz*ux*(1-cos)-uy*sin, uz*uy*(1-cos)*ux*sin, cos+uz*uz*(1-cos)]]), t
 
      
-def mirror_points(n, pt, points):
+def mirror_coords(n, d, coords):
     '''
-    mirrors the list of points 'points' along the plane defined by the normal vector
-    'n' and the point 'pt'
+    mirrors the list of points 'coords' along the plane defined by the normal vector
+    'n' and the bias point 'd'
     '''
-    m, t   = get_rotation_matrix(n, pt)
-    m_inv  = np.linalg.inv(m)
-    assert np.allclose(np.dot(m, m_inv), np.eye(3))
+    m, t   = get_rotation_matrix(n, d)
+    # m_inv  = np.linalg.inv(m)
+    m_inv  = m.T
     mirror = np.array([[-1,0,0],[0,1,0],[0,0,1]])
-    a = m_inv.dot(points - t)
-    # print(a)
-    # print(mirror.dot(a))
-    return t + m.dot(mirror.dot(a))
-    # return t + m.dot(np.array([[5,5,0]]).T + m_inv.dot(points - t))
-
-
-def monte_carlo_tilt_fix(array, N = 1000):
-    '''
-    a(x - x0) + b(y - y0) + c(z - z0) = 0
-    a(x - x0) = -b(y - y0) - c(z - z0)
-    x - x0 = (-b(y - y0) - c(z - z0))/a
-    x = (-b(y - y0) - c(z - z0))/a + x0
-    '''
-    x, y, z = [], [], []
-    (x_range, y_range, z_range) = get_bounding_box(array)
-    center = ((x_range[0]+x_range[1])/2, (y_range[0]+y_range[1])/2, (z_range[0]+z_range[1])/2)
-    for i in range(array.shape[2]):
-        for j in range(array.shape[1]):
-            for k in range(array.shape[0]):
-                x.append(k)
-                y.append(j)
-                z.append(i)
-    x, y, z = np.array(z), np.array(y), np.array(x)
-    best_diff = np.inf
-    best_pt = None
-    best_n  = None
-    while best_diff > 400:
-        pt      = get_random_point(center)
-        n       = get_normal_vector(array)
-        # pt = np.array(center)
-        # n = np.array([1,.5,0])
+    return t + m.dot(mirror.dot(m_inv.dot(coords - t)))
+        
+        
+class MonteCarloTiltFix:
+    def __init__(self, array):
+        self.array = array
+        self.init_coord_system()
+        self.init_center()
+        self.init_baseline_intercept()
+    def init_coord_system(self):
+        '''
+        lists of coords of the points in self.array
+        used to select the points sliced by the planes and compute their mirrored version
+        '''
+        self.x, self.y, self.z = [], [], []
+        for i in range(self.array.shape[2]):
+            for j in range(self.array.shape[1]):
+                for k in range(self.array.shape[0]):
+                    self.x.append(i)
+                    self.y.append(j)
+                    self.z.append(k)
+        self.x, self.y, self.z = np.array(self.x), np.array(self.y), np.array(self.z)
+    def init_center(self):
+        '''
+        sets the center of the brain as the average of the axis of the bounding box
+        '''
+        (x_range, y_range, z_range) = get_bounding_box(self.array)
+        self.center = ((x_range[0]+x_range[1])/2, (y_range[0]+y_range[1])/2, (z_range[0]+z_range[1])/2)
+    def init_baseline_intercept(self):
+        '''
+        the baseline to beat: simply diving the brain half with the plane 
+        x = array.shape[1]//2 (which is a proxy for the mid saggital plane) and 
+        comparing the intersection of the hemispheres
+        '''
+        msp         = self.array.shape[0]//2
+        hemisphere1 = self.array[:msp,:,:] > 0
+        hemisphere2 = flip(self.array[msp:-1,:,:]) > 0
+        self.baseline_intercept = np.count_nonzero(hemisphere1 & hemisphere2)
+    def try_plane(self, n, d, debug = False):
+        '''
+        (n, d) define a 3D plane whose normal vector is n and whose bias point is d
+        slices the brain according to the plane define by (n, d) and returns the
+        number of voxels that are intersected when one of the slices is mirrored
+        along the plane (n, d) to be overlapped with the other slice
+        a.x + b.y + c.z + d = 0
+        x = (-1/a)*(b.y + c.z + d)
+        '''
         (a,b,c) = n
-        (x0,y0,z0) = pt
-        n       = unit_vector(n)
-        print(n)
-        mask = (x > (1/a)*(-b*(y - y0) - c*(z - z0)) + x0 ).reshape(array.shape)
-        diff = np.abs( np.count_nonzero(array[mask] > 0) - np.count_nonzero(array[mask == False] > 0) )
-        if diff < best_diff:
-            best_diff = diff
-            best_pt = (x0,y0,z0)
-            best_n  = (a,b,c)
-            
-        brain_slice_mask = (array > 0) & mask
-        values = array[brain_slice_mask]
-        x_rot = x[brain_slice_mask.ravel()]
-        y_rot = y[brain_slice_mask.ravel()]
-        z_rot = z[brain_slice_mask.ravel()]
-        coords = np.stack([x_rot,y_rot,z_rot], axis = 0)
-        coords_mirrored = mirror_points(n, pt, coords).astype(int).T
-        print(coords_mirrored.T.shape)
-        # for point in coords_mirrored:
-        #     print(point)
-        coords_mirrored = coords_mirrored[(coords_mirrored[:,0] < array.shape[0]) & (coords_mirrored[:,0] > 0)]
-        coords_mirrored = coords_mirrored[(coords_mirrored[:,1] < array.shape[1]) & (coords_mirrored[:,1] > 0)]
-        coords_mirrored = coords_mirrored[(coords_mirrored[:,2] < array.shape[2]) & (coords_mirrored[:,2] > 0)]
+        mask    = (self.x > (-1/a)*(b*self.y + c*self.z + d)).reshape(self.array.shape) # selects the points on one side of the plane
+        brain_slice_mask = ((self.array > 0) & mask).ravel()                            # selects the part of the brain which is inside the subspace define by mask
+        other_slice      = (self.array > 0) & (mask == False)                           # selects the other part of the brain
+        x_slice, y_slice, z_slice = self.x[brain_slice_mask], self.y[brain_slice_mask], self.z[brain_slice_mask]
+        coords = np.stack([x_slice, y_slice, z_slice], axis = 0)                        # coordinates of each voxel selected by brain_slice_mask
+        coords_mirrored = mirror_coords(n, d, coords).astype(int).T                     # mirrors the coordinates according to the plane defined by (n,d)
+        # clips the coords_mirrored that are outside the coordinate space defined in self.init_coord_system
+        coords_mirrored = coords_mirrored[(coords_mirrored[:,0] < self.array.shape[0]) & (coords_mirrored[:,0] > 0)]
+        coords_mirrored = coords_mirrored[(coords_mirrored[:,1] < self.array.shape[1]) & (coords_mirrored[:,1] > 0)]
+        coords_mirrored = coords_mirrored[(coords_mirrored[:,2] < self.array.shape[2]) & (coords_mirrored[:,2] > 0)]
         coords_mirrored = coords_mirrored.T
-        print(coords_mirrored.shape)
-        # sapo = coords.T
-        array[mask] = 0
-        array[tuple(coords_mirrored)] = 100
-        # print(coords[0])
-        # coords_flipped = np.round(coords * n).astype(int).T
-        # print(coords_flipped.T[0])
-        # array[mask] = 0
-        # array[tuple(coords_flipped)] = 100
-        # array[tuple(coords_flipped)] = values
-        break
-    # print(best_diff)
-    # (x0,y0,z0) = best_pt
-    # (a,b,c)    = best_n
-    # mask = (x > (1/a)*(-b*(y - y0) - c*(z - z0)) + x0 ).reshape(array.shape)
-    # array[mask] = 0
-
+        mirror_mask = np.zeros(self.array.shape)
+        mirror_mask[tuple(coords_mirrored)] = 1
+        mirror_mask = ndimage.binary_fill_holes(mirror_mask)                            # the mirror process leaves some holes that need to be filled
+        if debug:
+            save(other_slice.astype(int), "other_slice.nii")
+            save(mirror_mask.astype(int), "mirror_mask.nii")
+            input()
+        return np.count_nonzero(other_slice & mirror_mask)
+    def find_best_plane(self, N = 1000):
+        current_max = self.baseline_intercept
+        best_plane  = None
+        for i in range(N):
+            n = unit_vector(get_normal_vector(self.array))
+            # d = get_d(n, get_random_point(self.center, window = 5))
+            d = get_d(n, self.center)
+            intersection = self.try_plane(n, d)
+            # print(self.baseline_intercept, intersection)
+            if intersection > current_max:
+                intersection = current_max
+                best_plane   = (n, d)
+                print(self.baseline_intercept, intersection)
 
 if __name__ == "__main__":
     # for file in [f for f in os.listdir("../../data/gravo/NCCT") if "-" not in f]:
@@ -456,7 +463,8 @@ if __name__ == "__main__":
     ncct = load_ct(131026)
     # 46149
     
-    monte_carlo_tilt_fix(ncct, N = 100)
+    mc = MonteCarloTiltFix(ncct)
+    mc.find_best_plane(N = 10000)
     # ncct = fix_coronal_rotation(ncct)
     # ncct      = fix_tilt(ncct)
     # ncct      = cut_edges(ncct)
