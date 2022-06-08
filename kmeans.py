@@ -5,6 +5,7 @@ import cv2
 import skfuzzy
 import torch
 from scipy import ndimage
+from bayes_opt import BayesianOptimization
 
 
 def kmeans(array, k = 3):
@@ -357,7 +358,7 @@ def get_rotation_matrix(n, d, axis = np.array([1,0,0])):
     t     = get_translation(n, d, axis)
     theta = angle_between(n, axis)
     u     = unit_vector(np.cross(axis, n)) # rotation axis
-    assert u[np.argwhere(axis == 1)] == 0
+    # assert u[np.argwhere(axis == 1)] == 0
     cos = np.cos(theta)
     sin = np.sin(theta)
     ux, uy, uz = u
@@ -381,10 +382,11 @@ def mirror_coords(n, d, coords):
         
 class MonteCarloTiltFix:
     def __init__(self, array):
-        self.array = array
+        self.array  = array
+        # The center of mass of a body with an axis of symmetry and constant density must lie on this axis.
+        # from https://en.wikipedia.org/wiki/Center_of_mass
+        self.center = ndimage.center_of_mass( (self.array > 0).astype(int) )
         self.init_coord_system()
-        self.init_center()
-        self.init_baseline_intercept()
     def init_coord_system(self):
         '''
         lists of coords of the points in self.array
@@ -398,23 +400,7 @@ class MonteCarloTiltFix:
                     self.y.append(j)
                     self.z.append(k)
         self.x, self.y, self.z = np.array(self.x), np.array(self.y), np.array(self.z)
-    def init_center(self):
-        '''
-        sets the center of the brain as the average of the axis of the bounding box
-        '''
-        (x_range, y_range, z_range) = get_bounding_box(self.array)
-        self.center = ((x_range[0]+x_range[1])/2, (y_range[0]+y_range[1])/2, (z_range[0]+z_range[1])/2)
-    def init_baseline_intercept(self):
-        '''
-        the baseline to beat: simply diving the brain half with the plane 
-        x = array.shape[1]//2 (which is a proxy for the mid saggital plane) and 
-        comparing the intersection of the hemispheres
-        '''
-        msp         = self.array.shape[0]//2
-        hemisphere1 = self.array[:msp,:,:] > 0
-        hemisphere2 = flip(self.array[msp:-1,:,:]) > 0
-        self.baseline_intercept = np.count_nonzero(hemisphere1 & hemisphere2)
-    def try_plane(self, n, d, debug = False):
+    def try_plane(self, n, debug = False):
         '''
         (n, d) define a 3D plane whose normal vector is n and whose bias point is d
         slices the brain according to the plane define by (n, d) and returns the
@@ -424,6 +410,7 @@ class MonteCarloTiltFix:
         x = (-1/a)*(b.y + c.z + d)
         '''
         (a,b,c) = n
+        d       = get_d(n, self.center)
         mask    = (self.x > (-1/a)*(b*self.y + c*self.z + d)).reshape(self.array.shape) # selects the points on one side of the plane
         brain_slice_mask = ((self.array > 0) & mask).ravel()                            # selects the part of the brain which is inside the subspace define by mask
         other_slice      = (self.array > 0) & (mask == False)                           # selects the other part of the brain
@@ -439,32 +426,53 @@ class MonteCarloTiltFix:
         mirror_mask[tuple(coords_mirrored)] = 1
         mirror_mask = ndimage.binary_fill_holes(mirror_mask)                            # the mirror process leaves some holes that need to be filled
         if debug:
-            save(other_slice.astype(int), "other_slice.nii")
-            save(mirror_mask.astype(int), "mirror_mask.nii")
+            save(other_slice.astype(int), "other_slice")
+            save(mirror_mask.astype(int), "mirror_mask")
             input()
         return np.count_nonzero(other_slice & mirror_mask)
     def find_best_plane(self, N = 1000):
-        current_max = self.baseline_intercept
+        n           = unit_vector(np.array([1,.0001,0.0001]))
+        current_max = self.try_plane(n, debug = True)
         best_plane  = None
         for i in range(N):
             n = unit_vector(get_normal_vector(self.array))
-            # d = get_d(n, get_random_point(self.center, window = 5))
-            d = get_d(n, self.center)
-            intersection = self.try_plane(n, d)
-            # print(self.baseline_intercept, intersection)
+            intersection = self.try_plane(n)
             if intersection > current_max:
                 intersection = current_max
                 best_plane   = (n, d)
-                print(self.baseline_intercept, intersection)
+    def bayesian_optimization(self):
+        n           = unit_vector(np.array([1,.0001,0.0001]))
+        current_max = self.try_plane(n, debug = False)
+        print("default", current_max)
+        black_box_function = lambda a,b,c: self.try_plane( unit_vector(np.array([a,b,c])) )
+        pbounds            = {"a": (.55, 1), "b": (-.2, .2), "c": (-.2, .2)}
+        optimizer = BayesianOptimization(
+            f            = black_box_function,
+            pbounds      = pbounds,
+            random_state = 1)
+        optimizer.maximize(init_points = 5, n_iter = 95)
+        print(optimizer.max)
+        self.try_plane( unit_vector(np.array([optimizer.max["params"]["a"],optimizer.max["params"]["b"],optimizer.max["params"]["c"]])), debug = True )
 
 if __name__ == "__main__":
     # for file in [f for f in os.listdir("../../data/gravo/NCCT") if "-" not in f]:
         # ncct = load_ct(int(file.split(".")[0]))
-    ncct = load_ct(131026)
+    ncct = load_ct(120713)
+    # 131026
     # 46149
     
+    # ncct[ncct > 0] = 1
+    # msp = ncct.shape[0]//2
+    # hemisphere1, hemisphere2 = ncct.copy(), ncct.copy()
+    # hemisphere1[:msp,:,:] = 0
+    # hemisphere2[msp:,:,:] = 0
+    # hemisphere1 = flip(hemisphere1)
+    # save(hemisphere1, "hemisphere1")
+    # save(hemisphere2, "hemisphere2")
+    
     mc = MonteCarloTiltFix(ncct)
-    mc.find_best_plane(N = 10000)
+    # mc.find_best_plane(N = 10000)
+    mc.bayesian_optimization()
     # ncct = fix_coronal_rotation(ncct)
     # ncct      = fix_tilt(ncct)
     # ncct      = cut_edges(ncct)
@@ -473,6 +481,6 @@ if __name__ == "__main__":
     # mirrored  = mirror(segmented)
     
     # test(ncct)
-    save(ncct)
+    # save(ncct)
     # save(mirrored)
     # save(segmented)
