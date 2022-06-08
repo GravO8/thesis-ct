@@ -382,7 +382,7 @@ def mirror_coords(n, d, coords):
         
 class MonteCarloTiltFix:
     def __init__(self, array):
-        self.array  = array
+        self.array  = array/array.max()
         # The center of mass of a body with an axis of symmetry and constant density must lie on this axis.
         # from https://en.wikipedia.org/wiki/Center_of_mass
         self.center = ndimage.center_of_mass( (self.array > 0).astype(int) )
@@ -401,15 +401,15 @@ class MonteCarloTiltFix:
                     self.z.append(k)
         self.x, self.y, self.z = np.array(self.x), np.array(self.y), np.array(self.z)
     def baseline_intercept(self):
-            '''
-            the baseline to beat: simply diving the brain half with the plane 
-            x = array.shape[1]//2 (which is a proxy for the mid saggital plane) and 
-            comparing the intersection of the hemispheres
-            '''
-            msp         = self.array.shape[0]//2
-            hemisphere1 = self.array[:msp,:,:] > 0
-            hemisphere2 = flip(self.array[msp:-1,:,:]) > 0
-            return np.count_nonzero(hemisphere1 & hemisphere2)
+        '''
+        the baseline to beat: simply diving the brain half with the plane 
+        x = array.shape[1]//2 (which is a proxy for the mid saggital plane) and 
+        comparing the intersection of the hemispheres
+        '''
+        msp         = self.array.shape[0]//2
+        hemisphere1 = self.array[:msp,:,:]
+        hemisphere2 = flip(self.array[msp:-1,:,:])
+        return (1 - np.abs(hemisphere1 - hemisphere2)).sum()
     def try_plane(self, n, center = None, debug = False):
         '''
         (n, d) define a 3D plane whose normal vector is n and whose bias point is d
@@ -423,20 +423,23 @@ class MonteCarloTiltFix:
         (a,b,c) = n
         d       = get_d(n, self.center if center is None else center)
         mask    = (self.x > (-1/a)*(b*self.y + c*self.z + d)).reshape(self.array.shape) # selects the points on one side of the plane
-        brain_slice_mask = ((self.array > 0) & mask).ravel()                            # selects the part of the brain which is inside the subspace define by mask
-        other_slice      = (self.array > 0) & (mask == False)                           # selects the other part of the brain
+        brain_slice_mask = (self.array > 0) & mask                                      # selects the part of the brain which is inside the subspace define by mask
+        other_slice      = self.array.copy()
+        other_slice[brain_slice_mask] = 0                                               # selects the other part of the brain
+        values           = self.array[brain_slice_mask]                                 # selects the actual value of each voxel
+        brain_slice_mask = brain_slice_mask.ravel()
         x_slice, y_slice, z_slice = self.x[brain_slice_mask], self.y[brain_slice_mask], self.z[brain_slice_mask]
         coords = np.stack([x_slice, y_slice, z_slice], axis = 0)                        # coordinates of each voxel selected by brain_slice_mask
         coords_mirrored = mirror_coords(n, d, coords).astype(int)                       # mirrors the coordinates according to the plane defined by (n,d)
         self.clip_out_of_bounds(coords_mirrored)
-        mirror_mask = np.zeros(self.array.shape)
-        mirror_mask[tuple(coords_mirrored)] = 1
-        mirror_mask = ndimage.binary_fill_holes(mirror_mask)                            # the mirror process leaves some holes that need to be filled
+        mirrored = np.zeros(self.array.shape)
+        mirrored[tuple(coords_mirrored)] = values
+        # mirrored = ndimage.binary_fill_holes(mirrored)                                  # the mirror process leaves some holes that need to be filled
         if debug:
-            save(other_slice.astype(int), "other_slice")
-            save(mirror_mask.astype(int), "mirror_mask")
+            save((other_slice*100).astype(int), "other_slice")
+            save((mirrored*100).astype(int), "mirror_mask")
             input()
-        return np.count_nonzero(other_slice & mirror_mask)
+        return (1 - np.abs(other_slice - mirrored)).sum()
     def clip_out_of_bounds(self, coords, other = None):
         '''
         clips the coords_mirrored that are outside the coordinate space defined in self.init_coord_system
@@ -459,8 +462,8 @@ class MonteCarloTiltFix:
                 intersection = current_max
                 best_plane   = (n, d)
     def bayesian_optimization(self, N = 50):
-        # n           = np.array([1,.0001,0.0001])
-        # current_max = self.try_plane(n, debug = False)
+        # n           = np.array([1,.02,-.02])
+        # current_max = self.try_plane(n, debug = True)
         black_box_function = lambda a,b,c: self.try_plane( np.array([a,b,c]) )
         pbounds            = {"a": (.55, 1), "b": (-.2, .2), "c": (-.2, .2)}
         optimizer = BayesianOptimization(
@@ -471,7 +474,7 @@ class MonteCarloTiltFix:
         print("default", self.baseline_intercept())
         print(optimizer.max)
         best_n = np.array([optimizer.max["params"]["a"],optimizer.max["params"]["b"],optimizer.max["params"]["c"]])
-        # self.try_plane( best_n, debug = True )
+        self.try_plane( best_n, debug = True )
         return self.rotate_brain(best_n)
     def grid_search(self, N = 10):
         a_range = np.linspace(.55, 1, N)
@@ -498,6 +501,7 @@ class MonteCarloTiltFix:
         x_brain, y_brain, z_brain = self.x[brain], self.y[brain], self.z[brain]
         brain_coords              = np.stack([x_brain, y_brain, z_brain], axis = 0)
         m, t                      = get_rotation_matrix(n, d)
+        m                         = m.T
         coords_rotated            = t + m.dot(brain_coords - t)
         coords_rotated            = coords_rotated.astype(int)
         self.clip_out_of_bounds(coords_rotated, values)
@@ -526,8 +530,8 @@ if __name__ == "__main__":
     
     mc = MonteCarloTiltFix(ncct)
     # mc.find_best_plane(N = 10000)
-    # rotated = mc.bayesian_optimization(N = 90)
-    rotated = mc.rotate_brain(np.array([0.8,.2,.2]))
+    rotated = mc.bayesian_optimization(N = 20)
+    # rotated = mc.rotate_brain(np.array([0.8,.2,.2]))
     save(rotated, "rotated")
     # ncct = fix_coronal_rotation(ncct)
     # ncct      = fix_tilt(ncct)
