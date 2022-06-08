@@ -410,7 +410,7 @@ class MonteCarloTiltFix:
             hemisphere1 = self.array[:msp,:,:] > 0
             hemisphere2 = flip(self.array[msp:-1,:,:]) > 0
             return np.count_nonzero(hemisphere1 & hemisphere2)
-    def try_plane(self, n, debug = False):
+    def try_plane(self, n, center = None, debug = False):
         '''
         (n, d) define a 3D plane whose normal vector is n and whose bias point is d
         slices the brain according to the plane define by (n, d) and returns the
@@ -421,7 +421,7 @@ class MonteCarloTiltFix:
         '''
         n       = unit_vector(n)
         (a,b,c) = n
-        d       = get_d(n, self.center)
+        d       = get_d(n, self.center if center is None else center)
         mask    = (self.x > (-1/a)*(b*self.y + c*self.z + d)).reshape(self.array.shape) # selects the points on one side of the plane
         brain_slice_mask = ((self.array > 0) & mask).ravel()                            # selects the part of the brain which is inside the subspace define by mask
         other_slice      = (self.array > 0) & (mask == False)                           # selects the other part of the brain
@@ -467,11 +467,27 @@ class MonteCarloTiltFix:
             f            = black_box_function,
             pbounds      = pbounds,
             random_state = 1)
-        optimizer.maximize(init_points = 3, n_iter = N)
+        optimizer.maximize(init_points = 10, n_iter = N)
         print("default", self.baseline_intercept())
         print(optimizer.max)
         best_n = np.array([optimizer.max["params"]["a"],optimizer.max["params"]["b"],optimizer.max["params"]["c"]])
         # self.try_plane( best_n, debug = True )
+        return self.rotate_brain(best_n)
+    def grid_search(self, N = 10):
+        a_range = np.linspace(.55, 1, N)
+        b_range = np.linspace(-.2, .2, N)
+        c_range = np.linspace(-.2, .2, N)
+        best = 0
+        for a in a_range:
+            for b in b_range:
+                for c in c_range:
+                    score = self.try_plane( np.array([a,b,c]) )
+                    print(f"{score}\t{round(a,2)}\t{round(b,2)}\t{round(c,2)}")
+                    if score > best:
+                        best = score
+                        best_n = np.array([a,b,c])
+        print("default", self.baseline_intercept())
+        print(best)
         return self.rotate_brain(best_n)
     def rotate_brain(self, n):
         n                         = unit_vector(n)
@@ -510,7 +526,8 @@ if __name__ == "__main__":
     
     mc = MonteCarloTiltFix(ncct)
     # mc.find_best_plane(N = 10000)
-    rotated = mc.bayesian_optimization(N = 95)
+    # rotated = mc.bayesian_optimization(N = 90)
+    rotated = mc.rotate_brain(np.array([0.8,.2,.2]))
     save(rotated, "rotated")
     # ncct = fix_coronal_rotation(ncct)
     # ncct      = fix_tilt(ncct)
