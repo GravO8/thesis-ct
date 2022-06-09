@@ -532,20 +532,23 @@ class TiltFix2(TiltFixer):
         return self.compare_hemispheres(rotated)
     def rotate_brain(self, axial_angle, coronal_angle):
         return rotate_axial(rotate_coronal(self.array, coronal_angle), axial_angle)
-    def bayesian_optimization(self, N = 50):
+    def bayesian_optimization(self, N = 50, verbose = False):
         black_box_function = lambda a1,a2,x: self.try_angles(a1, a2,x)
         pbounds            = {"a1": (-10, 10), "a2": (-10, 10), "x": (-3,3)}
         optimizer = BayesianOptimization(
             f            = black_box_function,
             pbounds      = pbounds,
-            random_state = 1)
+            random_state = 1,
+            verbose      = verbose)
         optimizer.maximize(init_points = 10, n_iter = N)
-        no_angle = self.try_angles(0,0,0)
-        default  = max(self.baseline, no_angle)
-        print("baseline", self.baseline)
-        print("no_angle", no_angle)
-        print(optimizer.max)
-        print(optimizer.max["target"] > default, optimizer.max["target"]-default)
+        if verbose:
+            no_angle = self.try_angles(0,0,0)
+            print("baseline", self.baseline)
+            print("no_angle", no_angle)
+            print(optimizer.max)
+            print(optimizer.max["target"] > default, optimizer.max["target"]-default)
+        if optimizer.max["target"] < self.baseline:
+            return self.array
         best_axial, best_coronal, x = optimizer.max["params"]["a1"], optimizer.max["params"]["a2"], optimizer.max["params"]["x"]
         rotated = self.rotate_brain(best_axial, best_coronal)
         rotated = np.roll(rotated, np.round(x).astype(int), axis = (0,))
