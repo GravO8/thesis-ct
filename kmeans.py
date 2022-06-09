@@ -123,7 +123,7 @@ def cut_edges(array):
     
 def mirror(array):
     T = 50
-    mirrored                = segmented - flip(segmented)
+    mirrored                = array - flip(array)
     # mirrored[mirrored > T]  = T
     # mirrored[mirrored < T]  = 0
     # mirrored[mirrored == T] = 1
@@ -383,10 +383,26 @@ def mirror_coords(n, d, coords):
 class MonteCarloTiltFix:
     def __init__(self, array):
         self.array  = array/array.max()
-        # The center of mass of a body with an axis of symmetry and constant density must lie on this axis.
-        # from https://en.wikipedia.org/wiki/Center_of_mass
-        self.center = ndimage.center_of_mass( (self.array > 0).astype(int) )
         self.init_coord_system()
+        self.center_scan()
+    def center_scan(self):
+        '''
+        "The center of mass of a body with an axis of symmetry and constant density
+        must lie on this axis." - from https://en.wikipedia.org/wiki/Center_of_mass
+        This method positions the center of mass of the brain in the center of the
+        array
+        '''
+        self.baseline = self.compare_hemispheres()
+        center_of_mass  = ndimage.center_of_mass( (self.array > 0).astype(int) )
+        array_center    = []
+        for i in range(3):
+            array_center.append(self.array.shape[i]//2)
+            if self.array.shape[i] % 2 != 0:
+                array_center[-1] += 1
+        array_center = np.array(array_center)
+        translation  = (array_center - np.round(center_of_mass)).astype(int)
+        self.array   = np.roll(self.array, translation, axis = (0,1,2))
+        self.center  = ndimage.center_of_mass( (self.array > 0).astype(int) )
     def init_coord_system(self):
         '''
         lists of coords of the points in self.array
@@ -401,22 +417,21 @@ class MonteCarloTiltFix:
                     self.z.append(k)
         self.x, self.y, self.z = np.array(self.x), np.array(self.y), np.array(self.z)
     def compare_hemispheres(self, scan = None):
-        scan        = self.array if scan is None else scan
-        msp         = scan.shape[0]//2
-        hemisphere1 = scan[:msp,:,:]
-        hemisphere2 = flip(scan[msp:-1,:,:])
-        return self.match(hemisphere1, hemisphere2)
-    def match(self, half1, half2):
+        scan     = self.array if scan is None else scan
+        mirrored = flip(scan)
+        return self.match(scan, mirrored)
+    def match(self, array1, array2):
         '''
         1 - |a - b|
         1 when a == b
         0 when a and b are completely different (0 and 1, for example)
         '''
-        mask1 = half1 > 0
-        mask2 = half2 > 0
-        # return (mask1 & mask2).sum()
-        return (mask1 & mask2).sum() - (mask1 & (mask2 == False)).sum() - ((mask1 == False) & mask2).sum()
-        return (1 - np.abs(half1 - half2)).sum()
+        mask1 = array1 > 0
+        mask2 = array2 > 0
+        intersection = mask1 & mask2
+        return intersection.sum()
+        # return intersection.sum() - (mask1 & (mask2 == False)).sum() - ((mask1 == False) & mask2).sum()
+        return (1 - np.abs(array1[intersection] - array2[intersection])).sum()
     def try_plane(self, n, debug = False):
         rotated = self.rotate_brain(n)
         return self.compare_hemispheres(rotated)
@@ -452,10 +467,9 @@ class MonteCarloTiltFix:
             pbounds      = pbounds,
             random_state = 1)
         optimizer.maximize(init_points = 10, n_iter = N)
-        baseline = self.compare_hemispheres()
         norm_v   = self.try_plane( np.array([1,.0001,.0001]) )
-        default  = max(baseline, norm_v)
-        print("baseline", baseline)
+        default  = max(self.baseline, norm_v)
+        print("baseline", self.baseline)
         print("default norm vector", norm_v)
         print(optimizer.max)
         print(optimizer.max["target"] > default, optimizer.max["target"]-default)
@@ -510,25 +524,26 @@ def save_hemispheres(ncct):
 if __name__ == "__main__":
     # for file in [f for f in os.listdir("../../data/gravo/NCCT") if "-" not in f]:
         # ncct = load_ct(int(file.split(".")[0]))
-    ncct = load_ct(46149)
+    ncct = load_ct(200071)
     # 120713
     # 131026
-    # 46149 - bastante torto
+    # 46149, 206178 - bastante torto
     
-    # save_hemispheres(ncct)
     mc = MonteCarloTiltFix(ncct)
-    # mc.find_best_plane(N = 10000)
-    rotated = mc.bayesian_optimization(N = 90)
-    # rotated = mc.rotate_brain(np.array([0.8,.2,.2]))
-    # save(rotated, "rotated")
+    ncct = mc.bayesian_optimization(N = 90)
+    save(ncct, "rotated")
+    exit(0)
+    
     # ncct = fix_coronal_rotation(ncct)
     # ncct      = fix_tilt(ncct)
-    # ncct      = cut_edges(ncct)
-    # segmented = cmeans(ncct, c = 2, m = 2)
-    # segmented = denoise_2d(segmented*100)
-    # mirrored  = mirror(segmented)
+    ncct      = cut_edges(ncct)
+    # mirrored  = mirror(ncct)
+    # segmented = kmeans(mirrored)
+    segmented = cmeans(ncct, c = 2, m = 2)
+    segmented = denoise_2d(segmented*100)
+    mirrored  = (mirror(segmented)+100)/100
     
     # test(ncct)
     # save(ncct)
-    # save(mirrored)
+    save(mirrored)
     # save(segmented)
