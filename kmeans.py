@@ -6,6 +6,7 @@ import skfuzzy
 import torch
 from scipy import ndimage
 from bayes_opt import BayesianOptimization
+from abc import ABC
 
 
 def kmeans(array, k = 3):
@@ -130,21 +131,21 @@ def mirror(array):
     return mirrored
     
     
-def rotate_coronal(array):
+def rotate_coronal(input_, angle = -5):
+    array = input_.copy()
     slice = array[:,0,:]
     x, y  = np.array(slice.shape)/2
-    ANGLE = -5.33856201171875
-    M = cv2.getRotationMatrix2D((x, y), ANGLE, 1)  #transformation matrix
+    M = cv2.getRotationMatrix2D((x, y), angle, 1)  #transformation matrix
     for i in range(array.shape[1]):
         array[:,i,:] = cv2.warpAffine(array[:,i,:], M, (slice.shape[1], slice.shape[0]), cv2.INTER_CUBIC)
     return array
 
 
-def rotate_axial(array):
+def rotate_axial(input_, angle = -3):
+    array = input_.copy()
     slice = array[:,:,0]
     x, y  = np.array(slice.shape)/2
-    ANGLE = -3
-    M = cv2.getRotationMatrix2D((x, y), ANGLE, 1)  #transformation matrix
+    M = cv2.getRotationMatrix2D((x, y), angle, 1)  #transformation matrix
     for i in range(array.shape[2]):
         array[:,:,i] = cv2.warpAffine(array[:,:,i], M, (slice.shape[1], slice.shape[0]), cv2.INTER_CUBIC)
     return array
@@ -379,8 +380,35 @@ def mirror_coords(n, d, coords):
     mirror = np.array([[-1,0,0],[0,1,0],[0,0,1]])
     return t + m.dot(mirror.dot(m_inv.dot(coords - t)))
         
+def save_hemispheres(ncct):
+    ncct[ncct > 0] = 1
+    msp = ncct.shape[0]//2
+    hemisphere1, hemisphere2 = ncct.copy(), ncct.copy()
+    hemisphere1[:msp,:,:] = 0
+    hemisphere2[msp+1:,:,:] = 0
+    hemisphere1 = flip(hemisphere1)
+    save(hemisphere1, "hemisphere1")
+    save(hemisphere2, "hemisphere2")
         
-class MonteCarloTiltFix:
+class TiltFixer(ABC):
+    def compare_hemispheres(self, scan = None):
+        scan     = self.array if scan is None else scan
+        mirrored = flip(scan)
+        return self.match(scan, mirrored)
+    def match(self, array1, array2):
+        '''
+        1 - |a - b|
+        1 when a == b
+        0 when a and b are completely different (0 and 1, for example)
+        '''
+        mask1 = array1 > 0
+        mask2 = array2 > 0
+        intersection = mask1 & mask2
+        # return intersection.sum()
+        # return intersection.sum() - (mask1 & (mask2 == False)).sum() - ((mask1 == False) & mask2).sum()
+        return (1 - np.abs(array1[intersection] - array2[intersection])).sum()
+        
+class MonteCarloTiltFix(TiltFixer):
     def __init__(self, array):
         self.array  = array/array.max()
         self.init_coord_system()
@@ -416,22 +444,6 @@ class MonteCarloTiltFix:
                     self.y.append(j)
                     self.z.append(k)
         self.x, self.y, self.z = np.array(self.x), np.array(self.y), np.array(self.z)
-    def compare_hemispheres(self, scan = None):
-        scan     = self.array if scan is None else scan
-        mirrored = flip(scan)
-        return self.match(scan, mirrored)
-    def match(self, array1, array2):
-        '''
-        1 - |a - b|
-        1 when a == b
-        0 when a and b are completely different (0 and 1, for example)
-        '''
-        mask1 = array1 > 0
-        mask2 = array2 > 0
-        intersection = mask1 & mask2
-        return intersection.sum()
-        # return intersection.sum() - (mask1 & (mask2 == False)).sum() - ((mask1 == False) & mask2).sum()
-        return (1 - np.abs(array1[intersection] - array2[intersection])).sum()
     def try_plane(self, n, debug = False):
         rotated = self.rotate_brain(n)
         return self.compare_hemispheres(rotated)
@@ -510,29 +522,48 @@ class MonteCarloTiltFix:
         rotated[tuple(coords_rotated)]  = values
         return rotated
         
-def save_hemispheres(ncct):
-    ncct[ncct > 0] = 1
-    msp = ncct.shape[0]//2
-    hemisphere1, hemisphere2 = ncct.copy(), ncct.copy()
-    hemisphere1[:msp,:,:] = 0
-    hemisphere2[msp+1:,:,:] = 0
-    hemisphere1 = flip(hemisphere1)
-    save(hemisphere1, "hemisphere1")
-    save(hemisphere2, "hemisphere2")
+class TiltFix2(TiltFixer):
+    def __init__(self, array):
+        self.array = array
+        self.baseline = self.compare_hemispheres()
+    def try_angles(self, axial_angle, coronal_angle, x):
+        rotated = self.rotate_brain(axial_angle, coronal_angle)
+        rotated = np.roll(rotated, np.round(x).astype(int), axis = (0,))
+        return self.compare_hemispheres(rotated)
+    def rotate_brain(self, axial_angle, coronal_angle):
+        return rotate_axial(rotate_coronal(self.array, coronal_angle), axial_angle)
+    def bayesian_optimization(self, N = 50):
+        black_box_function = lambda a1,a2,x: self.try_angles(a1, a2,x)
+        pbounds            = {"a1": (-10, 10), "a2": (-10, 10), "x": (-3,3)}
+        optimizer = BayesianOptimization(
+            f            = black_box_function,
+            pbounds      = pbounds,
+            random_state = 1)
+        optimizer.maximize(init_points = 10, n_iter = N)
+        no_angle = self.try_angles(0,0,0)
+        default  = max(self.baseline, no_angle)
+        print("baseline", self.baseline)
+        print("no_angle", no_angle)
+        print(optimizer.max)
+        print(optimizer.max["target"] > default, optimizer.max["target"]-default)
+        best_axial, best_coronal, x = optimizer.max["params"]["a1"], optimizer.max["params"]["a2"], optimizer.max["params"]["x"]
+        rotated = self.rotate_brain(best_axial, best_coronal)
+        rotated = np.roll(rotated, np.round(x).astype(int), axis = (0,))
+        return rotated
         
 
 if __name__ == "__main__":
     # for file in [f for f in os.listdir("../../data/gravo/NCCT") if "-" not in f]:
         # ncct = load_ct(int(file.split(".")[0]))
-    ncct = load_ct(200071)
+    ncct = load_ct(46149)
     # 120713
     # 131026
     # 46149, 206178 - bastante torto
     
-    mc = MonteCarloTiltFix(ncct)
+    mc = TiltFix2(ncct)
     ncct = mc.bayesian_optimization(N = 90)
     save(ncct, "rotated")
-    exit(0)
+    # exit(0)
     
     # ncct = fix_coronal_rotation(ncct)
     # ncct      = fix_tilt(ncct)
@@ -542,8 +573,12 @@ if __name__ == "__main__":
     segmented = cmeans(ncct, c = 2, m = 2)
     segmented = denoise_2d(segmented*100)
     mirrored  = (mirror(segmented)+100)/100
-    
+    # 
     # test(ncct)
+    # ncct = rotate_axial(rotate_coronal(ncct))
+    # ncct = rotate_axial(ncct, 1)
+    # ncct = rotate_coronal(ncct, -2)
+    # ncct = np.roll(ncct, 1, axis = (0,))
     # save(ncct)
     save(mirrored)
     # save(segmented)
