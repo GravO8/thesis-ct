@@ -14,7 +14,7 @@ STAGES             = (STAGE_BASELINE, STAGE_PRETREATMENT, STAGE_24H, STAGE_DISCH
 
 
 def str_to_datetime(date: str):
-    if (date is None) or (date == "None"):
+    if (date is None) or (date == "None") or (date == "0"):
         return None
     return datetime.fromisoformat(date[:19])
     

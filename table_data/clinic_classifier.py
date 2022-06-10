@@ -56,9 +56,9 @@ if __name__ == "__main__":
     sys.path.append("..")
     from utils.table_data_loader import TableDataLoader
     
-    table_loader = TableDataLoader(data_dir = "../../../data/gravo/")
+    table_loader = TableDataLoader(data_dir = "../../../data/gravo/", labels_filename = "labelz.csv")
     astral       = ASTRALClinicClassifier(table_loader)
-    metrics      = astral.compute_metrics("test")
+    metrics      = astral.compute_metrics("train")
     print(metrics)
     
     # pred   = astral.get_predictions( astral.sets["test"][astral.get_columns()].values )
