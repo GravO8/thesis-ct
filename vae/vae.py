@@ -8,15 +8,14 @@ from torchsummary import summary
 
 if __name__ == "__main__":
     dir = set_home(0)
-    loader = HalfCTLoader(data_dir = dir)
-    test_set = loader.load_set("test")
+    loader = HalfCTLoader(data_dir = dir, pad = (64, 128, 128))
+    _, _, test_set = loader.load_dataset()
     
     patient = test_set[0]["ct"]["data"]
+    affine = test_set[0]["ct"].affine
     
-    encoder, decoder = vae_v1(N = 6, shape = (64, 128, 128))
-    x = torch.randn([1,64,128,128])
-    s = torch.randn([256,1,1,1])
-    # summary(encoder, x.shape)
-    summary(decoder, s.shape)
-    
-    
+    # encoder, decoder = vae_v1(N = 6, shape = (64, 128, 128))
+    # x = torch.randn([1,64,128,128])
+    # s = torch.randn([256,1,1,1])
+    # # summary(encoder, x.shape)
+    # summary(decoder, s.shape)

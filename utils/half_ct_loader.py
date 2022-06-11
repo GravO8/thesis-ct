@@ -6,10 +6,11 @@ from .dataset_splitter import PATIENT_ID
 
 class HalfCTLoader:
     def __init__(self, labels_filename: str = "dataset.csv", 
-    data_dir: str = None, augment_train: bool = False):
+    data_dir: str = None, augment_train: bool = False, pad: tuple = None):
         self.data_dir      = "" if data_dir is None else data_dir
         self.augment_train = augment_train
         self.labels        = pd.read_csv(os.path.join(self.data_dir, labels_filename))
+        self.pad           = pad
         np.random.seed(0)
         
     def create_subject(self, patient_id: int, side: str, transform: str = "original"):
@@ -36,12 +37,12 @@ class HalfCTLoader:
         val_test_ids = self.labels[(self.labels["set"] == "val") | (self.labels["set"] == "test")]["patient_id"].values
         nccts        = os.listdir( os.path.join(self.data_dir, "half") )
         nccts        = [f for f in nccts if f.endswith("-R.nii")]
-        nccts        = [int(f.split("."[0])) for f in nccts]
+        nccts        = [int(f.split("-")[0]) for f in nccts]
         train_set    = []
         for ncct in nccts:
             if ncct not in val_test_ids:
-                train_set.append( self.create_subject(patient_id, "L") )
-                train_set.append( self.create_subject(patient_id, "R") )
+                train_set.append( self.create_subject(ncct, "L") )
+                train_set.append( self.create_subject(ncct, "R") )
         return train_set
         
     def load_dataset(self):
@@ -54,6 +55,14 @@ class HalfCTLoader:
         np.random.shuffle(val)
         np.random.shuffle(test)
         print(len(train), len(val), len(test))
+        if self.pad is not None:
+            x, y, z = (46, 109, 91)
+            y = (self.pad[1]-y)//2
+            z = (self.pad[2]-z)//2
+            transform = torchio.Pad(padding = (self.pad[0]-x, 0, y, y+1, z, z+1))
+            return (torchio.SubjectsDataset(train, transform = transform),
+                    torchio.SubjectsDataset(val, transform = transform),
+                    torchio.SubjectsDataset(test, transform = transform))
         return (torchio.SubjectsDataset(train),
                 torchio.SubjectsDataset(val),
                 torchio.SubjectsDataset(test))
