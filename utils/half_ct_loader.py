@@ -1,6 +1,7 @@
 import os, torchio
 import pandas as pd
 import numpy as np
+from .dataset_splitter import PATIENT_ID
 
 
 class HalfCTLoader:

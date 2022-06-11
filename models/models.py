@@ -5,30 +5,31 @@ def final_mlp(in_features, bias = True):
     return torch.nn.Sequential(
         torch.nn.Linear(in_features,1, bias = bias), 
         torch.nn.Sigmoid())
+        
+def conv(dim, in_channels, out_channels, kernel_size, stride = 1, padding = None, 
+    bias = True):
+    assert dim in (2, 3)
+    if dim == 2:
+        conv_fn  = torch.nn.Conv2d
+        batch_fn = torch.nn.BatchNorm2d
+    else:
+        conv_fn  = torch.nn.Conv3d
+        batch_fn = torch.nn.BatchNorm3d
+    return torch.nn.Sequential( 
+        conv_fn(in_channels     = in_channels,
+                out_channels    = out_channels,
+                kernel_size     = kernel_size,
+                stride          = stride,
+                padding         = (kernel_size-1)//2 if padding is None else padding,
+                bias            = bias),
+        batch_fn(num_features = out_channels),
+        torch.nn.ReLU(inplace = True))
     
-def conv_3d(in_channels, out_channels, kernel_size, stride = 1, padding = None, 
-    bias = True):
-    return torch.nn.Sequential( 
-        torch.nn.Conv3d(in_channels     = in_channels,
-                        out_channels    = out_channels,
-                        kernel_size     = kernel_size,
-                        stride          = stride,
-                        padding         = (kernel_size-1)//2 if padding is None else padding,
-                        bias            = bias),
-        torch.nn.BatchNorm3d(num_features = out_channels),
-        torch.nn.ReLU(inplace = True))
-                                
-def conv_2d(in_channels, out_channels, kernel_size, stride = 1, padding = None, 
-    bias = True):
-    return torch.nn.Sequential( 
-        torch.nn.Conv2d(in_channels     = in_channels,
-                        out_channels    = out_channels,
-                        kernel_size     = kernel_size,
-                        stride          = stride,
-                        padding         = (kernel_size-1)//2 if padding is None else padding,
-                        bias            = bias),
-        torch.nn.BatchNorm2d(num_features = out_channels),
-        torch.nn.ReLU(inplace = True))
+def conv_3d(**kwargs):
+    return conv(3, **kwargs)
+
+def conv_2d(**kwargs):
+    return conv(2, **kwargs)
         
 def custom_3D_cnn_v1(global_pool: str):
     return Encoder("custom_cnn_v1", 
