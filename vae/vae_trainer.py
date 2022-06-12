@@ -147,13 +147,41 @@ class VAETrainer(Trainer):
             loss.update(recon_loss, kld, vae_loss, int(x.shape[0]))
         return loss.average()
         
+    def tensorboard_loss(self, epoch: int, loss: dict):
+        set_names    = ("train", "val", "test")
+        metric_names = (LossTracker.REC, LossTracker.KLD, LossTracker.VAE)
+        for set in loss:
+            for metric in metric_names:
+                self.writer.add_scalar(f"{metric}/{set}", loss[set][metric], epoch)
+        self.writer.flush()
+    
     def save_loss(self, epoch: int, train_loss: dict, val_loss: dict, 
         test_loss: dict, verbose: bool = True):
         loss = {"train": train_loss, "val": val_loss, "test": test_loss}
-        # self.tensorboard_loss(epoch, loss)
+        self.tensorboard_loss(epoch, loss)
         if verbose:
             row = "{:<10}"*4
-            self.trace(row.format("", "rec", "kld", "vae"))
+            self.trace(row.format("", LossTracker.REC, LossTracker.KLD, LossTracker.VAE))
             for set in loss:
-                self.trace(row.format(set, round(loss[set]["rec"],2), 
-                round(loss[set]["kld"],2), round(loss[set]["vae"],2)))
+                self.trace(row.format(set, round(loss[set][LossTracker.REC],2), 
+                round(loss[set][LossTracker.KLD],2), round(loss[set][LossTracker.VAE],2)))
+                
+    def save_weights(self, val_f1_score, epoch, verbose = True):
+        # TODO
+        if (self.best_score is None) or (val_f1_score > self.best_score):
+            if verbose:
+                self.trace(f"Validation f1-score increased ({self.best_score} --> {val_f1_score}).  Saving model ...")
+            self.best_score = val_f1_score
+            self.best_epoch = epoch
+            torch.save(self.model.state_dict(), self.weights_path)
+                
+    def record_performance(self):
+        self.model.load_state_dict(torch.load(self.weights_path))
+        model_name       = self.model.get_name()
+        set_loaders      = {"train": self.train_loader, "val": self.val_loader, "test": self.test_loader}
+        with open(os.path.join(model_name, PERFORMANCE), "a") as f:
+            performance_row = f"{model_name};{self.run};{self.best_epoch}" + (";{}"*3) + "\n"
+            for set in set_loaders:
+                loss = self.evaluate( set_loaders[set] )
+                f.write(performance_row.format(set, loss[LossTracker.REC], 
+                loss[LossTracker.KLD], loss[LossTracker.VAE]))
