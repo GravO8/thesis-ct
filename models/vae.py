@@ -52,6 +52,13 @@ def vae_v1(in_channels = 1, n_start_chans = 8, dim = 3, N = 6, shape = (46, 109,
     encoder.append( conv(dim, chans, chans*2, kernel_size = shape, stride = 1, padding = 0) )
     decoder = [deconv(dim, chans*2, chans, kernel_size = shape, stride = 1, padding = 0)] + decoder
     return torch.nn.Sequential( *encoder ), torch.nn.Sequential( *decoder ), chans*2
+    
+    
+def reparametrize(mu, logvar):
+    # copied from https://github.com/1Konny/Beta-VAE/blob/977a1ece88e190dd8a556b4e2efb665f759d0772/model.py#L10
+    std = logvar.div(2).exp()
+    eps = Variable(std.data.new(std.size()).normal_())
+    return mu + std*eps
 
 
 class VAEModel:
@@ -66,6 +73,8 @@ class VAEModel:
         mu            = distributions[:, :self.z_dim]
         logvar        = distributions[:, self.z_dim:]
         z             = reparametrize(mu, logvar)
+        z             = z.unsqueeze(-1).unsqueeze(-1)
+        print(z.shape)
         x_recon       = self.decoder(z)
         return x_recon, mu, logvar
 

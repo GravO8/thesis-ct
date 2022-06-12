@@ -100,11 +100,11 @@ class Trainer:
         self.writer       = None
         self.run          = None
 
-    def train(self, model):
+    def train(self, model, lr = LR, weight_decay = WD, optimizer = OPTIMIZER):
         self.set_train_model(model)
         self.train_optimizer = OPTIMIZER(self.model.parameters(), 
-                                        lr = LR,
-                                        weight_decay = WD)
+                                        lr = lr,
+                                        weight_decay = weight_decay)
         for epoch in range(self.epochs):
             train_metrics   = self.train_epoch(epoch)
             val_metrics     = compute_metrics( *self.get_probabilities(self.val_loader) )
