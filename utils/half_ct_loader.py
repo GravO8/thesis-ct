@@ -10,7 +10,7 @@ class HalfCTLoader:
         self.data_dir      = "" if data_dir is None else data_dir
         self.augment_train = augment_train
         self.labels        = pd.read_csv(os.path.join(self.data_dir, labels_filename))
-        self.pad           = pad
+        self.pad           = np.array(pad)
         np.random.seed(0)
         
     def create_subject(self, patient_id: int, side: str, transform: str = "original"):
@@ -56,10 +56,14 @@ class HalfCTLoader:
         np.random.shuffle(test)
         print(len(train), len(val), len(test))
         if self.pad is not None:
-            x, y, z = (46, 109, 91)
-            y = (self.pad[1]-y)//2
-            z = (self.pad[2]-z)//2
-            transform = torchio.Pad(padding = (self.pad[0]-x, 0, y, y+1, z, z+1))
+            dims       = np.array((46, 109, 91))
+            min_change = np.min(self.pad-dims)
+            dims       = dims + min_change
+            zoom       = torchio.Resize(tuple(dims))
+            y          = (self.pad[1]-dims[1])//2
+            z          = (self.pad[2]-dims[2])//2
+            padding    = torchio.Pad(padding = (self.pad[0]-dims[0], 0, y, y+1, z, z+1))
+            transform  = torchio.Compose([zoom, padding])
             return (torchio.SubjectsDataset(train, transform = transform),
                     torchio.SubjectsDataset(val, transform = transform),
                     torchio.SubjectsDataset(test, transform = transform))

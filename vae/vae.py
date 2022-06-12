@@ -11,8 +11,13 @@ if __name__ == "__main__":
     loader = HalfCTLoader(data_dir = dir, pad = (64, 128, 128))
     _, _, test_set = loader.load_dataset()
     
-    patient = test_set[0]["ct"]["data"]
-    affine = test_set[0]["ct"].affine
+    patient = test_set[54]["ct"]["data"]
+    affine = test_set[54]["ct"].affine
+    
+    import nibabel as nib
+    nib.save(nib.Nifti1Image(patient.numpy().squeeze(), affine), "hmm.nii")
+    
+    print(patient.shape)
     
     # encoder, decoder = vae_v1(N = 6, shape = (64, 128, 128))
     # x = torch.randn([1,64,128,128])

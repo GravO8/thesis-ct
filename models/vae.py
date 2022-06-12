@@ -53,6 +53,7 @@ def vae_v1(in_channels = 1, n_start_chans = 8, dim = 3, N = 6, shape = (46, 109,
     decoder = [deconv(dim, chans*2, chans, kernel_size = shape, stride = 1, padding = 0)] + decoder
     return torch.nn.Sequential( *encoder ), torch.nn.Sequential( *decoder ), chans*2
 
+
 class VAEModel:
     def __init__(self, name, encoder, decoder, z_dim):
         self.name    = name
