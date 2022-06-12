@@ -5,22 +5,6 @@ from .model import Model
 import torch
 import numpy as np
 
-'''
-(46, 109, 91)
-1, 2
-(23, 55, 46)
-2, 4
-(12, 28, 23)
-3, 8
-(6, 14, 12)
-4, 16
-(3, 7, 6)
-5, 32
-(2, 4, 3)
-6, 64
-(1, 1, 1)
-128
-'''
 
 def deconv(dim, *args, **kwargs):
     deconv_4 = torch.nn.ConvTranspose2d if dim == 2 else torch.nn.ConvTranspose3d
@@ -51,32 +35,41 @@ def vae_v1(in_channels = 1, n_start_chans = 8, dim = 3, N = 6, shape = (46, 109,
         shape  = (.5*shape).astype(int)
     encoder.append( conv(dim, chans, chans*2, kernel_size = shape, stride = 1, padding = 0) )
     decoder = [deconv(dim, chans*2, chans, kernel_size = shape, stride = 1, padding = 0)] + decoder
-    return torch.nn.Sequential( *encoder ), torch.nn.Sequential( *decoder ), chans*2
+    return VAEModel("vae_v1", torch.nn.Sequential( *encoder ), torch.nn.Sequential( *decoder ), chans*2)
     
     
 def reparametrize(mu, logvar):
     # copied from https://github.com/1Konny/Beta-VAE/blob/977a1ece88e190dd8a556b4e2efb665f759d0772/model.py#L10
     std = logvar.div(2).exp()
-    eps = Variable(std.data.new(std.size()).normal_())
+    eps = torch.autograd.Variable(std.data.new(std.size()).normal_())
     return mu + std*eps
+    
+    
+class Squeeze(torch.nn.Module):
+    def __init__(self, z_dim):
+        super().__init__()
+        self.z_dim = z_dim
+    def forward(self, x):
+        x = x.reshape((x.shape[0], self.z_dim))
+        return x
 
 
-class VAEModel:
+class VAEModel(torch.nn.Module):
     def __init__(self, name, encoder, decoder, z_dim):
+        super().__init__()
         self.name    = name
-        self.encoder = torch.nn.Sequential(encoder, torch.nn.Linear(z_dim, z_dim*2))
+        self.encoder = torch.nn.Sequential(encoder, Squeeze(z_dim), torch.nn.Linear(z_dim, z_dim*2))
         self.decoder = decoder
-        self.z_dim   = self.z_dim # number of features of the latent space
+        self.z_dim   = z_dim # number of features of the latent space
 
     def forward(self, x):
         distributions = self.encoder(x)
         mu            = distributions[:, :self.z_dim]
         logvar        = distributions[:, self.z_dim:]
         z             = reparametrize(mu, logvar)
-        z             = z.unsqueeze(-1).unsqueeze(-1)
-        print(z.shape)
+        z             = z.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1) # adds the x, y, z dimensions
         x_recon       = self.decoder(z)
         return x_recon, mu, logvar
 
     def get_name(self):
-        return name
+        return self.name

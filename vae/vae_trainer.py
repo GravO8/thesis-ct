@@ -1,19 +1,24 @@
-import sys
+import os, sys, torch, torchio, contextlib
+import torch.nn.functional as F
 sys.path.append("..")
-from utils.trainer import Trainer
+from torch.utils.tensorboard import SummaryWriter
 from utils.half_ct_loader import HalfCTLoader
+from utils.trainer import Trainer, PERFORMANCE
+from torchsummary import summary
+from utils.logger import Logger
+
 
 class LossTracker:
     REC = "rec"
     KLD = "kld"
     VAE = "vae"
     def __init__(self):
-        self.loss = {REC: 0, KLD: 0, VAE: 0}
+        self.loss = {LossTracker.REC: 0, LossTracker.KLD: 0, LossTracker.VAE: 0}
         self.count = 0
     def update(self, rec, kld, vae, c):
-        self.loss[REC] += float(recon_loss)
-        self.loss[KLD] += float(kld)
-        self.loss[VAE] += float(vae_loss)
+        self.loss[LossTracker.REC] += float(rec)
+        self.loss[LossTracker.KLD] += float(kld)
+        self.loss[LossTracker.VAE] += float(vae)
         self.count += int(c)
     def average(self):
         out = {}
@@ -21,8 +26,9 @@ class LossTracker:
             out[l] = self.loss[l]/self.count
         return out
 
-LR = ???
-WD = ???
+LR          = 0.0001
+WD          = 0.0
+OPTIMIZER   = torch.optim.Adam
 
 
 def reconstruction_loss(x, x_recon, distribution):
@@ -59,8 +65,8 @@ def kl_divergence(mu, logvar):
 
 
 class VAETrainer(Trainer):
-    def __init__(self, ct_loader, beta = 2, kwargs**):
-        super().__init__(ct_loader, kwargs**)
+    def __init__(self, ct_loader, beta = 2, **kwargs):
+        super().__init__(ct_loader, **kwargs)
         self.half = isinstance(ct_loader, HalfCTLoader)
         if self.half:
             self.pad = ct_loader.pad is not None
@@ -79,7 +85,7 @@ class VAETrainer(Trainer):
         if not os.path.isdir(model_name):
             os.system(f"mkdir {model_name}")
             with open(os.path.join(model_name, PERFORMANCE), "w") as f:
-                f.write("model_name;run;best_epoch;set;????\n")
+                f.write("model_name;run;best_epoch;set;recon_loss;kld;vae_loss\n")
             with open(os.path.join(model_name, "summary.txt"), "w") as f:
                 f.write( str(self.model) )
                 f.write("\n")
@@ -108,7 +114,7 @@ class VAETrainer(Trainer):
         if self.cuda:
             x = x.cuda()
         x_recon, mu, logvar = self.model(x)
-        recon_loss          = reconstruction_loss(x, x_recon, self.decoder_dist)
+        recon_loss          = reconstruction_loss(x, x_recon, "bernoulli")
         total_kld, _, _     = kl_divergence(mu, logvar)
         beta_vae_loss       = recon_loss + self.beta*total_kld
         return recon_loss, total_kld, beta_vae_loss
@@ -130,7 +136,7 @@ class VAETrainer(Trainer):
             loss_val     = self.evaluate(self.val_loader)
             loss_test    = self.evaluate(self.test_loader)
             self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
-            self.save_weights(val_metrics["f1-score"], epoch)
+            self.save_weights(loss_val[LossTracker.VAE], epoch)
         self.record_performance()
         self.reset_model()
     
@@ -144,7 +150,7 @@ class VAETrainer(Trainer):
             recon_loss, kld, vae_loss = self.eval_batch(batch)
             vae_loss.backward()               # compute the loss and its gradients
             self.train_optimizer.step()       # adjust learning weights
-            loss.update(recon_loss, kld, vae_loss, int(x.shape[0]))
+            loss.update(recon_loss, kld, vae_loss, len(batch["patient_id"]))
         return loss.average()
         
     def tensorboard_loss(self, epoch: int, loss: dict):
@@ -166,12 +172,11 @@ class VAETrainer(Trainer):
                 self.trace(row.format(set, round(loss[set][LossTracker.REC],2), 
                 round(loss[set][LossTracker.KLD],2), round(loss[set][LossTracker.VAE],2)))
                 
-    def save_weights(self, val_f1_score, epoch, verbose = True):
-        # TODO
-        if (self.best_score is None) or (val_f1_score > self.best_score):
+    def save_weights(self, vae_loss, epoch, verbose = True):
+        if (self.best_score is None) or (vae_loss < self.best_score):
             if verbose:
-                self.trace(f"Validation f1-score increased ({self.best_score} --> {val_f1_score}).  Saving model ...")
-            self.best_score = val_f1_score
+                self.trace(f"Validation vae loss decreased ({self.best_score} --> {vae_loss}).  Saving model ...")
+            self.best_score = vae_loss
             self.best_epoch = epoch
             torch.save(self.model.state_dict(), self.weights_path)
                 

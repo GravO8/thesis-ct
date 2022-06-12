@@ -54,7 +54,7 @@ class HalfCTLoader:
         np.random.shuffle(train)
         np.random.shuffle(val)
         np.random.shuffle(test)
-        print(len(train), len(val), len(test))
+        # print(len(train), len(val), len(test))
         if self.pad is not None:
             dims       = np.array((46, 109, 91))
             min_change = np.min(self.pad-dims)

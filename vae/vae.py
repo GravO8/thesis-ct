@@ -1,26 +1,16 @@
 import sys, torch
 sys.path.append("..")
 from utils.half_ct_loader import HalfCTLoader
-from utils.main import set_home
+from vae_trainer import VAETrainer
+from utils.main import set_home, train
 from models.vae import vae_v1
-from torchsummary import summary
-# from models.models import custom_3D_cnn_v1
+
 
 if __name__ == "__main__":
-    dir = set_home(0)
-    loader = HalfCTLoader(data_dir = dir, pad = (64, 128, 128))
-    _, _, test_set = loader.load_dataset()
+    dir     = set_home(0)
+    shape   = (64, 128, 128)
+    loader  = HalfCTLoader(data_dir = dir, pad = shape)
+    trainer = VAETrainer(loader)
+    model   = vae_v1(shape = shape, n_start_chans = 8, N = 6)
     
-    patient = test_set[54]["ct"]["data"]
-    affine = test_set[54]["ct"].affine
-    
-    import nibabel as nib
-    nib.save(nib.Nifti1Image(patient.numpy().squeeze(), affine), "hmm.nii")
-    
-    print(patient.shape)
-    
-    # encoder, decoder = vae_v1(N = 6, shape = (64, 128, 128))
-    # x = torch.randn([1,64,128,128])
-    # s = torch.randn([256,1,1,1])
-    # # summary(encoder, x.shape)
-    # summary(decoder, s.shape)
+    train([model], 3, trainer)
