@@ -114,7 +114,7 @@ class VAETrainer(Trainer):
         if self.cuda:
             x = x.cuda()
         x_recon, mu, logvar = self.model(x)
-        recon_loss          = reconstruction_loss(x, x_recon, "bernoulli")
+        recon_loss          = reconstruction_loss(x, x_recon, "gaussian")
         total_kld, _, _     = kl_divergence(mu, logvar)
         beta_vae_loss       = recon_loss + self.beta*total_kld
         return recon_loss, total_kld, beta_vae_loss
@@ -123,7 +123,7 @@ class VAETrainer(Trainer):
         self.model.train(False)
         loss = LossTracker()
         for batch in set_loader:
-            loss.update(*self.eval_batch(batch), int(x.shape[0]))
+            loss.update(*self.eval_batch(batch), len(batch["patient_id"]))
         return loss.average()
         
     def train(self, model, lr = LR, weight_decay = WD, optimizer = OPTIMIZER):
@@ -132,11 +132,11 @@ class VAETrainer(Trainer):
                                         lr = lr,
                                         weight_decay = weight_decay)
         for epoch in range(self.epochs):
-            loss_train   = self.train_epoch(epoch)
-            loss_val     = self.evaluate(self.val_loader)
-            loss_test    = self.evaluate(self.test_loader)
-            self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
-            self.save_weights(loss_val[LossTracker.VAE], epoch)
+            train_loss   = self.train_epoch(epoch)
+            val_loss     = self.evaluate(self.val_loader)
+            test_loss    = self.evaluate(self.test_loader)
+            self.save_loss(epoch, train_loss, val_loss, test_loss, verbose = True)
+            self.save_weights(val_loss[LossTracker.VAE], epoch)
         self.record_performance()
         self.reset_model()
     

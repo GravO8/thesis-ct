@@ -45,12 +45,15 @@ class HalfCTLoader:
                 train_set.append( self.create_subject(ncct, "R") )
         return train_set
         
+    def augment_train(self, train):
+        pass
+        
     def load_dataset(self):
         train   = self.load_set("train")
         val     = self.load_set("val")
         test    = self.load_set("test")
         if self.augment_train:
-            assert False, "2 lazy fo dat"
+            train = self.augment_train(train)
         np.random.shuffle(train)
         np.random.shuffle(val)
         np.random.shuffle(test)

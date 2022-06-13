@@ -63,6 +63,7 @@ class VAEModel(torch.nn.Module):
         self.z_dim   = z_dim # number of features of the latent space
 
     def forward(self, x):
+        x             = x / 100
         distributions = self.encoder(x)
         mu            = distributions[:, :self.z_dim]
         logvar        = distributions[:, self.z_dim:]
