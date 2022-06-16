@@ -39,6 +39,7 @@ class ASTRALClinicClassifier(ClinicClassifier):
         self.sets[set]                     = self.sets[set].astype(int)
         
     def get_scores(self, x):
+        print(len(x))
         return x.sum(axis = 1)
         
     def get_predictions(self, x):

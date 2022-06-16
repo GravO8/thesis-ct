@@ -31,4 +31,7 @@ class TableClassifier(ABC):
         assert set, f"TableClassifier.get_predictions: Unknown set {set}. Available sets are {[s for s in self.sets]}"
         y_prob = self.get_predictions(self.get_x(set))
         y_true = self.get_y(set)
+        import numpy as np
+        l, c = np.unique(y_true, return_counts = True)
+        print(l, c)
         return compute_metrics(y_true, y_prob)

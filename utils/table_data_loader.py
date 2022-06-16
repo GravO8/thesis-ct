@@ -34,7 +34,8 @@ def convert_missing_to_nan(col):
 
 class TableDataLoader:
     def __init__(self, table_filename: str = "table_data.csv", 
-    labels_filename: str = "dataset.csv", data_dir: str = None):
+    labels_filename: str = "dataset.csv", data_dir: str = None,
+    filter_non_witnessed: bool = False):
         data_dir        = "" if data_dir is None else data_dir
         table_filename  = os.path.join(data_dir, table_filename)
         labels_filename = os.path.join(data_dir, labels_filename)
@@ -45,7 +46,7 @@ class TableDataLoader:
         self.test_set   = None
         self.imputed    = False
         self.filter_no_ncct()
-        self.add_vars()
+        self.add_vars(filter_non_witnessed)
         
     def filter_no_ncct(self):
         '''
@@ -54,16 +55,19 @@ class TableDataLoader:
         ncct_ids      = self.labels_df["patient_id"].astype(str)
         self.table_df = self.table_df[self.table_df["idProcessoLocal"].isin(ncct_ids)]
         
-    def add_vars(self):
+    def add_vars(self, filter_non_witnessed: bool = False):
         '''
         add the variables 'age' and 'time_since_onset'
+        'filter_non_witnessed' is a boolean that specifies whether to only consider
+        patients whose stroke was witnessed in the 'time_since_onset' computation
         '''
         birthdate   = [str_to_datetime(date) for date in self.table_df["dataNascimento-1"].values]
         stroke_date = [str_to_datetime(date) for date in self.table_df["dataAVC-4"].values]
         ncct_time   = [str_to_datetime(date) for date in self.table_df["data-7"].values]
         age         = [get_age(birthdate[i],stroke_date[i]) for i in range(len(birthdate))]
         onset_time  = [get_hour_delta(stroke_date[i],ncct_time[i]) for i in range(len(birthdate))]
-        onset_time  = [onset_time[i] if self.table_df["instAVCpre-4"].values[i]=="1" else None for i in range(len(birthdate))]
+        if filter_non_witnessed:
+            onset_time = [onset_time[i] if self.table_df["instAVCpre-4"].values[i]=="1" else None for i in range(len(birthdate))]
         self.table_df["age"]              = age
         self.table_df["time_since_onset"] = onset_time
         
