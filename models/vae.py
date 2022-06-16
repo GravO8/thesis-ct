@@ -54,10 +54,10 @@ def vae(name, in_channels = 1, n_start_chans = 8, dim = 3, N = 6, shape = (46, 1
     
 def vae_v1():
     return vae("vae_1", in_channels = 1, dim = 3, n_start_chans = 8, N = 6, shape = (64, 128, 128), bias = False, add_sigmoid = False)
-    
+
 def vae_v2():
     return vae("vae_v2", in_channels = 1, dim = 3, n_start_chans = 8, N = 6, shape = (64, 128, 128), bias = True, init_blocks = kaiming_init, add_sigmoid = True)
-    
+
 def vae_v3():
     return vae("vae_v3", in_channels = 1, dim = 3, n_start_chans = 16, N = 6, shape = (64, 128, 128), bias = True, init_blocks = kaiming_init, add_sigmoid = True)
     
@@ -91,7 +91,6 @@ class VAEModel(torch.nn.Module):
                     init_blocks(m)
 
     def forward(self, x):
-        x             = x / 100
         distributions = self.encoder(x)
         mu            = distributions[:, :self.z_dim]
         logvar        = distributions[:, self.z_dim:]

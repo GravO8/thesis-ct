@@ -10,7 +10,7 @@ if __name__ == "__main__":
     dir     = set_home(0)
     shape   = (64, 128, 128)
     loader  = HalfCTLoader(data_dir = dir, pad = shape)
-    model   = vae_v1(shape = shape, n_start_chans = 8, N = 6)
+    model   = vae_v1()
     
     path    = "../../../runs/systematic/vae/vae_v1/vae_v1-run3/weights.pt"
     model.load_state_dict(torch.load(path, map_location = torch.device("cpu")))
@@ -22,13 +22,14 @@ if __name__ == "__main__":
             pin_memory  = False)
     i = 0
     for batch in train:
-        if i < 100: 
-            i += 1
-            continue
-        x      = batch["ct"]["data"].long()
+        # if i < 100: 
+        #     i += 1
+        #     continue
+        x      = batch["ct"]["data"].float() / 100
         affine = batch["ct"]["affine"][0]
-        model.eval()
-        x_line, _, _ = model(x)
+        # model.eval()
+        # x_line, _, _ = model(x)
+        # x_line = torch.sigmoid(x_line)
         nib.save(nib.Nifti1Image(x.numpy().squeeze(), affine), "1.nii")
-        nib.save(nib.Nifti1Image(x_line.detach().numpy().squeeze(), affine), "2.nii")
+        # nib.save(nib.Nifti1Image(x_line.detach().numpy().squeeze(), affine), "2.nii")
         break

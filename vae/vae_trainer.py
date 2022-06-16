@@ -26,7 +26,7 @@ class LossTracker:
             out[l] = self.loss[l]/self.count
         return out
 
-LR          = 0.0001
+LR          = 0.001
 WD          = 0.0
 OPTIMIZER   = torch.optim.Adam
 
@@ -110,7 +110,7 @@ class VAETrainer(Trainer):
         self.writer       = SummaryWriter(run_dir)
 
     def eval_batch(self, batch):
-        x = batch["ct"][torchio.DATA].float()
+        x = batch["ct"][torchio.DATA].float() / 100
         if self.cuda:
             x = x.cuda()
         x_recon, mu, logvar = self.model(x)
