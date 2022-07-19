@@ -5,8 +5,8 @@ from table_classifier import TableClassifier
 from copy import deepcopy
 
 class ClassicClassifier(TableClassifier):
-    def __init__(self, model, param_grid: dict, table_loader, stage: str = "baseline"):
-        super().__init__(table_loader, stage = stage)
+    def __init__(self, model, param_grid: dict, table_loader, **kwargs):
+        super().__init__(table_loader, **kwargs)
         self.model  = model
         self.params = None
         self.fit(param_grid)
@@ -48,18 +48,19 @@ class ClassicClassifier(TableClassifier):
         self.sets["train"] = table_loader.get_set("train")
         self.sets["val"]   = table_loader.get_set("val")
         self.sets["test"]  = table_loader.get_set("test")
-        print(self.sets["train"].shape, self.sets["val"].shape, self.sets["test"].shape)
+        print(self.sets["train"]["x"].shape, self.sets["val"].shape, self.sets["test"].shape)
         
 
 
-def knns(loader):
+def knns(loader, **kwargs):
     from sklearn.neighbors import KNeighborsClassifier as KNN
     knn = ClassicClassifier(model = KNN(), 
                             param_grid = {
                                 "n_neighbors": [3, 5, 7, 9, 11],
                                 "metric": ["euclidean", "manhattan", "chebyshev", "jaccard"]
                             },
-                            table_loader = loader)
+                            table_loader = loader,
+                            **kwargs)
     print( knn.compute_metrics("test") )
     print( knn.params )
     
@@ -123,9 +124,7 @@ def gradient_boosting(loader):
     
 
 if __name__ == "__main__":
-    import sys
-    sys.path.append("..")
-    from utils.table_data_loader import TableDataLoader
+    from table_data_loader import TableDataLoader
     
     loader = TableDataLoader(data_dir = "../../../data/gravo/")
-    gradient_boosting(loader)
+    knns(loader, stage = "baseline")

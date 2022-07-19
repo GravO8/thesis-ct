@@ -1,10 +1,12 @@
-import os
+import os, sys
+sys.path.append("..")
 import numpy as np
 import pandas as pd
 from datetime import datetime
 from sklearn.preprocessing import StandardScaler
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
+from utils.csv_loader import CSVLoader
 
 STAGE_BASELINE     = "baseline"
 STAGE_PRETREATMENT = "pretreatment"
@@ -45,6 +47,7 @@ class TableDataLoader(CSVLoader):
         self.val_set    = None
         self.test_set   = None
         self.imputed    = False
+        self.sets       = {}
         self.filter_no_ncct()
         self.add_vars(filter_non_witnessed)
         
@@ -82,6 +85,7 @@ class TableDataLoader(CSVLoader):
         elif to_keep is None:
             assert stage is not None
             self.filter_remove(to_remove, stage)
+        self.convert_boolean_sequences()
     
     def filter_remove(self, to_remove: list, stage: str):
         to_remove.extend(["rankin-23", "NCCT", "CTA"])
@@ -106,7 +110,7 @@ class TableDataLoader(CSVLoader):
     def set_columns(self):
         self.columns = list(self.table_df.columns)
         del self.columns[self.columns.index("idProcessoLocal")]
-        del self.columns[self.columns.index("binary_rankin")]
+        # del self.columns[self.columns.index("binary_rankin")]
             
     def filter_keep(self, to_keep: list):
         assert "rankin-23" not in to_keep
@@ -116,19 +120,18 @@ class TableDataLoader(CSVLoader):
                 del self.table_df[col]
         self.set_columns()
                 
-    def get_set(self, set: str):
+    def set_set(self, set: str):
         set_labels = self.labels_df[self.labels_df["set"] == set]
         set_ids    = set_labels["patient_id"].values.astype(str)
         out        = self.table_df[self.table_df["idProcessoLocal"].isin(set_ids)].copy()
         out["binary_rankin"] = set_labels["binary_rankin"].values
         return out
         
-    def split(self):
-        self.convert_boolean_sequences()
-        self.train_set = self.get_set("train")
-        self.val_set   = self.get_set("val")
-        self.test_set  = self.get_set("test")
-        del self.table_df
+    def get_set(self, set: str):
+        assert set in ("train", "val", "test")
+        out = { "x": self.sets[set][self.columns],
+                "y": self.sets[set]["binary_rankin"]}
+        return out
         
     def convert_boolean_sequences(self):
         boolean_cols = {"ouTerrIsq-7": 4, "ouTerrIsqL-7": 2, "lacAntL-7": 2, 
