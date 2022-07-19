@@ -16,21 +16,11 @@ class TableClassifier(ABC):
     @abstractmethod
     def get_predictions(self, x):
         pass
-    
-    @abstractmethod
-    def get_columns(self) -> list:
-        pass
-        
-    def get_x(self, set: str):
-        return self.sets[set][self.get_columns()].values
-        
-    def get_y(self, set: str):
-        return self.sets[set]["binary_rankin"].values
         
     def compute_metrics(self, set: str):
         assert set, f"TableClassifier.get_predictions: Unknown set {set}. Available sets are {[s for s in self.sets]}"
-        y_prob = self.get_predictions(self.get_x(set))
-        y_true = self.get_y(set)
+        y_prob = self.get_predictions(self.sets[set]["x"])
+        y_true = self.sets[set]["y"]
         import numpy as np
         l, c = np.unique(y_true, return_counts = True)
         print(l, c)

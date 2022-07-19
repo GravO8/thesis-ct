@@ -18,8 +18,7 @@ class ClassicClassifier(TableClassifier):
             return self.model.predict(x)
         
     def fit(self, param_grid: dict):
-        x_train    = self.get_x("train")
-        y_train    = self.get_y("train")
+        x_train, y_train = self.train_set["x"], self.train_set["y"]
         best_score = None
         best_model = None
         best_param = None
@@ -34,21 +33,22 @@ class ClassicClassifier(TableClassifier):
         self.model = best_model
         self.params = best_param
     
-    def load_sets(self, table_loader, stage: str):
-        table_loader.filter(stage = stage)
+    def load_sets(self, table_loader, amputate = False, impute = False, 
+        normalize = False, **kwargs):
+        if amputate: assert not impute
+        if impute: assert not amputate
+        table_loader.filter(**kwargs)
         table_loader.split()
-        table_loader.amputate()
-        # table_loader.impute()
-        self.sets["train"] = table_loader.train_set
-        self.sets["val"]   = table_loader.val_set
-        self.sets["test"]  = table_loader.test_set
-        self.columns       = list(table_loader.train_set.columns)
-        del self.columns[self.columns.index("binary_rankin")]
-        del self.columns[self.columns.index("idProcessoLocal")]
-        print(len(table_loader.train_set), len(table_loader.val_set), len(table_loader.test_set))
-        
-    def get_columns(self):
-        return self.columns
+        if amputate:
+            table_loader.amputate()
+        elif impute:
+            table_loader.impute()
+        if normalize:
+            table_loader.normalize()
+        self.sets["train"] = table_loader.get_set("train")
+        self.sets["val"]   = table_loader.get_set("val")
+        self.sets["test"]  = table_loader.get_set("test")
+        print(self.sets["train"].shape, self.sets["val"].shape, self.sets["test"].shape)
         
 
 

@@ -32,7 +32,7 @@ def convert_missing_to_nan(col):
     return np.array([np.nan if (v == "None") or (v is None) else v for v in col]).astype("float")
 
 
-class TableDataLoader:
+class TableDataLoader(CSVLoader):
     def __init__(self, table_filename: str = "table_data.csv", 
     labels_filename: str = "dataset.csv", data_dir: str = None,
     filter_non_witnessed: bool = False):
@@ -106,6 +106,7 @@ class TableDataLoader:
     def set_columns(self):
         self.columns = list(self.table_df.columns)
         del self.columns[self.columns.index("idProcessoLocal")]
+        del self.columns[self.columns.index("binary_rankin")]
             
     def filter_keep(self, to_keep: list):
         assert "rankin-23" not in to_keep
@@ -160,10 +161,9 @@ class TableDataLoader:
         assert self.train_set is not None, "TableDataLoader.impute: call the 'split' method first"
         if self.imputed:
             return
-        self.imputed        = True
-        columns             = self.train_set.columns
+        self.imputed = True
         self.to_float()
-        imp                 = IterativeImputer(max_iter = 40, random_state = 0)
+        imp = IterativeImputer(max_iter = 40, random_state = 0)
         imp.fit(self.train_set[self.columns])
         self.train_set[self.columns] = imp.transform(self.train_set[self.columns])
         self.val_set[self.columns]   = imp.transform(self.val_set[self.columns])
