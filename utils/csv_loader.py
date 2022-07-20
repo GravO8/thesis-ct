@@ -9,12 +9,12 @@ class CSVLoader(ABC):
     normalize: bool, dirname = "", **kwargs):
         csv_filename = os.path.join(dirname, csv_filename)
         self.table   = pd.read_csv(csv_filename)
+        keep_cols = self.preprocess(keep_cols, **kwargs)
         self.set_sets(keep_cols, target_col)
         
     def set_sets(self, keep_cols: list, target_col: str, set_col: str, 
-    normalize: bool, **kwargs):
+    normalize: bool):
         self.sets = {}
-        self.preprocess(**kwargs)
         self.split(set_col)
         self.filter(keep_cols, target_col)
         self.normalize()
@@ -29,8 +29,9 @@ class CSVLoader(ABC):
             self.sets[s] = self.table[self.table[set_col] == s].copy()
         self.table = None
         
-    def filter(self, keep_cols: list, target_col: str):
+    def filter(self, remove_cols: list, target_col: str):
         assert self.table is None, "CSVLoader.filter: call split first"
+        keep_cols = [col for col in self.table.columns if col not in remove_cols]
         for s in SETS:
             x = self.sets[s][keep_cols]
             y = self.sets[s][target_col].values
