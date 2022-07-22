@@ -9,7 +9,7 @@ class CSVLoader(ABC):
     normalize: bool, dirname = "", **kwargs):
         csv_filename = os.path.join(dirname, csv_filename)
         self.table   = pd.read_csv(csv_filename)
-        keep_cols = self.preprocess(keep_cols, **kwargs)
+        keep_cols    = self.preprocess(keep_cols, **kwargs)
         self.set_sets(keep_cols, target_col)
         
     def set_sets(self, keep_cols: list, target_col: str, set_col: str, 
