@@ -1,8 +1,9 @@
 import numpy as np
-from utils.trainer import compute_metrics
-from csv_loader import CSVLoader, SETS
-from skopt import gp_minimize
+from .csv_loader import CSVLoader, SETS
+from .trainer import compute_metrics
+from skopt import BayesSearchCV
 from abc import ABC, abstractmethod
+
 
 class TableClassifier(ABC):
     def __init__(self, loader: CSVLoader):
@@ -31,7 +32,7 @@ class ClassicClassifier(TableClassifier):
         super().__init__(loader)
         self.model  = model
         self.metric = metric
-        self.hyperparam_tune(**kwargs)
+        self.hyperparam_tune(ranges, **kwargs)
         
     def predict(self, x):
         try:
@@ -39,47 +40,32 @@ class ClassicClassifier(TableClassifier):
         except:
             return self.model.predict(x)
         
-    def fit(self, **params):
+    def fit(self, params = None):
         x_train, y_train = self.get_set("train")
-        self.model.set_params(**params)
+        self.model.set_params(**(self.best_params if params is None else params))
         self.model.fit(x_train, y_train)
-        return self.compute_metrics("val")[self.metric]
         
-    def hyperparam_tune(self, ranges, init_points = 5, n_iter = 20):
-        res = gp_minimize(
-            f = self.fit,
-            dimensions = ranges,
-            n_calls = n_iter,
-            n_random_starts = init_points
-        )
-        self.params = res.x
-        # optimizer = BayesianOptimization(
-        #     # f       = lambda x: self.fit(x),
-        #     f       = self.fit,
-        #     pbounds = ranges,
-        #     verbose = 2,
-        #     random_state = 0,
-        # )
-        # optimizer.maximize(
-        #     init_points = init_points,
-        #     n_iter      = n_iter,
-        # )
-        # self.best_params = optimizer.max["params"]
-        # self.fit(**self.best_params)
+    def hyperparam_tune(self, ranges, init_points = 5, n_iter = 20, cv = 5):
+        opt = BayesSearchCV(
+            self.model,
+            ranges,
+            n_iter = n_iter,
+            cv = cv)
+        x_train, y_train = self.get_set("train")
+        opt.fit(x_train, y_train)
+        self.best_params = opt.best_params_
+        self.fit()
         
-def knns(loader):
+def knns(loader, **kwargs):
     from sklearn.neighbors import KNeighborsClassifier as KNN
     knn = ClassicClassifier(model   = KNN(), 
                             loader  = loader,
-                            ranges = {
+                            ranges  = {
                                 "n_neighbors": [3, 5, 7, 9, 11],
+                                "weights": ["uniform", "distance"],
                                 "metric": ["euclidean", "manhattan", "chebyshev", "jaccard"]
-                            },)
-    # print( knn.compute_metrics("test") )
-    print( knn.params )
-    
-    
-if __name__ == '__main__':
-    from csv_loader import CSVLoader
-    loader = CSVLoader("table_data.csv", "")
+                            },
+                            **kwargs)
+    print( knn.compute_metrics("test") )
+    print( knn.best_params )
         

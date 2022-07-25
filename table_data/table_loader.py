@@ -2,13 +2,7 @@ import sys
 sys.path.append("..")
 from utils.csv_loader import CSVLoader
 from datetime import datetime
-
-
-STAGE_BASELINE     = "baseline"
-STAGE_PRETREATMENT = "pretreatment"
-STAGE_24H          = "24h"
-STAGE_DISCHARGE    = "discharge"
-STAGES             = (STAGE_BASELINE, STAGE_PRETREATMENT, STAGE_24H, STAGE_DISCHARGE)
+from stages import STAGES
 
 
 def str_to_datetime(date: str):
@@ -26,42 +20,43 @@ def get_hour_delta(time1, time2):
         return None
     return (time2 - time1).seconds // (60*60)
     
-def convert_missing_to_nan(col):
-    return np.array([np.nan if (v == "None") or (v is None) else v for v in col]).astype("float")
-    
 
-class TableLoader:
-    def preprocess(self, ampute: bool = False, impute: bool = False, 
-    filter_non_witnessed: bool = False, filter_out_no_ncct: bool = True):
+class TableLoader(CSVLoader):
+    def preprocess(self, keep_cols, filter_non_witnessed: bool = False, 
+    filter_out_no_ncct: bool = True):
         if filter_out_no_ncct:
             self.filter_no_ncct()
-        self.add_vars()
-        if impute: 
-            assert not ampute
-            self.impute()
-        if ampute: 
-            assert not impute
-            self.ampute()
+        self.add_vars(filter_non_witnessed)
         if isinstance(keep_cols, str):
             keep_cols = self.stage_cols(keep_cols)
+        self.convert_boolean_sequences(keep_cols)
         return keep_cols
             
     def stage_cols(self, stage):
-        to_remove.extend(["rankin-23", "NCCT", "CTA"])
-        sections_to_remove = ["18"]
-        if stage == STAGE_BASELINE:
-            sections_to_remove.extend( ["7", "11", "15", "19", "20", "21", "22"] )
-        elif stage == STAGE_PRETREATMENT:
-            sections_to_remove.extend( ["11", "15", "19", "20", "21", "22"] )
-        elif stage == STAGE_24H:
-            sections_to_remove.extend( ["19", "20", "21", "22"] )
-        elif stage != STAGE_DISCHARGE:
-            assert False, f"TableLoader.stage_cols: the available are {STAGES}"
-        for col in self.table.columns:
-            for section in sections_to_remove:
-                if col.endswith(section):
-                    to_remove.append(col)
-        return to_remove
+        assert stage in STAGES, f"TableLoader.stage_cols: the available are {[s for s in STAGES]}"
+        return STAGES[stage]
+        
+    def convert_boolean_sequences(self, keep_cols):
+        boolean_cols = {"ouTerrIsq-7": 4, "ouTerrIsqL-7": 2, "lacAntL-7": 2, 
+                        "enfAnt-7": 9, "enfAntL-7": 2, "compRtPA": 5, 
+                        "TCCEter": 11, "TCCElac": 7, "RMNter": 11, "RMNlac": 7, 
+                        "outProc": 4, "outCom": 8, "ecocarAnormal": 19}
+        for col in boolean_cols:
+            if f"{col}-1" not in keep_cols: continue
+            splitted = [None if v == "None" else v.split(",") for v in self.table[col].values]
+            new_cols = {f"{col}-{i+1}":[] for i in range(boolean_cols[col])}
+            for s in splitted:
+                if s is None:
+                    for i in range(boolean_cols[col]):
+                        new_cols[f"{col}-{i+1}"].append(None)
+                else:
+                    assert len(s) == boolean_cols[col]
+                    for i in range(boolean_cols[col]):
+                        new_cols[f"{col}-{i+1}"].append(int(s[i].lower() == "true"))
+            del self.table[col]
+            for col in new_cols:
+                self.table[col] = new_cols[col]
+        self.table = self.table.copy()
         
     def filter_no_ncct(self):
         self.table = self.table[self.table["NCCT"] == "OK"]
@@ -81,3 +76,4 @@ class TableLoader:
             onset_time = [onset_time[i] if self.table["instAVCpre-4"].values[i]=="1" else None for i in range(len(birthdate))]
         self.table["age"]              = age
         self.table["time_since_onset"] = onset_time
+        

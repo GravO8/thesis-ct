@@ -28,10 +28,21 @@ CSVLoader
     
 
 RadiomicsLoader
+pipeline:
+ - filter
+ - split
+ - normalize
 
 TabularLoader
  - private impute
  - private ampute
  - private add_vars
+pipeline:
+ - filter no ncct
+ - add vars
+ - filter
+ - split
+ - amputate/impute
+ - normalize
  
 RadiomicsMILLoader
