@@ -1,5 +1,7 @@
 import pandas as pd, os, numpy as np
 from sklearn.preprocessing import StandardScaler
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
 from abc import ABC, abstractmethod
 
 SETS = ("train", "val", "test")
@@ -23,6 +25,7 @@ class CSVLoader(ABC):
         self.split(set_col, join_train_val)
         self.filter(keep_cols, target_col)
         self.to_float()
+        # print( self.sets["train"]["x"].columns )
         self.empty_values(empty_values_method)
         if normalize:
             self.normalize()
