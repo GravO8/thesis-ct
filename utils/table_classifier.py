@@ -65,8 +65,8 @@ class ClassicClassifier(TableClassifier):
             return_train_score = True)
         x_train, y_train = self.get_set("train")
         opt.fit(x_train, y_train)
-        import pandas as pd
-        pd.DataFrame(opt.cv_results_).to_csv("sapo.csv", index = False)
+        # import pandas as pd
+        # pd.DataFrame(opt.cv_results_).to_csv("sapo.csv", index = False)
         self.best_params = opt.best_params_
         self.fit()
         if verbose:

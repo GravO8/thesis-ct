@@ -42,33 +42,69 @@ class CSVLoader(ABC):
     def preprocess(self):
         pass
         
+    def reshuffle(self, set_col: str, target_col: str):
+        distr = {}
+        labels = None
+        for s in SETS:
+            labels, distr[s] = np.unique(self.table[self.table[set_col] == s][target_col].values, return_counts = True)
+        self.table  = self.table.sample(frac = 1).reset_index(drop = True)
+        self.sets_from_distr(set_col, labels, distr, target_col)
+        
+    def sets_from_distr(self, set_col: str, labels: list, distr: dict, target_col: str):
+        set_col_vals = []
+        sets         = {}
+        for i in range(len(labels)):
+            label = labels[i]
+            if np.isnan(label): continue
+            sets[label] = []
+            for s in distr:
+                sets[label].extend( [s] * distr[s][i] )
+        for _, row in self.table.iterrows():
+            label = row[target_col]
+            if np.isnan(label):
+                set_col_vals.append(np.nan)
+            else:
+                if len(sets[label]) == 0:
+                    # set_col_vals.append( np.random.choice(SETS) )
+                    set_col_vals.append(np.nan)
+                else:
+                    set_col_vals.append(sets[label].pop(0))
+        self.table[set_col] = set_col_vals
+        # self.table.to_csv("sapo.csv", index = False)
+        # for s in distr:
+        #     for i in range(len(labels)):
+        #         label       = labels[i]
+        #         c           = labels_count[label]
+        #         label_rows  = self.table[self.table[target_col] == label]
+        #         to_add      = distr[s][i]
+        #         if s in self.sets:
+        #             self.sets[s] = pd.concat([self.sets[s], label_rows.iloc[c:c+to_add].copy()])
+        #         else:
+        #             self.sets[s] = label_rows.iloc[c:c+to_add].copy()
+        #         labels_count[label] += to_add
+                
+    def add_all_col(self, target_col: str, sets_distr: dict = {"train": 0.785, "val": 0.085, "test": 0.13}):
+        if "all_set" in self.table.columns:
+            return
+        labels, total_distr = np.unique(self.table[target_col].values, return_counts = True)
+        distr = {s: [] for s in sets_distr}
+        for s in sets_distr:
+            for i in range(len(labels)):
+                distr[s].append( int(sets_distr[s] * total_distr[i]) )
+        self.sets_from_distr("all", labels, distr, target_col)
+        
     def split(self, set_col: str, join_train_val: bool, reshuffle: bool, target_col: str):
         global SETS
         assert self.table is not None
+        if set_col == "all":
+            self.add_all_col(target_col)
         if join_train_val:
             self.table.loc[self.table[set_col] == "val", set_col] = "train"
             SETS = ["train", "test"]
         if reshuffle:
-            distr = {}
-            labels = None
-            for s in SETS:
-                labels, distr[s] = np.unique(self.table[self.table["set"] == s][target_col].values, return_counts = True)
-            self.table  = self.table.sample(frac = 1).reset_index(drop = True)
-            labels_count = {l: 0 for l in labels}
-            for s in distr:
-                for i in range(len(labels)):
-                    label       = labels[i]
-                    c           = labels_count[label]
-                    label_rows  = self.table[self.table[target_col] == label]
-                    to_add      = distr[s][i]
-                    if s in self.sets:
-                        self.sets[s] = pd.concat([self.sets[s], label_rows.iloc[c:c+to_add].copy()])
-                    else:
-                        self.sets[s] = label_rows.iloc[c:c+to_add].copy()
-                    labels_count[label] += to_add
-        else:    
-            for s in SETS:
-                self.sets[s] = self.table[self.table[set_col] == s].copy()
+            self.reshuffle(set_col, target_col)
+        for s in SETS:
+            self.sets[s] = self.table[self.table[set_col] == s].copy()
         self.table = None
         
     def filter(self, keep_cols: list, target_col: str):

@@ -10,12 +10,14 @@ loader = TableLoader("table_data.csv",
                     target_col          = "binary_rankin",
                     normalize           = True,
                     dirname             = "../../../data/gravo",
-                    join_train_val      = True,
+                    join_train_val      = False,
                     reshuffle           = False,
+                    set_col             = "set",
+                    filter_out_no_ncct  = True,
                     # empty_values_method = "impute")
                     empty_values_method = "amputate")
 # knns(loader)
 # decision_trees(loader)
 # random_forests(loader)
-logistic_regression(loader)
+# logistic_regression(loader)
 # gradient_boosting(loader)
