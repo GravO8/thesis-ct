@@ -13,16 +13,17 @@ def convert_missing_to_nan(col):
 class CSVLoader(ABC):
     def __init__(self, csv_filename: str, keep_cols: list, target_col: str, 
     set_col: str = "set", normalize: bool = True, 
-    empty_values_method: str = "amputate", join_train_val = False, dirname = "", **kwargs):
+    empty_values_method: str = "amputate", join_train_val: bool = False, 
+    dirname: str = "", reshuffle: int = False, **kwargs):
         csv_filename = os.path.join(dirname, csv_filename)
         self.table   = pd.read_csv(csv_filename)
         keep_cols    = self.preprocess(keep_cols, **kwargs)
-        self.set_sets(keep_cols, target_col, set_col, normalize, empty_values_method, join_train_val)
+        self.set_sets(keep_cols, target_col, set_col, normalize, empty_values_method, join_train_val, reshuffle)
         
     def set_sets(self, keep_cols: list, target_col: str, set_col: str, 
-    normalize: bool, empty_values_method: str, join_train_val: bool):
+    normalize: bool, empty_values_method: str, join_train_val: bool, reshuffle: bool):
         self.sets = {}
-        self.split(set_col, join_train_val)
+        self.split(set_col, join_train_val, reshuffle, target_col)
         self.filter(keep_cols, target_col)
         self.to_float()
         self.empty_values(empty_values_method)
@@ -41,14 +42,33 @@ class CSVLoader(ABC):
     def preprocess(self):
         pass
         
-    def split(self, set_col: str = "set", join_train_val: bool = False):
+    def split(self, set_col: str, join_train_val: bool, reshuffle: bool, target_col: str):
         global SETS
         assert self.table is not None
         if join_train_val:
             self.table.loc[self.table[set_col] == "val", set_col] = "train"
             SETS = ["train", "test"]
-        for s in SETS:
-            self.sets[s] = self.table[self.table[set_col] == s].copy()
+        if reshuffle:
+            distr = {}
+            labels = None
+            for s in SETS:
+                labels, distr[s] = np.unique(self.table[self.table["set"] == s][target_col].values, return_counts = True)
+            self.table  = self.table.sample(frac = 1).reset_index(drop = True)
+            labels_count = {l: 0 for l in labels}
+            for s in distr:
+                for i in range(len(labels)):
+                    label       = labels[i]
+                    c           = labels_count[label]
+                    label_rows  = self.table[self.table[target_col] == label]
+                    to_add      = distr[s][i]
+                    if s in self.sets:
+                        self.sets[s] = pd.concat([self.sets[s], label_rows.iloc[c:c+to_add].copy()])
+                    else:
+                        self.sets[s] = label_rows.iloc[c:c+to_add].copy()
+                    labels_count[label] += to_add
+        else:    
+            for s in SETS:
+                self.sets[s] = self.table[self.table[set_col] == s].copy()
         self.table = None
         
     def filter(self, keep_cols: list, target_col: str):
@@ -57,6 +77,7 @@ class CSVLoader(ABC):
             x = self.sets[s][keep_cols]
             y = self.sets[s][target_col].values
             self.sets[s] = {"x": x, "y": y}
+            print(s, np.unique(y, return_counts = True)[1])
             
     def get_set(self, set: str):
         assert set in SETS

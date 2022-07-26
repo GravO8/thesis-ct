@@ -12,7 +12,7 @@ class TableClassifier(ABC):
     def predict(self, x):
         pass
     
-    def get_set(self, set):
+    def get_set(self, set: str):
         assert set, f"TableClassifier.get_set: Unknown set {set}. Available sets are {SETS}"
         set = self.loader.get_set(set)
         return set["x"], set["y"]
@@ -24,6 +24,16 @@ class TableClassifier(ABC):
             l, c = np.unique(y, return_counts = True)
             print(l, c)
         return compute_metrics(y, y_prob)
+        
+    def plot_2d(self, set: str):
+        import matplotlib.pyplot as plt
+        from sklearn.manifold import TSNE
+        x, y        = self.get_set(set)
+        transformer = TSNE(n_components = 2)
+        x_2d        = transformer.fit_transform(x)
+        colors      = ["red" if el else "blue" for el in y]
+        plt.scatter(x_2d[:,0], x_2d[:,1], c = colors)
+        plt.show()
         
         
 class ClassicClassifier(TableClassifier):
@@ -50,12 +60,13 @@ class ClassicClassifier(TableClassifier):
             ranges,
             n_iter  = n_iter,
             cv      = cv,
-            scoring = scoring, 
+            scoring = scoring,
+            verbose = 0,
             return_train_score = True)
         x_train, y_train = self.get_set("train")
         opt.fit(x_train, y_train)
-        # import pandas as pd
-        # pd.DataFrame(opt.cv_results_).to_csv("sapo.csv", index = False)
+        import pandas as pd
+        pd.DataFrame(opt.cv_results_).to_csv("sapo.csv", index = False)
         self.best_params = opt.best_params_
         self.fit()
         if verbose:
@@ -139,11 +150,12 @@ def logistic_regression(loader, **kwargs):
     lr = ClassicClassifier( model   = LR(),
                             loader  = loader,
                             ranges  = {
-                                "C": skopt.space.space.Real(.01, 3),
-                                "tol": skopt.space.space.Real(1e-1, 1e-5),
+                                "C": skopt.space.space.Real(.001, 3),
+                                "tol": skopt.space.space.Real(1e-5, 1e-1),
                                 "penalty": ["l1", "l2"],
                                 "solver": ["saga"],
                                 "random_state": [0],
+                                "max_iter": [10000],
                            },
                            **kwargs)
     print("train", lr.compute_metrics("train"))
