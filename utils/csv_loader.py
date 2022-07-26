@@ -25,7 +25,6 @@ class CSVLoader(ABC):
         self.split(set_col, join_train_val)
         self.filter(keep_cols, target_col)
         self.to_float()
-        # print( self.sets["train"]["x"].columns )
         self.empty_values(empty_values_method)
         if normalize:
             self.normalize()
@@ -77,10 +76,14 @@ class CSVLoader(ABC):
         
     def amputate(self):
         for s in SETS:
-            self.sets[s]["x"]["y"]  = self.sets[s]["y"]
-            self.sets[s]["x"]       = self.sets[s]["x"].dropna()
-            self.sets[s]["y"]       = self.sets[s]["x"]["y"].values
-            self.sets[s]["x"].drop("y", axis = 1, inplace = True)
+            to_keep = []
+            for _, row in self.sets[s]["x"].iterrows():
+                if row.isnull().values.any():
+                    to_keep.append(False)
+                else:
+                    to_keep.append(True)
+            self.sets[s]["x"] = self.sets[s]["x"].iloc[to_keep]
+            self.sets[s]["y"] = self.sets[s]["y"][to_keep]
             
     def to_float(self):
         for s in SETS:

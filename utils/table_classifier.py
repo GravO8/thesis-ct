@@ -17,7 +17,7 @@ class TableClassifier(ABC):
         set = self.loader.get_set(set)
         return set["x"], set["y"]
         
-    def compute_metrics(self, set: str, verbose = False):
+    def compute_metrics(self, set: str, verbose = True):
         x, y   = self.get_set(set) 
         y_prob = self.predict(x)
         if verbose:
@@ -48,15 +48,36 @@ class ClassicClassifier(TableClassifier):
         opt = skopt.BayesSearchCV(
             self.model,
             ranges,
-            n_iter = n_iter,
-            cv = cv,
-            scoring = scoring)
+            n_iter  = n_iter,
+            cv      = cv,
+            scoring = scoring, 
+            return_train_score = True)
         x_train, y_train = self.get_set("train")
         opt.fit(x_train, y_train)
+        # import pandas as pd
+        # pd.DataFrame(opt.cv_results_).to_csv("sapo.csv", index = False)
         self.best_params = opt.best_params_
         self.fit()
         if verbose:
             print("val score:", opt.best_score_)
+            
+    def grid_hyperparam_tune(self, ranges):
+        from sklearn.model_selection import ParameterGrid
+        from copy import deepcopy
+        x_train, y_train = self.get_set("train")
+        best_score = None
+        best_model = None
+        best_param = None
+        for params in ParameterGrid(ranges):
+            self.model.set_params(**params)
+            self.model.fit(x_train, y_train)
+            metrics = self.compute_metrics("val")
+            if (best_score is None) or (metrics["f1-score"] > best_score):
+                best_score = metrics["f1-score"]
+                best_model = deepcopy(self.model)
+                best_param = params
+        self.model = best_model
+        self.best_params = best_param
 
 
 def knns(loader, **kwargs):
@@ -84,9 +105,15 @@ def decision_trees(loader, **kwargs):
                                 "min_impurity_decrease": skopt.space.space.Real(.001, .025),
                                 "random_state": [0]
                            },
+                           # ranges = {
+                           #      "criterion": ["entropy", "gini"],
+                           #      "max_depth": [2, 5, 10, 15, 20, 25],
+                           #      "min_impurity_decrease": [0.025, 0.01, 0.005, 0.0025, 0.001],
+                           #      "random_state": [0]
+                           # },
                            **kwargs)
-    print("train", dt.compute_metrics("train"))
-    print("test", dt.compute_metrics("test"))
+    print("train", dt.compute_metrics("train", verbose = True))
+    print("test", dt.compute_metrics("test", verbose = True))
     print( dt.best_params )
 
 
