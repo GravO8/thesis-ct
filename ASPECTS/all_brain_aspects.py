@@ -1,10 +1,20 @@
 import sys
-sys.path.append("../table_data")
-from classic_classifier import knns
+sys.path.append("..")
+from utils.classic_classifiers import *
 from radiomics_loader import RadiomicsLoader
 
-loader = RadiomicsLoader(table_filename = "ncct_radiomic_features.csv", 
-                        data_dir = "../../data/gravo",
-                        target = "binary_rankin")
-                        
-knns(loader)
+loader = RadiomicsLoader("ncct_radiomic_features.csv", 
+                        keep_cols           = "all",
+                        target              = "aspects",
+                        binary              = True,
+                        normalize           = True,
+                        dirname             = "../../../data/gravo",
+                        join_train_val      = True,
+                        join_train_test     = False,
+                        reshuffle           = False)
+
+# knns(loader)
+# decision_trees(loader)
+# random_forests(loader)
+# logistic_regression(loader)
+gradient_boosting(loader)

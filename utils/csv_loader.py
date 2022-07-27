@@ -5,6 +5,7 @@ from sklearn.impute import IterativeImputer
 from abc import ABC, abstractmethod
 
 SETS = ["train", "val", "test"]
+ALL  = "all"
 
 def convert_missing_to_nan(col):
     return np.array([np.nan if (v == "None") or (v is None) else v for v in col]).astype("float")
@@ -33,7 +34,9 @@ class CSVLoader(ABC):
             self.normalize()
             
     def empty_values(self, method):
-        if method == "amputate":
+        if method is None:
+            return
+        elif method == "amputate":
             self.amputate()
         elif method == "impute":
             self.impute()
@@ -74,20 +77,20 @@ class CSVLoader(ABC):
         self.table[set_col] = set_col_vals
                 
     def add_all_col(self, target_col: str, sets_distr: dict = {"train": 0.785, "val": 0.085, "test": 0.13}):
-        if "all_set" in self.table.columns:
+        if ALL in self.table.columns:
             return
         labels, total_distr = np.unique(self.table[target_col].values, return_counts = True)
         distr = {s: [] for s in sets_distr}
         for s in sets_distr:
             for i in range(len(labels)):
                 distr[s].append( int(sets_distr[s] * total_distr[i]) )
-        self.sets_from_distr("all", labels, distr, target_col)
+        self.sets_from_distr(ALL, labels, distr, target_col)
         
     def split(self, set_col: str, join_train_val: bool, join_train_test: bool, 
     reshuffle: bool, target_col: str):
         assert self.table is not None
         sets = SETS + []
-        if set_col == "all":
+        if set_col == ALL:
             self.add_all_col(target_col)
         if join_train_val:
             self.table.loc[self.table[set_col] == "val", set_col] = "train"
