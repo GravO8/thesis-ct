@@ -13,7 +13,6 @@ class TableClassifier(ABC):
         pass
     
     def get_set(self, set: str):
-        assert set, f"TableClassifier.get_set: Unknown set {set}. Available sets are {SETS}"
         set = self.loader.get_set(set)
         return set["x"], set["y"]
         

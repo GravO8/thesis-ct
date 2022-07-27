@@ -46,11 +46,10 @@ class TableLoader(CSVLoader):
             splitted = [None if v == "None" else v.split(",") for v in self.table[col].values]
             new_cols = {f"{col}-{i+1}":[] for i in range(boolean_cols[col])}
             for s in splitted:
-                if s is None:
+                if (s is None) or (len(s) != boolean_cols[col]):
                     for i in range(boolean_cols[col]):
                         new_cols[f"{col}-{i+1}"].append(None)
                 else:
-                    assert len(s) == boolean_cols[col]
                     for i in range(boolean_cols[col]):
                         new_cols[f"{col}-{i+1}"].append(int(s[i].lower() == "true"))
             del self.table[col]
