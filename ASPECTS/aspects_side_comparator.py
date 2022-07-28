@@ -12,11 +12,11 @@ class ASPECTSSideComparator(ABC):
         
         
 class ABSDiff(ASPECTSSideComparator):
-    def forward(x1, x2):
+    def forward(self, x1, x2):
         # (10,N)
         return torch.abs(x1 - x2)
 
 class Identity(ASPECTSSideComparator):
-    def forward(x1, x2):
+    def forward(self, x1, x2):
         # (10,2,N)
         return [[x1[i],x2[i]] for i in range(10)]

@@ -1,9 +1,10 @@
-import copy
+import torch, copy
 from aspects_instance_classifier import ASPECTSInstanceClassifier
 
-class ASPECTSBagClassifier:
+class ASPECTSBagClassifier(torch.nn.Module):
     def __init__(self, instance_classifier: ASPECTSInstanceClassifier, 
     share_weights: bool = False):
+        super().__init__()
         self.share_weights = share_weights
         if not self.share_weights:
             instance_classifier = [copy.deepcopy(instance_classifier) for _ in range(10)]

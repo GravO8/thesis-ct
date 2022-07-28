@@ -20,5 +20,5 @@ class ASPECTSInstanceModel(torch.nn.Module):
         x = self.mlp(instance)
         if not self.return_probs:
             x = torch.sign(x)
-            x = torch.relu(sign)
+            x = torch.relu(x)
         return x
