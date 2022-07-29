@@ -46,8 +46,18 @@ def model_performance(y_pred, y_true):
     return {"loss": loss, "accuracy": accuracy, "confusion_matrix": confusion}
     
 
-def record_performance(loader, model, y_true, y_pred):
-    # TODO
+def record_performance(writer, loader, model, y_pred, y_true):
+    def record_performance_aux(set, y_pred, y_true):
+        performance = model_performance(y_pred, y_true)
+        writer.add_scalar(f"loss/{set}", performance["loss"], epoch)
+        writer.add_scalar(f"accuracy/{set}", performance["accuracy"], epoch)
+        print(f"  {set} loss", performance["loss"])
+        print(f"  {set} accuracy", performance["accuracy"])
+        print(f"  {set} confusion matrix\n", performance["confusion_matrix"])
+    record_performance_aux("train", y_pred, y_true)
+    for s in ("val", "test"):
+        y_pred, y_true = get_predictions(loader, model, s)
+        record_performance_aux(s, y_pred, y_true)
 
 
 def train(loader, model):
@@ -66,11 +76,14 @@ def train(loader, model):
             loss.backward()              # compute the loss and its gradients
             train_optimizer.step()       # adjust learning weights
             y_pred.append( np.argmax(pred) )
-        record_performance(loader, model, y_train, y_pred)
+        record_performance(writer, loader, model, y_pred, y_train)
         model.train(True)
+        writer.flush()
 
 
 if __name__ == "__main__":
-    # loader = ASPECTSMILLoader("ncct_radiomic_features.csv", 
-    #                         "all", dirname = "../../../data/gravo")
+    # dirname = "../../../data/gravo"
+    dirname = "/media/avcstorage/gravo/"
+    loader = ASPECTSMILLoader("ncct_radiomic_features.csv", 
+                            "all", dirname = dirname)
     model = create_model()
