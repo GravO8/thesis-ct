@@ -11,14 +11,14 @@ from torchsummary import summary
 
 LR          = 0.0005 # learning rate
 WD          = 0.0001 # weight decay
-LOSS        = torch.nn.NLLLoss()
+LOSS        = torch.nn.MSELoss()
 OPTIMIZER   = torch.optim.Adam
 EPOCHS      = 300
 
 
 def create_model():
     diff                = ABSDiff()
-    model               = ASPECTSInstanceModel([66,32,16,1], return_probs = False)
+    model               = ASPECTSInstanceModel([43,32,16,1], return_probs = False)
     instance_classifier = ASPECTSInstanceClassifier(diff, model)
     bag_classifier      = ASPECTSBagClassifier(instance_classifier, share_weights = True)
     return bag_classifier
@@ -26,14 +26,12 @@ def create_model():
     
 def get_predictions(loader, model, set_name: str):
     model.train(False)
-    set          = loader.get_set(set_name)
-    x_set, y_set = set["x"], set["y"]
-    out          = []
-    for i in range(len(y_set)):
-        x, y = x_set[i], y_set[i]
+    y_pred, y_true = [], []
+    for x, y in loader.get_set(set_name):
         pred = model(x)
-        out.append( np.argmax(pred) )
-    return out, y_set
+        y_pred.append(pred)
+        y_true.append(y)
+    return y_pred, y_true
     
     
 def model_performance(y_pred, y_true):
@@ -64,26 +62,24 @@ def train(loader, model):
     model.train(True)
     writer           = SummaryWriter()
     train_optimizer  = OPTIMIZER(model.parameters(), lr = LR, weight_decay = WD)
-    train_set        = loader.get_set("train")
-    x_train, y_train = train_set["x"], train_set["y"]
     for epoch in range(EPOCHS):
-        y_pred = []
+        y_pred, y_train = [], []
         print(f"\n\n\n- Epoch {epoch}/{EPOCHS} ---------------------------------------------------------------------")
-        for i in range(len(y_train)):
-            x, y = x_train[i], y_train[i]
+        for x, y in loader.get_set("train"):
             pred = model(x)
             loss = LOSS(pred, y)
             loss.backward()              # compute the loss and its gradients
             train_optimizer.step()       # adjust learning weights
-            y_pred.append( np.argmax(pred) )
+            y_pred.append(pred)
+            y_train.append(y)
         record_performance(writer, loader, model, y_pred, y_train)
         model.train(True)
         writer.flush()
 
 
 if __name__ == "__main__":
-    # dirname = "../../../data/gravo"
-    dirname = "/media/avcstorage/gravo/"
-    loader = ASPECTSMILLoader("ncct_radiomic_features.csv", 
-                            "all", dirname = dirname)
+    dirname = "../../../data/gravo"
+    # dirname = "/media/avcstorage/gravo/"
+    loader = ASPECTSMILLoader("ncct_radiomic_features.csv", "all", dirname = dirname)
     model = create_model()
+    train(loader, model)

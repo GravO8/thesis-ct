@@ -15,7 +15,7 @@ class ASPECTSBagClassifier(torch.nn.Module):
             x = self.instance_classifer(bag)
         else:
             x = torch.stack([self.instance_classifer[i](bag[i]) for i in range(10)], dim = 0)
-        assert x.shape() == (10,1)
-        y = x.sum().long()
-        return torch.nn.functional.one_hot(t, num_classes = 11)
+        assert x.shape == (10,1)
+        aspects = 10 - x.sum()
+        return aspects
         
