@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 class ASPECTSSideComparator(ABC):
     def __call__(self, instance):
-        x1 = instance[[0,2,4,6,8,10,12,14,16,18]]
-        x2 = instance[[1,3,5,7,9,11,13,15,17,19]]
+        x1 = instance[range(0,len(instance),2)]
+        x2 = instance[range(1,len(instance),2)]
         return self.forward(x1, x2)
     @abstractmethod
     def forward(self, x1, x2):

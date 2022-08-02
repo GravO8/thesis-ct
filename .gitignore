@@ -7,3 +7,4 @@ augmentations.csv
 Table data.ipynb
 *.nii
 stages.py
+runs

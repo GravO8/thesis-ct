@@ -8,10 +8,11 @@ class ASPECTSInstanceModel(torch.nn.Module):
         
     def create_mlp(self, mlp_layers: list, return_probs: bool):
         assert mlp_layers[-1] == 1
-        layers = [torch.nn.Linear(mlp_layers[0], mlp_layers[1])]
+        layers = [torch.nn.Linear(mlp_layers[0], mlp_layers[1], bias = False)]
         for i in range(1, len(mlp_layers)-1):
-            layers.append( torch.nn.ReLU(inplace = True) )
-            layers.append( torch.nn.Linear(mlp_layers[i], mlp_layers[i+1]) )
+            # layers.append( torch.nn.ReLU(inplace = True) )
+            layers.append( torch.nn.Sigmoid() )
+            layers.append( torch.nn.Linear(mlp_layers[i], mlp_layers[i+1], bias = False) )
         if return_probs:
             layers.append( torch.nn.Sigmoid() )
         return torch.nn.Sequential( *layers )

@@ -20,8 +20,8 @@ class ASPECTSMILLoader:
         
     def to_tensor(self):
         for s in SETS:
-            self.sets[s]["x"] = torch.tensor(self.sets[s]["x"], dtype = torch.float)
-            self.sets[s]["y"] = torch.tensor(self.sets[s]["y"], dtype = torch.float)
+            self.sets[s]["x"] = torch.Tensor(self.sets[s]["x"])
+            self.sets[s]["y"] = torch.Tensor(self.sets[s]["y"])
             
     def normalize(self):
         shape = self.sets["train"]["x"].shape # (#samples, #instances, #features)
@@ -65,8 +65,44 @@ class ASPECTSMILLoader:
         
     def get_set(self, set: str):
         assert set in self.available_sets(), f"ASPECTSMILLoader.get_set: Unknown set {set}. Available sets are {self.loader.available_sets()}"
-        for i in range(len(self.sets[set])):
-            yield self.sets[set]["x"][i].requires_grad_(True), self.sets[set]["y"][i]
+        for i in range(len(self.sets[set]["x"])):
+            yield self.sets[set]["x"][i], self.sets[set]["y"][i]
+            
+    def len(self, set: str):
+        assert set in self.available_sets(), f"ASPECTSMILLoader.len: Unknown set {set}. Available sets are {self.loader.available_sets()}"
+        return len(self.sets[set]["y"])
+            
+            
+class ASPECTSMILLoaderBebug(ASPECTSMILLoader):
+    N = 1
+    def set_sets(self, keep_cols, binary: bool, verbose = True):
+        self.sets   = {}
+        keep_cols   = self.all_cols() if keep_cols == ALL else keep_cols
+        target_col  = "binary_aspects" if binary else "aspects"
+        set_col     = "aspects_set"
+        for s in SETS:
+            self.sets[s] = {"x": [], "y": []}
+            patients     = self.table[self.table[set_col] == s][IMAGE].unique()
+            for patient in patients:
+                patient_features = []
+                rows             = self.table[self.table[IMAGE] == patient]
+                y                = rows[target_col].unique()
+                assert len(y) == 1
+                y = y[0].astype(int)
+                positive = np.random.choice([0,1,2,3,4,5,6,7,8,9], 10-y, replace = False)
+                for i in range(10):
+                    if i in positive:
+                        patient_features.append( [1]*ASPECTSMILLoaderBebug.N )
+                    else:
+                        patient_features.append( [0]*ASPECTSMILLoaderBebug.N )
+                    patient_features.append( [0]*ASPECTSMILLoaderBebug.N )
+                self.sets[s]["x"].append( patient_features )
+                self.sets[s]["y"].append( y )
+            self.sets[s]["x"] = np.array(self.sets[s]["x"])
+            self.sets[s]["y"] = np.array(self.sets[s]["y"])
+            if verbose:
+                print(s, self.sets[s]["x"].shape, self.sets[s]["y"].shape)
+    
 
 if __name__ == "__main__":
     loader = ASPECTSMILLoader("ncct_radiomic_features.csv", 
