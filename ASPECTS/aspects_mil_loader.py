@@ -68,6 +68,9 @@ class ASPECTSMILLoader:
         for i in range(len(self.sets[set]["x"])):
             yield self.sets[set]["x"][i], self.sets[set]["y"][i]
             
+    def get_test_instance_labels(self):
+        return self.sets["test"]["instance_labels"]
+            
     def len(self, set: str):
         assert set in self.available_sets(), f"ASPECTSMILLoader.len: Unknown set {set}. Available sets are {self.loader.available_sets()}"
         return len(self.sets[set]["y"])

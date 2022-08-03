@@ -1,6 +1,8 @@
 import torch, numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import accuracy_score
+from aspects_mil_loader import ASPECTSMILLoader, REGIONS
+from tqdm import tqdm
 
 i_positive  = 0
 DEBUG       = False
@@ -34,16 +36,20 @@ if DEBUG:
                 x_sample[-1][i_positive] = 1
         x.append(x_sample)
 else:
-    from aspects_mil_loader import ASPECTSMILLoader
     dirname = "../../../data/gravo"
+    # dirname = "/media/avcstorage/gravo/"
     loader = ASPECTSMILLoader("ncct_radiomic_features.csv", "all", 
             normalize = True, dirname = dirname)
     x, y = [], []
     odd, even = range(0,N*2,2), range(1,N*2,2)
-    for x_sample, gt in loader.get_set("train"):
-        if gt != 10:
-            y.append(gt)
-            x.append( torch.abs(x_sample[odd]-x_sample[even]).numpy() )
+    # tens = 30
+    tens  = 40000
+    for x_sample, gt in loader.get_set("test"):
+        if gt == 10:
+            tens -= 1
+            if tens < 0: continue
+        y.append(gt)
+        x.append( torch.abs(x_sample[odd]-x_sample[even]).numpy() )
 x = torch.Tensor(np.array(x))
 y = torch.Tensor(y).view(-1,1)
 print(y.shape, x.shape)
@@ -98,10 +104,14 @@ class ModelBag(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.model = Model()
+        self.regions = [REGIONS[r] for r in REGIONS]
     def __call__(self, x):
         x = self.model(x)
         x = N - x.sum()
         return x
+    def get_instance_predictions(self, x):
+        x = self.model(x)
+        return {self.regions[i]: float(x[i]) for i in range(10)}
 
 def initialize_weights(layer):
     if isinstance(layer, torch.nn.Linear):
@@ -110,22 +120,41 @@ def initialize_weights(layer):
         if layer.bias is not None:
             torch.nn.init.constant_(layer.bias.data, 0)
 model = ModelBag()
-# torch.save(model.state_dict(), "good_weights.pt")
-model.load_state_dict(torch.load("good_weights.pt"))
+torch.save(model.state_dict(), "good_weights.pt")
 # model.apply(initialize_weights)
+
+model.load_state_dict(torch.load("sapo/exp7-10K epochs all train set/exp7_weights.pt"))
+model.train(False)
+preds = []
+# for i in range(len(x)):
+#     pred = model(x[i])
+#     print(pred, y[i])
+#     preds.append( np.round(float(pred)) )
+# print(accuracy_score(y, preds))
+y_instance = loader.get_test_instance_labels()
+for i in range(len(x)):
+    pred = model.get_instance_predictions(x[i])
+    print(model(x[i]), y[i])
+    for r in REGIONS:
+        r = REGIONS[r]
+        print(r, pred[r], y_instance[i][r])
+    input()
+exit(0)
 
 LOSS        = torch.nn.MSELoss()
 OPTIMIZER   = torch.optim.Adam
-LR          = 0.1 # learning rate
-EPOCHS      = 1000
+LR          = 0.001 # learning rate
+EPOCHS      = 10000
 
 train_optimizer  = OPTIMIZER(model.parameters(), lr = LR) #, momentum = 0.01)
+scheduler = torch.optim.lr_scheduler.StepLR(train_optimizer, step_size = 8000, gamma = 0.1)
 model.train(True)
 writer = SummaryWriter("sapo")
+# for epoch in tqdm(range(EPOCHS)):
 for epoch in range(EPOCHS):
     total_loss = 0
-    # for i in np.random.choice(len(x), len(x), replace = False):
     preds = []
+    # for i in np.random.choice(len(x), len(x), replace = False):
     for i in range(len(x)):
         train_optimizer.zero_grad()
         pred = model(x[i])
@@ -153,8 +182,12 @@ for epoch in range(EPOCHS):
             # print_weights(model)
             # print_grad(model)
             # input()
-    total_loss = total_loss / len(x)
-    accuracy = accuracy_score(y, preds)
+    total_loss  = total_loss / len(x)
+    accuracy    = accuracy_score(y, preds)
+    lr          = scheduler.get_lr()[0]
+    print(epoch, lr, total_loss, accuracy)
     writer.add_scalar(f"loss", total_loss, epoch)
     writer.add_scalar(f"accuracy", accuracy, epoch)
-    print(epoch, total_loss, accuracy)
+    writer.add_scalar(f"LR", lr, epoch)
+    scheduler.step()
+torch.save(model.state_dict(), "exp7_weights.pt")
