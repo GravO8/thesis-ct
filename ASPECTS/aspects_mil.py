@@ -9,16 +9,16 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from torchsummary import summary
 
 
-LR          = .01 # learning rate
-WD          = 0.0001 # weight decay
+LR          = .1 # learning rate
+WD          = 0.001 # weight decay
 LOSS        = torch.nn.MSELoss()
 OPTIMIZER   = torch.optim.Adam
-EPOCHS      = 2000
+EPOCHS      = 100
 
 
 def create_model():
     diff                = ABSDiff()
-    model               = ASPECTSInstanceModel([1,2,2,1], return_probs = False)
+    model               = ASPECTSInstanceModel([2,2,1], temperature = 6)
     instance_classifier = ASPECTSInstanceClassifier(diff, model)
     bag_classifier      = ASPECTSBagClassifier(instance_classifier, share_weights = True)
     bag_classifier.apply(initialize_weights)
@@ -27,7 +27,7 @@ def create_model():
     
 def initialize_weights(layer):
     if isinstance(layer, torch.nn.Linear):
-        torch.nn.init.kaiming_uniform_(layer.weight.data)
+        torch.nn.init.constant_(layer.weight.data, 1/layer.weight.data.numel())
         if layer.bias is not None:
             torch.nn.init.constant_(layer.bias.data, 0)
     
@@ -71,15 +71,16 @@ def print_weights(model):
         print(m)
 
 def print_grad(model):
-    print(model.instance_classifer.model.mlp[0].weight.grad)
-    print(model.instance_classifer.model.mlp[2].weight.grad)
-    print(model.instance_classifer.model.mlp[4].weight.grad)
+    print("grad")
+    print("  ", model.instance_classifer.model.mlp[0].weight.grad)
+    # print(model.instance_classifer.model.mlp[2].weight.grad)
+    # print(model.instance_classifer.model.mlp[4].weight.grad)
 
 
 def train_old(loader, model):
     model.train(True)
     writer           = SummaryWriter()
-    train_optimizer  = OPTIMIZER(model.parameters(), lr = LR)
+    train_optimizer  = OPTIMIZER(model.parameters(), lr = LR, weight_decay = WD)
     for epoch in range(EPOCHS):
         y_pred, y_train = [], []
         loss = 0
@@ -104,25 +105,28 @@ def train_old(loader, model):
         
         
 def train(loader, model):
-    train_optimizer  = torch.optim.SGD(model.parameters(), lr = LR)
+    train_optimizer = torch.optim.Adam(model.parameters(), lr = LR)
+    model.train(True)
     for epoch in range(EPOCHS):
-        y_pred, y_train = [], []
-        model.train(True)
+        total_loss = 0
         for x, y in loader.get_set("train"):
             train_optimizer.zero_grad()
             pred = model(x)
             loss = LOSS(pred, y)
             loss.backward()              # compute the loss and its gradients
             train_optimizer.step()       # adjust learning weights
-            y_pred.append(float(pred))
-            y_train.append(float(y))
-    # if epoch > 50:
-        model.train(False)
-        print(f"\n\n\n- Epoch {epoch+1}/{EPOCHS} ---------------------------------------------------------------------")    
-        print(LOSS(torch.tensor(y_pred), torch.tensor(y_train)))
-        print_grad(model)
-        # print_weights(model)
-        input()
+            total_loss += float(loss)
+        print("train loss:", total_loss / loader.len("train"))
+        if epoch > -1:
+            model.train(False)
+            # print(f"\n\n\n- Epoch {epoch+1}/{EPOCHS} ---------------------------------------------------------------------")    
+            pred = model.instance_classifer.model(torch.Tensor([[0,0],[1,1]]))
+            print(pred)
+            print("test loss:", LOSS(pred, torch.Tensor([0, 1]).view(-1,1)))
+            print_grad(model)
+            print_weights(model)
+            input()
+            model.train(True)
 
 
 if __name__ == "__main__":

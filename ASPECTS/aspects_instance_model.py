@@ -1,25 +1,22 @@
 import torch
 
 class ASPECTSInstanceModel(torch.nn.Module):
-    def __init__(self, mlp_layers: list, return_probs: bool = False):
+    def __init__(self, mlp_layers: list, temperature: int = 6):
         super().__init__()
-        self.return_probs = return_probs
-        self.mlp = self.create_mlp(mlp_layers, return_probs)
+        self.temperature = temperature
+        self.mlp = self.create_mlp(mlp_layers)
         
-    def create_mlp(self, mlp_layers: list, return_probs: bool):
+    def create_mlp(self, mlp_layers: list):
         assert mlp_layers[-1] == 1
         layers = [torch.nn.Linear(mlp_layers[0], mlp_layers[1], bias = False)]
         for i in range(1, len(mlp_layers)-1):
             # layers.append( torch.nn.ReLU(inplace = True) )
             layers.append( torch.nn.Sigmoid() )
             layers.append( torch.nn.Linear(mlp_layers[i], mlp_layers[i+1], bias = False) )
-        if return_probs:
-            layers.append( torch.nn.Sigmoid() )
         return torch.nn.Sequential( *layers )
         
     def __call__(self, instance):
         x = self.mlp(instance)
-        if not self.return_probs:
-            x = torch.sign(x)
-            x = torch.relu(x)
+        x = x * self.temperature
+        x = torch.sigmoid(x)
         return x

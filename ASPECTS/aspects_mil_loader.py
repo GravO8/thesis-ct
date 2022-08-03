@@ -74,7 +74,7 @@ class ASPECTSMILLoader:
             
             
 class ASPECTSMILLoaderBebug(ASPECTSMILLoader):
-    N = 1
+    N = 2
     def set_sets(self, keep_cols, binary: bool, verbose = True):
         self.sets   = {}
         keep_cols   = self.all_cols() if keep_cols == ALL else keep_cols
