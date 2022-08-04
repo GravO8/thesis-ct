@@ -86,25 +86,14 @@ def evaluate_instances(model, loader, weights_path: str = None):
         input()
 
 class Model(torch.nn.Module):
-    def __init__(self, simple = True, bias = True, T = 64):
+    def __init__(self, bias = True, T = 64):
         super().__init__()
         self.T = T
-        if simple:
-            self.model = torch.nn.Sequential(
-                torch.nn.Linear(L,2, bias = bias),
-                torch.nn.Sigmoid(),
-                torch.nn.Linear(2,1, bias = bias)
-            )
-        else:
-            self.model = torch.nn.Sequential(
-                torch.nn.Linear(L,32, bias = bias),
-                torch.nn.ReLU(inplace = True),
-                torch.nn.Linear(32,16, bias = bias),
-                torch.nn.ReLU(inplace = True),
-                torch.nn.Linear(16,8, bias = bias),
-                torch.nn.ReLU(inplace = True),
-                torch.nn.Linear(8,1, bias = bias)
-            )
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(L,2, bias = bias),
+            torch.nn.Sigmoid(),
+            torch.nn.Linear(2,1, bias = bias)
+        )
     def __call__(self, x):
         x = self.model(x)
         x = x * self.T
