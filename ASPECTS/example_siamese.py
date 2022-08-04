@@ -4,16 +4,19 @@ from sklearn.metrics import accuracy_score
 from aspects_mil_loader import ASPECTSMILLoader, REGIONS
 from tqdm import tqdm
 
+i_positive  = 0
+DEBUG       = False
 N           = 10  # number of classes
 L           = 43   # instance size
 LOSS        = torch.nn.MSELoss()
 OPTIMIZER   = torch.optim.Adam
 LR          = 0.001 # learning rate
 WD          = 0.001
-EPOCHS      = 2000
-STEP_SIZE   = 1500 # step size to update the LR
+EPOCHS      = 2500
+STEP_SIZE   = 80000 # step size to update the LR
+TENS        = 1000000
 
-def load_set(set_name: str, tens: int = 1000000):
+def load_set(set_name: str, tens: int = TENS):
     '''
     tens, the number of patients with an aspects of 10
     '''
@@ -86,7 +89,7 @@ def evaluate_instances(model, loader, weights_path: str = None):
         input()
 
 class Model(torch.nn.Module):
-    def __init__(self, simple = True, bias = True, T = 64):
+    def __init__(self, simple = True, bias = True, T = 6):
         super().__init__()
         self.T = T
         if simple:
@@ -147,8 +150,8 @@ class ModelBag(torch.nn.Module):
 
 model = ModelBag(share_weights = True)
 # model.apply(initialize_weights)
-evaluate_instances(model, loader, weights_path = "exp13_weights.pt")
-exit(0)
+# evaluate_instances(model, loader, weights_path = "exp9_weights.pt")
+# exit(0)
 
 
 train_optimizer = OPTIMIZER(model.parameters(), lr = LR, weight_decay = WD) #, momentum = 0.01)
@@ -187,4 +190,4 @@ for epoch in range(EPOCHS):
     # writer.add_scalar(f"loss/test", test_loss, epoch)
     # writer.add_scalar(f"accuracy/test", test_accuracy, epoch)
     scheduler.step()
-torch.save(model.state_dict(), "exp13_weights.pt")
+torch.save(model.state_dict(), "exp9_weights.pt")
