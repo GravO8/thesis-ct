@@ -96,7 +96,8 @@ def instance_level_performance(model, loader, weights_path: str = None):
             out[metric][r] = metrics[metric](y_true = y_true[r], y_pred = y_pred[r])
     return out, positive
     
-def print_instance_level_performance(performance: dict, positive: dict):
+def print_instance_level_performance(model, loader, weights_path: str = None):
+    performance, positive = instance_level_performance(model, loader, weights_path)
     print("metric", end = "\t")
     for r in REGIONS: print(f"{REGIONS[r]} ({positive[REGIONS[r]]})", end = "\t")
     for metric in performance:
@@ -192,7 +193,7 @@ for epoch in range(EPOCHS):
     print(epoch, lr)
     print("set\tloss\taccuracy")
     print(f"train\t{total_loss:.4f}\t{accuracy:.3f}")
-    print_instance_level_performance(*instance_level_performance(model, loader))
+    print_instance_level_performance(model, loader)
     # print(f"val\t{val_loss:.4f}\t{val_accuracy:.3f}")
     # print(f"test\t{test_loss:.4f}\t{test_accuracy:.3f}")
     print()

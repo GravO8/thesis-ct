@@ -1,4 +1,5 @@
 import pandas as pd, os, torch, numpy as np
+from sklearn.feature_selection import VarianceThreshold
 from sklearn.preprocessing import StandardScaler
 
 REGIONS = {"m1":"M1", "m2":"M2", "m3":"M3", "m4":"M4", "m5":"M5", "m6":"M6", "caudate":"C", "insula":"I", "internal_capsule":"IC", "lentiform":"L"}
@@ -10,16 +11,19 @@ MASK    = "Mask"
 
 class ASPECTSMILLoader:
     def __init__(self, csv_filename: str, keep_cols: list, binary: bool = False, 
-    normalize: bool = True, dirname: str = ""):
+    normalize: bool = True, dirname: str = "", set_col: str = "aspects_set", 
+    feature_selection: bool = True):
         csv_filename = os.path.join(dirname, csv_filename)
         self.table   = pd.read_csv(csv_filename)
-        self.set_sets(keep_cols, binary)
+        self.set_sets(keep_cols, binary, set_col)
+        if feature_selection:
+            self.feature_selection()
         if normalize:
             self.normalize()
         self.to_tensor()
         
     def to_tensor(self):
-        for s in SETS:
+        for s in self.available_sets():
             self.sets[s]["x"] = torch.Tensor(self.sets[s]["x"])
             self.sets[s]["y"] = torch.Tensor(self.sets[s]["y"])
             
@@ -29,17 +33,33 @@ class ASPECTSMILLoader:
             scaler = StandardScaler()
             col    = self.sets["train"]["x"][:,region,:]
             scaler.fit(col)
-            for s in SETS:
+            for s in self.available_sets():
                 self.sets[s]["x"][:,region,:] = scaler.transform(self.sets[s]["x"][:,region,:])
+                
+    def feature_selection(self, select_N: int = 22):
+        shape    = self.sets["train"]["x"].shape # (#samples, #instances = #regions, #features)
+        new_sets = {s:None for s in self.available_sets()}
+        for region in range(0,shape[1],2):
+            col       = list(self.sets["train"]["x"][:,region,:]) + list(self.sets["train"]["x"][:,region+1,:])
+            variances = np.var(col, axis = 0)
+            cols_keep = np.argsort(variances)[::-1][:select_N]
+            for s in self.available_sets():
+                if new_sets[s] is None:
+                    new_sets[s] = self.sets[s]["x"][:,region:region+2,cols_keep]
+                else:
+                    new_sets[s] = np.concatenate((new_sets[s], self.sets[s]["x"][:,region:region+2,cols_keep]), axis = 1 )
+        for s in self.available_sets():
+            self.sets[s]["x"] = np.array( new_sets[s] )    
         
-    def set_sets(self, keep_cols, binary: bool, verbose = True):
+    def set_sets(self, keep_cols, binary: bool, set_col: str, verbose = True):
         self.sets   = {}
         keep_cols   = self.all_cols() if keep_cols == ALL else keep_cols
         target_col  = "binary_aspects" if binary else "aspects"
-        set_col     = "aspects_set"
         for s in SETS:
-            self.sets[s] = {"x": [], "y": [], "instance_labels": []}
             patients     = self.table[self.table[set_col] == s][IMAGE].unique()
+            if len(patients) == 0: 
+                continue
+            self.sets[s] = {"x": [], "y": [], "instance_labels": []}
             for patient in patients:
                 patient_features = []
                 rows             = self.table[self.table[IMAGE] == patient]
@@ -49,6 +69,8 @@ class ASPECTSMILLoader:
                 y = rows[target_col].unique()
                 assert len(y) == 1
                 assert len(patient_features) == 20
+                if np.isnan(y[0]):
+                    continue
                 self.sets[s]["x"].append( patient_features )
                 self.sets[s]["y"].append( y[0] )
                 self.sets[s]["instance_labels"].append( {REGIONS[r]: rows[REGIONS[r]].values[0].astype(int) for r in REGIONS} )
