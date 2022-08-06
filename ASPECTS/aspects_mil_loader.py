@@ -12,7 +12,7 @@ MASK    = "Mask"
 class ASPECTSMILLoader:
     def __init__(self, csv_filename: str, keep_cols: list, binary: bool = False, 
     normalize: bool = True, dirname: str = "", set_col: str = "aspects_set", 
-    feature_selection: bool = True):
+    feature_selection: bool = False):
         csv_filename = os.path.join(dirname, csv_filename)
         self.table   = pd.read_csv(csv_filename)
         self.set_sets(keep_cols, binary, set_col)
@@ -28,7 +28,7 @@ class ASPECTSMILLoader:
             self.sets[s]["y"] = torch.Tensor(self.sets[s]["y"])
             
     def normalize(self):
-        shape = self.sets["train"]["x"].shape # (#samples, #instances, #features)
+        shape = self.sets["train"]["x"].shape # (#samples, #instances = #regions, #features)
         for region in range(shape[1]):
             scaler = StandardScaler()
             col    = self.sets["train"]["x"][:,region,:]
