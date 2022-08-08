@@ -5,13 +5,14 @@ from aspects_mil_loader import ASPECTSMILLoader, REGIONS
 from tqdm import tqdm
 
 N           = 10  # number of classes
-L           = 43   # instance size
+# L           = 43+18   # instance size
+L           = 32   # instance size
 LOSS        = torch.nn.MSELoss()
 OPTIMIZER   = torch.optim.Adam
 LR          = 0.001 # learning rate
 WD          = 0.001
-EPOCHS      = 200
-STEP_SIZE   = 80 # step size to update the LR
+EPOCHS      = 1500
+STEP_SIZE   = 1000 # step size to update the LR
 
 def load_set(set_name: str, tens: int = 10000):
     '''
@@ -33,11 +34,12 @@ dirname = "../../../data/gravo"
 # dirname = "/media/avcstorage/gravo/"
 loader = ASPECTSMILLoader("ncct_radiomic_features.csv", "all", 
         normalize = True, dirname = dirname, set_col = "instance_aspects_set",
-        feature_selection = L == 22)
-x, y = load_set("train", tens = 1000)
+        feature_selection = L < 43)
+x, y = load_set("test", tens = 10000)
+# print(x.shape, y.shape)
 # x_val, y_val   = load_set("val")
 # x_test, y_test = load_set("test")
-print(y.shape, x.shape)
+# print(y.shape, x.shape)
 # print(np.unique(y, return_counts = True))
 # exit(0)
 
@@ -70,7 +72,7 @@ def evaluate(model, x_set, y_set, verbose: bool = False, weights_path: str = Non
         pred = model(x_set[i])
         if verbose: print(pred, y_set[i])
         preds.append( np.round([float(pred)]) )
-    return {"loss": LOSS(torch.Tensor(np.array(preds)), 
+    return {"loss": LOSS(torch.Tensor(np.array(preds))), 
             "accur": accuracy_score(y_set, preds)*100, 
             "prec": precision_score(y_set, pred)*100,
             "recall": recall_score(y_set, pred)*100}
@@ -80,9 +82,11 @@ def evaluate_instances(model, loader, weights_path: str = None):
         model.load_state_dict(torch.load(weights_path))
     y_instance = loader.get_test_instance_labels()
     x_test, y_test = load_set("test")
+    patients = loader.get_patients("test")
+    assert len(x_test) == len(y_test) == len(patients)
     for i in range(len(x_test)):
         pred = model.get_instance_predictions(x_test[i])
-        print(model(x_test[i]), y_test[i])
+        print(patients[i], model(x_test[i]), y_test[i])
         if y_test[i] != 10:
             for r in REGIONS:
                 r = REGIONS[r]
@@ -147,13 +151,15 @@ class Model(torch.nn.Module):
     def __init__(self, bias = True, T = 64):
         super().__init__()
         self.T = T
-        # self.model = torch.nn.Sequential(
-        #     torch.nn.Linear(L,1, bias = bias),
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(L,2, bias = bias),
+        # #     # torch.nn.ReLU(inplace = True),
+        # #     # torch.nn.Linear(32,16, bias = bias),
         #     torch.nn.ReLU(inplace = True),
-        #     # torch.nn.Sigmoid(),
-        #     torch.nn.Linear(1,1, bias = bias)
-        # )
-        self.model = torch.nn.Linear(L,1, bias = bias)
+            torch.nn.Sigmoid(),
+            torch.nn.Linear(2,1, bias = bias)
+        )
+        # self.model = torch.nn.Linear(L,1, bias = bias)
     def __call__(self, x):
         x = self.model(x)
         x = x * self.T
@@ -196,10 +202,11 @@ class ModelBag(torch.nn.Module):
 
 model = ModelBag(share_weights = True)
 # model.apply(initialize_weights)
-# print_instance_level_performance(model, loader, weights_path = "exp19_weights.pt")
-print_instance_level_performance(model, loader, weights_path = "sapo/exp17-FULL test set 1 layer (good recall)/exp17_weights.pt")
-exit()
-# evaluate_instances(model, loader, weights_path = "exp19_weights.pt")
+# print_instance_level_performance(model, loader, weights_path = "exp20_weights.pt")
+# print_instance_level_performance(model, loader, weights_path = "sapo/exp17-FULL test set 1 layer (good recall)/exp17_weights.pt")
+# exit()
+# print(instance_level_f1(model, loader, weights_path = "sapo/exp17-FULL test set 1 layer (good recall)/exp17_weights.pt"))
+# evaluate_instances(model, loader, weights_path = "exp20_weights.pt")
 
 
 train_optimizer = OPTIMIZER(model.parameters(), lr = LR, weight_decay = WD) #, momentum = 0.01)
@@ -214,23 +221,21 @@ for epoch in range(EPOCHS):
     for i in range(len(x)):
         train_optimizer.zero_grad()
         pred = model(x[i])
-        loss = LOSS(pred, y[i])
+        loss = LOSS(pred, y[i][0])
         loss.backward()              # compute the loss and its gradients
         train_optimizer.step()       # adjust learning weights
         total_loss += float(loss)
         preds.append( np.round(float(pred)) )
     total_loss  = total_loss / len(x)
     accuracy    = accuracy_score(y, preds)*100
-    precision   = precision_score(y, preds)*100
-    recall      = recall_score(y, preds)*100
     lr          = scheduler.get_last_lr()[0]
     f1_test     = instance_level_f1(model, loader)
     # val_accuracy, val_loss = evaluate(model, x_val, y_val)
     # test_accuracy, test_loss = evaluate(model, x_test, y_test)
     print(epoch, lr)
     print(f"test f1 score: {f1_test*100:.4f}")
-    print("set\tloss\taccuracy\tprecision\trecall")
-    print(f"train\t{total_loss:.4f}\t{accuracy:.3f}\t{precision:.3f}\t{recall:.3f}")
+    print("set\tloss\taccuracy")
+    print(f"train\t{total_loss:.4f}\t{accuracy:.3f}")
     # print(f"val\t{val_loss:.4f}\t{val_accuracy:.3f}")
     # print(f"test\t{test_loss:.4f}\t{test_accuracy:.3f}")
     print()
@@ -243,4 +248,4 @@ for epoch in range(EPOCHS):
     # writer.add_scalar(f"loss/test", test_loss, epoch)
     # writer.add_scalar(f"accuracy/test", test_accuracy, epoch)
     scheduler.step()
-torch.save(model.state_dict(), "exp19_weights.pt")
+torch.save(model.state_dict(), "exp20_weights.pt")

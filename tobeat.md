@@ -1,5 +1,17 @@
-print_instance_level_performance(model, loader, weights_path = "sapo/exp17-FULL test set 1 layer (good recall)/exp17_weights.pt")
+exp17-FULL test set 1 layer (good recall)/exp17_weights.pt
 metric  M1 (12) M2 (11) M3 (3)  M4 (9)  M5 (6)  M6 (3)  C (15)  I (41)  IC (2)  L (31)
 accur   44.55   43.64   36.36   36.36   34.55   31.82   37.27   47.27   45.45   50.91
 precis  14.49   13.04   2.82    7.04    2.86    1.35    12.50   37.68   3.23    33.80
 recall  83.33   81.82   66.67   55.56   33.33   33.33   60.00   63.41   100.00  77.42
+
+exp19-FULL test set 1 layer laws feat. (better exp17?)/exp19_weights.pt
+metric  M1 (12) M2 (11) M3 (3)  M4 (9)  M5 (6)  M6 (3)  C (15)  I (41)  IC (2)  L (31)
+accur   57.27   54.55   51.82   47.27   55.45   49.09   57.27   60.91   56.36   50.91
+precis  16.98   13.21   3.70    5.45    4.26    1.82    18.00   48.00   4.00    28.30
+recall  75.00   63.64   66.67   33.33   33.33   33.33   60.00   58.54   100.00  48.39
+
+exp_2N-default settings (high F1, low accur)
+metric  M1 (12) M2 (11) M3 (3)  M4 (9)  M5 (6)  M6 (3)  C (15)  I (41)  IC (2)  L (31)
+accur   88.18   86.36   97.27   91.82   94.55   93.64   47.27   77.27   98.18   75.45
+precis  0.00    35.71   0.00    0.00    0.00    30.00   20.55   68.18   50.00   100.00
+recall  0.00    45.45   0.00    0.00    0.00    100.00  100.00  73.17   50.00   12.90

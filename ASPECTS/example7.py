@@ -5,22 +5,43 @@ from aspects_mil_loader import ASPECTSMILLoader, REGIONS
 from tqdm import tqdm
 
 N           = 10  # number of classes
-L           = 22  # instance size
-N_features  = 8
-LOSS        = torch.nn.MSELoss()
+L           = 43+18   # instance size
+# L           = 22   # instance size
+LOSS        = torch.nn.BCELoss()
 OPTIMIZER   = torch.optim.Adam
 LR          = 0.001 # learning rate
 WD          = 0.001
-EPOCHS      = 500
-STEP_SIZE   = 150 # step size to update the LR
-EVEN, ODD   = range(0,N*2,2), range(1,N*2,2)
+EPOCHS      = 300
+STEP_SIZE   = 300 # step size to update the LR
 
-# dirname = "../../../data/gravo"
-dirname = "/media/avcstorage/gravo/"
+def load_set(set_name: str, tens: int = 10000):
+    '''
+    tens, the number of patients with an aspects of 10
+    '''
+    x, y = [], []
+    odd, even = range(0,N*2,2), range(1,N*2,2)
+    for x_sample, gt in loader.get_set(set_name):
+        if gt == 10:
+            tens -= 1
+            if tens < 0: continue
+        y.append(gt < 10)
+        x.append( torch.abs(x_sample[odd]-x_sample[even]).numpy() )
+    x = torch.Tensor(np.array(x))
+    y = torch.Tensor(y).view(-1,1)
+    return x, y
+
+dirname = "../../../data/gravo"
+# dirname = "/media/avcstorage/gravo/"
 loader = ASPECTSMILLoader("ncct_radiomic_features.csv", "all", 
         normalize = True, dirname = dirname, set_col = "instance_aspects_set",
-        feature_selection = L != 43)
-
+        feature_selection = L < 43)
+x, y = load_set("test", tens = 10000)
+print(x.shape, y.shape)
+# x_val, y_val   = load_set("val")
+# x_test, y_test = load_set("test")
+# print(y.shape, x.shape)
+# print(np.unique(y, return_counts = True))
+# exit(0)
 
 def print_weights(model):
     for m in model.named_parameters():
@@ -51,24 +72,23 @@ def evaluate(model, x_set, y_set, verbose: bool = False, weights_path: str = Non
         pred = model(x_set[i])
         if verbose: print(pred, y_set[i])
         preds.append( np.round([float(pred)]) )
-    return accuracy_score(y_set, preds)*100, LOSS(torch.Tensor(np.array(preds)), y_set).numpy()
+    return {"loss": LOSS(torch.Tensor(np.array(preds))), 
+            "accur": accuracy_score(y_set, preds)*100, 
+            "prec": precision_score(y_set, pred)*100,
+            "recall": recall_score(y_set, pred)*100}
     
 def evaluate_instances(model, loader, weights_path: str = None):
     if weights_path is not None:
         model.load_state_dict(torch.load(weights_path))
     y_instance = loader.get_test_instance_labels()
-    x_test, y_test = [], []
-    for x, y in loader.get_set("test"):
-        x_test.append(x)
-        y_test.append(y)
+    x_test, y_test = load_set("test")
     for i in range(len(x_test)):
         pred = model.get_instance_predictions(x_test[i])
         print(model(x_test[i]), y_test[i])
-        if y_test[i] != 10:
+        if y_test[i] == 1:
             for r in REGIONS:
                 r = REGIONS[r]
                 print(f"{r}\t{pred[r]:.4f}\t{int(np.round(pred[r]))}  {y_instance[i][r]}")
-                # print(r, pred[r], torch.round(pred[r]), y_instance[i][r])
         input()
     exit(0)
     
@@ -107,7 +127,7 @@ def print_instance_level_performance(model, loader, weights_path: str = None):
         for r in performance[metric]:
             print(f"{performance[metric][r]*100:.2f}", end = "\t")
     print()
-    
+
 def instance_level_f1(model, loader, weights_path: str = None):
     if weights_path is not None:
         model.load_state_dict(torch.load(weights_path))
@@ -129,17 +149,17 @@ class Model(torch.nn.Module):
     def __init__(self, bias = True, T = 64):
         super().__init__()
         self.T = T
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Linear(L,N_features, bias = bias),
-            # torch.nn.Sigmoid()
-            torch.nn.ReLU(inplace = True)
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(L,2, bias = bias),
+            # torch.nn.ReLU(inplace = True),
+            # torch.nn.Linear(32,16, bias = bias),
+            # torch.nn.ReLU(inplace = True),
+            torch.nn.Sigmoid(),
+            torch.nn.Linear(2,1, bias = bias)
         )
-        self.classifier = torch.nn.Linear(N_features, 1, bias = bias)
-    def __call__(self, x1, x2):
-        x1 = self.encoder(x1)
-        x2 = self.encoder(x2)
-        x = torch.abs(x1 - x2)
-        x = self.classifier(x)
+        # self.model = torch.nn.Linear(L,1, bias = bias)
+    def __call__(self, x):
+        x = self.model(x)
         x = x * self.T
         x = torch.sigmoid(x)
         return x
@@ -155,37 +175,33 @@ class ModelBag(torch.nn.Module):
         self.regions = [REGIONS[r] for r in REGIONS]
         assert len(self.regions) == N
     def __call__(self, instances):
-        x1, x2 = instances[EVEN], instances[ODD]
         if self.share_weights:
-            x = self.model(x1, x2)
-            x = N - x.sum()
+            x = self.model(instances)
+            x = x.mean()
         else:
-            x = N
-            for i in range(N):
-                x = x - self.model[i](x1[i], x2[i])
+            x = torch.stack([self.model[i](instances[i]) for i in range(N)])
+            x = x.mean()
         return x
     def evaluate(self, instances):
-        x1, x2 = instances[EVEN], instances[ODD]
         if self.share_weights:
-            x = self.model(x1, x2)
+            x = self.model(instances)
             x = torch.round(x)
-            x = N - x.sum()
+            x = x.mean()
         else:
-            x = N
-            for i in range(N):
-                x = x - torch.round(self.model[i](x1[i], x2[i]))
+            x = torch.stack([torch.round(self.model[i](instances[i])) for i in range(N)])
+            x = x.mean()
         return x
-    def get_instance_predictions(self, instances):
-        x1, x2 = instances[EVEN], instances[ODD]
+    def get_instance_predictions(self, x):
         if self.share_weights:
-            return {self.regions[i]: float(self.model(x1[i], x2[i])) for i in range(N)}
-        return {self.regions[i]: float(self.model[i](x1[i], x2[i])) for i in range(N)}
+            return {self.regions[i]: float(self.model(x[i])) for i in range(N)}
+        return {self.regions[i]: float(self.model[i](x[i])) for i in range(N)}
 
 model = ModelBag(share_weights = False)
 # model.apply(initialize_weights)
-# evaluate_instances(model, loader, weights_path = "exp_siamese1_weights.pt")
-# print_instance_level_performance(model, loader, weights_path = "exp_siamese1_weights.pt")
-# exit(0)
+# print_instance_level_performance(model, loader, weights_path = "exp19_weights.pt")
+# print_instance_level_performance(model, loader, weights_path = "sapo/exp17-FULL test set 1 layer (good recall)/exp17_weights.pt")
+# exit()
+evaluate_instances(model, loader, weights_path = "exp19_weights.pt")
 
 
 train_optimizer = OPTIMIZER(model.parameters(), lr = LR, weight_decay = WD) #, momentum = 0.01)
@@ -196,18 +212,17 @@ writer = SummaryWriter("sapo")
 for epoch in range(EPOCHS):
     total_loss = 0
     preds = []
-    y_true = []
-    for x, y in loader.get_set("train"):
+    # for i in np.random.choice(len(x), len(x), replace = False):
+    for i in range(len(x)):
         train_optimizer.zero_grad()
-        pred = model(x)
-        loss = LOSS(pred, y.unsqueeze(dim = 0))
+        pred = model(x[i])
+        loss = LOSS(pred, y[i][0])
         loss.backward()              # compute the loss and its gradients
         train_optimizer.step()       # adjust learning weights
         total_loss += float(loss)
         preds.append( np.round(float(pred)) )
-        y_true.append( y )
     total_loss  = total_loss / len(x)
-    accuracy    = accuracy_score(y_true, preds)*100
+    accuracy    = accuracy_score(y, preds)*100
     lr          = scheduler.get_last_lr()[0]
     f1_test     = instance_level_f1(model, loader)
     # val_accuracy, val_loss = evaluate(model, x_val, y_val)
@@ -216,7 +231,6 @@ for epoch in range(EPOCHS):
     print(f"test f1 score: {f1_test*100:.4f}")
     print("set\tloss\taccuracy")
     print(f"train\t{total_loss:.4f}\t{accuracy:.3f}")
-    # print_instance_level_performance(model, loader)
     # print(f"val\t{val_loss:.4f}\t{val_accuracy:.3f}")
     # print(f"test\t{test_loss:.4f}\t{test_accuracy:.3f}")
     print()
@@ -229,4 +243,4 @@ for epoch in range(EPOCHS):
     # writer.add_scalar(f"loss/test", test_loss, epoch)
     # writer.add_scalar(f"accuracy/test", test_accuracy, epoch)
     scheduler.step()
-torch.save(model.state_dict(), "exp_siamese2_weights.pt")
+torch.save(model.state_dict(), "exp19_weights.pt")
