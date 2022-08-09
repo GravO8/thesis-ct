@@ -38,7 +38,7 @@ class ASPECTSMILLoader:
             for s in self.available_sets():
                 self.sets[s]["x"][:,region,:] = scaler.transform(self.sets[s]["x"][:,region,:])
                 
-    def feature_selection(self, select_N: int = 32):
+    def feature_selection(self, select_N: int = 22):
         shape    = self.sets["train"]["x"].shape # (#samples, #instances = #regions, #features)
         new_sets = {s:None for s in self.available_sets()}
         for region in range(0,shape[1],2):
