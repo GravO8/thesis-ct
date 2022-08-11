@@ -5,11 +5,12 @@ from aspects_mil_loader import ASPECTSMILLoader, REGIONS
 from tqdm import tqdm
 
 N           = 10  # number of classes
-L           = 43+18   # instance size
+L           = 43
+# +18   # instance size
 # L           = 22   # instance size
 LOSS        = torch.nn.MSELoss()
 OPTIMIZER   = torch.optim.Adam
-LR          = 0.0001 # learning rate
+LR          = 0.001 # learning rate
 WD          = 0.001
 EPOCHS      = 1000
 STEP_SIZE   = 400 # step size to update the LR
@@ -32,10 +33,10 @@ def load_set(set_name: str, tens: int = 10000):
 
 dirname = "../../../data/gravo"
 # dirname = "/media/avcstorage/gravo/"
-loader = ASPECTSMILLoader("ncct_radiomic_features.csv", "all", 
+loader = ASPECTSMILLoader("ncct_radiomic_features.csv", "radiomics", 
         normalize = True, dirname = dirname, set_col = "instance_aspects_set",
         feature_selection = L < 43)
-x, y = load_set("train", tens = 81)
+x, y = load_set("test", tens = 1000)
 # print(np.unique(y, return_counts = True))
 # x_val, y_val   = load_set("val")
 # x_test, y_test = load_set("test")
@@ -150,12 +151,12 @@ class Model(torch.nn.Module):
         super().__init__()
         self.T = T
         self.model = torch.nn.Sequential(
-            torch.nn.Linear(L*2,32, bias = bias),
+            torch.nn.Linear(L*2,2, bias = bias),
             # torch.nn.ReLU(inplace = True),
             # torch.nn.Linear(32,16, bias = bias),
-            torch.nn.ReLU(inplace = True),
-            # torch.nn.Sigmoid(),
-            torch.nn.Linear(32,1, bias = bias)
+            # torch.nn.ReLU(inplace = True),
+            torch.nn.Sigmoid(),
+            torch.nn.Linear(2,1, bias = bias)
         )
         # self.model = torch.nn.Linear(L*2,1, bias = bias)
     def __call__(self, x):
@@ -202,7 +203,7 @@ model = ModelBag(share_weights = False)
 # model.load_state_dict(torch.load("sapo/exp_2N-default settings (high F1, low accur)/exp19_weights.pt"))
 # model.apply(initialize_weights)
 # print_instance_level_performance(model, loader, weights_path = "exp20_weights.pt")
-# print_instance_level_performance(model, loader, weights_path = "sapo/exp2N_7-balanced train set/exp20_weights.pt")
+# print_instance_level_performance(model, loader, weights_path = "sapo/exp2N_2-FULL test set 1 classifier Pregion (lower F1, higher accur)/exp20_weights.pt")
 # exit()
 # evaluate_instances(model, loader, weights_path = "sapo/exp2N_5-FULL test set 1 classifier Pregion/exp20_weights.pt")
 
@@ -247,3 +248,4 @@ for epoch in range(EPOCHS):
     # writer.add_scalar(f"accuracy/test", test_accuracy, epoch)
     scheduler.step()
 torch.save(model.state_dict(), "exp20_weights.pt")
+print_instance_level_performance(model, loader, weights_path = "exp20_weights.pt")
