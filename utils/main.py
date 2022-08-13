@@ -19,15 +19,16 @@ def train(to_test: list, N: int, trainer):
 
 
 def main(to_test: list, N: int = 3, device: int = 3, slice: str = None, 
-    slice_range: int = None, pad: int = None):
+    slice_range: int = None, pad: int = None, **kwargs):
     dir = set_home(device)
     if slice_range is not None:
         assert slice is not None
-        ct_loader = CTLoader2D(slice, slice_range = slice_range, data_dir = dir, pad = pad)
+        ct_loader = CTLoader2D(slice, slice_range = slice_range, data_dir = dir, 
+                    pad = pad, **kwargs)
         for model in to_test:
             model.set_slice_info(slice_range, slice)
     else:
-        ct_loader = CTLoader(data_dir = dir)
+        ct_loader = CTLoader(data_dir = dir, **kwargs)
     trainer = Trainer(ct_loader, batch_size = 32)
-    train(models, N, trainer)
+    train(to_test, N, trainer)
     

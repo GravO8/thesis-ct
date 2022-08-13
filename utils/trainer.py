@@ -3,11 +3,15 @@ import sklearn.metrics as metrics
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from torchsummary import summary
+from .focal_loss import BinaryFocalLoss
 from .logger import Logger
 
 LR          = 0.0005 # learning rate
 WD          = 0.0001 # weight decay
-LOSS        = torch.nn.BCELoss(reduction = "mean")
+# LOSS        = torch.nn.BCELoss(reduction = "mean")
+LOSS        = BinaryFocalLoss(alpha = .75, gamma = 2, reduction = "mean")
+STEP_SIZE   = 400
+EPOCHS      = 300
 OPTIMIZER   = torch.optim.Adam
 
 PERFORMANCE = "performance.csv"
@@ -27,7 +31,7 @@ def compute_metrics(y_true, y_prob):
 
 
 class Trainer:
-    def __init__(self, ct_loader, batch_size: int = 32, epochs: int = 300):
+    def __init__(self, ct_loader, batch_size: int = 32, epochs: int = EPOCHS):
         if torch.cuda.is_available():
             self.cuda           = True
             self.num_workers    = 8
@@ -78,7 +82,7 @@ class Trainer:
                     if model_name.startswith("Axial"):
                         summary(self.model, (1,91,109,1))
                     else:
-                        summary(self.model, (1,91,109,91))
+                        summary(self.model, (1,91,109,len(range(0,91,0))))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
@@ -105,12 +109,14 @@ class Trainer:
         self.train_optimizer = OPTIMIZER(self.model.parameters(), 
                                         lr = LR,
                                         weight_decay = WD)
+        scheduler = torch.optim.lr_scheduler.StepLR(self.train_optimizer, step_size = STEP_SIZE, gamma = 0.1)
         for epoch in range(self.epochs):
             train_metrics   = self.train_epoch(epoch)
             val_metrics     = compute_metrics( *self.get_probabilities(self.val_loader) )
             test_metrics    = compute_metrics( *self.get_probabilities(self.test_loader) )
             self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
             self.save_weights(val_metrics["f1-score"], epoch)
+            scheduler.step()
         self.record_performance()
         self.reset_model()
             
@@ -169,8 +175,8 @@ class Trainer:
             row = "{:<10}"*4
             self.trace(row.format("", "loss", "f1-score", "accuracy"))
             for set in metrics:
-                self.trace(row.format(set, round(metrics[set]["loss"],2), 
-                round(metrics[set]["f1-score"],2), round(metrics[set]["accuracy"],2)))
+                self.trace(row.format(set, round(metrics[set]["loss"],4), 
+                round(metrics[set]["f1-score"]*100,2), round(metrics[set]["accuracy"]*100,2)))
                 
     def save_weights(self, val_f1_score, epoch, verbose = True):
         if (self.best_score is None) or (val_f1_score > self.best_score):

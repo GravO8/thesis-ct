@@ -20,7 +20,7 @@ def add_pad(scan, pad: int):
 class CTLoader:
     def __init__(self, labels_filename: str = "dataset.csv", 
         augmentations_filename = "augmentations.csv", data_dir: str = None,
-        binary_rankin: bool = True, augment_train: bool = True):
+        binary_rankin: bool = True, augment_train: bool = True, skip_slices: int = 0):
         self.data_dir       = data_dir
         self.label_col      = BINARY_RANKIN if binary_rankin else RANKIN
         self.augment_train  = augment_train
@@ -29,6 +29,7 @@ class CTLoader:
             augmentations_filename  = os.path.join(self.data_dir, augmentations_filename)
         self.labels         = pd.read_csv(labels_filename)
         self.augmentations  = pd.read_csv(augmentations_filename)
+        self.skip_slices    = skip_slices
         np.random.seed(0)
             
     def load_dataset(self):
@@ -52,8 +53,11 @@ class CTLoader:
             patient_id = row[PATIENT_ID]
             for augmentation in self.augmentations[self.augmentations[PATIENT_ID] == patient_id][AUGMENTATION].values:
                 path    = os.path.join(self.data_dir, "NCCT", f"{patient_id}-{augmentation}.nii")
+                ct      = torchio.ScalarImage(path)
+                if self.skip_slices > 0:
+                    ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
                 subject = torchio.Subject(
-                    ct          = torchio.ScalarImage(path),
+                    ct          = ct,
                     patient_id  = patient_id,
                     target      = row[self.label_col],
                     transform   = augmentation)
@@ -66,8 +70,11 @@ class CTLoader:
         for _, row in self.labels[self.labels["set"] == set_name].iterrows():
             patient_id  = row[PATIENT_ID]
             path        = os.path.join(self.data_dir, "NCCT", f"{patient_id}.nii")
+            ct          = torchio.ScalarImage(path)
+            if self.skip_slices > 0:
+                ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
             subject     = torchio.Subject(
-                ct          = torchio.ScalarImage(path),
+                ct          = ct,
                 patient_id  = patient_id,
                 target      = row[self.label_col],
                 transform   = "original")
