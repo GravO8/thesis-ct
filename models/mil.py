@@ -90,7 +90,7 @@ class MILAfterAxial(MILNetAfter):
     def process_input(self, x):
         x = self.normalize_input(x)
         x = x.permute((3,0,1,2)) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
-        x = x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
+        # x = x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
         return x
     def name_appendix(self):
         return super().name_appendix() + "-Axial"

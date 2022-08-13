@@ -10,9 +10,9 @@ if __name__ == "__main__":
     to_test = [ mil_after_max(get_timm_model("resnet18", 
                                             global_pool = "gap",
                                             pretrained = True,
-                                            frozen = False)),
-                mil_after_max(get_timm_model("resnet18", 
+                                            frozen = True)),
+                mil_after_max(get_timm_model("resnet34", 
                                             global_pool = "gap",
                                             pretrained = True,
                                             frozen = True)) ]
-    main(to_test)
+    main(to_test, device = 2, skip_slices = 0)

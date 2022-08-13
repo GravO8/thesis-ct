@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
+CT_TYPE = "CTA"
+
 
 def add_pad(scan, pad: int):
     scan    = scan.unsqueeze(dim = 0)
@@ -18,8 +20,8 @@ def add_pad(scan, pad: int):
     
 
 class CTLoader:
-    def __init__(self, labels_filename: str = "dataset.csv", 
-        augmentations_filename = "augmentations.csv", data_dir: str = None,
+    def __init__(self, labels_filename: str = "dataset_cta.csv", 
+        augmentations_filename = "augmentations_cta.csv", data_dir: str = None,
         binary_rankin: bool = True, augment_train: bool = True, skip_slices: int = 0):
         self.data_dir       = data_dir
         self.label_col      = BINARY_RANKIN if binary_rankin else RANKIN
@@ -34,17 +36,14 @@ class CTLoader:
             
     def load_dataset(self):
         train   = self.load_set("train")
-        val     = self.load_set("val")
         test    = self.load_set("test")
         if self.augment_train:
             train_augmentations = self.load_train_augmentations()
             train.extend( train_augmentations )
         np.random.shuffle(train)
-        np.random.shuffle(val)
         np.random.shuffle(test)
-        # print(len(train), len(val), len(test))
+        print(len(train), len(test))
         return (torchio.SubjectsDataset(train),
-                torchio.SubjectsDataset(val),
                 torchio.SubjectsDataset(test))
                 
     def load_train_augmentations(self):
@@ -52,8 +51,9 @@ class CTLoader:
         for _, row in self.labels[self.labels["set"] == "train"].iterrows():
             patient_id = row[PATIENT_ID]
             for augmentation in self.augmentations[self.augmentations[PATIENT_ID] == patient_id][AUGMENTATION].values:
-                path    = os.path.join(self.data_dir, "NCCT", f"{patient_id}-{augmentation}.nii")
+                path    = os.path.join(self.data_dir, CT_TYPE, f"{patient_id}-{augmentation}.nii")
                 ct      = torchio.ScalarImage(path)
+                # ct.set_data( ct.data[:,:,:,[i for i in range(ct.shape[-1]) if torch.count_nonzero(ct.data[...,i] > 0) > 100]] )
                 if self.skip_slices > 0:
                     ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
                 subject = torchio.Subject(
@@ -65,12 +65,17 @@ class CTLoader:
         return augmentations_set
     
     def load_set(self, set_name: str):
-        assert set_name in ("train", "val", "test")
+        assert set_name in ("train", "test")
         set = []
+        first = True
         for _, row in self.labels[self.labels["set"] == set_name].iterrows():
             patient_id  = row[PATIENT_ID]
-            path        = os.path.join(self.data_dir, "NCCT", f"{patient_id}.nii")
+            path        = os.path.join(self.data_dir, CT_TYPE, f"{patient_id}.nii")
             ct          = torchio.ScalarImage(path)
+            if first:
+                print(ct.shape)
+                first = False
+            # ct.set_data( ct.data[:,:,:,[i for i in range(ct.shape[-1]) if torch.count_nonzero(ct.data[...,i] > 0) > 100]] )
             if self.skip_slices > 0:
                 ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
             subject     = torchio.Subject(
@@ -105,7 +110,7 @@ class CTLoader2D(CTLoader):
             patient_id  = self.reference_scans[i]
             axial_slice = self.reference_slices[self.slice][i]
             assert self.labels[self.labels[PATIENT_ID] == patient_id][SET].values[0] == "train", "CTLoader2D.set_mask: all reference scans must be from the train set."
-            path        = os.path.join(self.data_dir, "NCCT", f"{patient_id}.nii")
+            path        = os.path.join(self.data_dir, CT_TYPE, f"{patient_id}.nii")
             scan        = torchio.ScalarImage(path)[torchio.DATA].float()
             if self.mask is None:
                 self.mask  = scan[:,:,:,axial_slice]

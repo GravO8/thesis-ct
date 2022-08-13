@@ -6,8 +6,8 @@ from torchsummary import summary
 from .focal_loss import BinaryFocalLoss
 from .logger import Logger
 
-LR          = 0.0005 # learning rate
-WD          = 0.0001 # weight decay
+LR          = 0.001 # learning rate
+WD          = 0.001 # weight decay
 # LOSS        = torch.nn.BCELoss(reduction = "mean")
 LOSS        = BinaryFocalLoss(alpha = .75, gamma = 2, reduction = "mean")
 STEP_SIZE   = 400
@@ -49,14 +49,10 @@ class Trainer:
         '''
         TODO
         '''
-        train, val, test  = ct_loader.load_dataset()
+        train, test  = ct_loader.load_dataset()
         self.train_loader = torch.utils.data.DataLoader(train, 
                                     batch_size  = self.batch_size, 
                                     num_workers = self.num_workers, 
-                                    pin_memory  = self.cuda)
-        self.val_loader   = torch.utils.data.DataLoader(val, 
-                                    batch_size  = self.batch_size, 
-                                    num_workers = self.num_workers,
                                     pin_memory  = self.cuda)
         self.test_loader  = torch.utils.data.DataLoader(test, 
                                     batch_size  = self.batch_size, 
@@ -80,9 +76,9 @@ class Trainer:
                 f.write("\n")
                 with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
                     if model_name.startswith("Axial"):
-                        summary(self.model, (1,91,109,1))
+                        summary(self.model, (1,91*2,109*2,1))
                     else:
-                        summary(self.model, (1,91,109,len(range(0,91,0))))
+                        summary(self.model, (1,91*2,109*2,len(range(0,91*2,1))))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
@@ -112,10 +108,9 @@ class Trainer:
         scheduler = torch.optim.lr_scheduler.StepLR(self.train_optimizer, step_size = STEP_SIZE, gamma = 0.1)
         for epoch in range(self.epochs):
             train_metrics   = self.train_epoch(epoch)
-            val_metrics     = compute_metrics( *self.get_probabilities(self.val_loader) )
             test_metrics    = compute_metrics( *self.get_probabilities(self.test_loader) )
-            self.save_metrics(epoch, train_metrics, val_metrics, test_metrics, verbose = True)
-            self.save_weights(val_metrics["f1-score"], epoch)
+            self.save_metrics(epoch, train_metrics, test_metrics, verbose = True)
+            self.save_weights(epoch)
             scheduler.step()
         self.record_performance()
         self.reset_model()
@@ -160,16 +155,16 @@ class Trainer:
         return scans, y
         
     def tensorboard_metrics(self, epoch: int, metrics: dict):
-        set_names    = ("train", "val", "test")
+        set_names    = ("train", "test")
         metric_names = ("loss", "f1-score", "accuracy")
         for set in metrics:
             for metric in metric_names:
                 self.writer.add_scalar(f"{metric}/{set}", metrics[set][metric], epoch)
         self.writer.flush()
         
-    def save_metrics(self, epoch: int, train_metrics: dict, val_metrics: dict, 
+    def save_metrics(self, epoch: int, train_metrics: dict,
         test_metrics: dict, verbose: bool = True):
-        metrics = {"train": train_metrics, "val": val_metrics, "test": test_metrics}
+        metrics = {"train": train_metrics, "test": test_metrics}
         self.tensorboard_metrics(epoch, metrics)
         if verbose:
             row = "{:<10}"*4
@@ -178,12 +173,10 @@ class Trainer:
                 self.trace(row.format(set, round(metrics[set]["loss"],4), 
                 round(metrics[set]["f1-score"]*100,2), round(metrics[set]["accuracy"]*100,2)))
                 
-    def save_weights(self, val_f1_score, epoch, verbose = True):
-        if (self.best_score is None) or (val_f1_score > self.best_score):
+    def save_weights(self, epoch, verbose = True):
+        if epoch % 5 == 0:
             if verbose:
-                self.trace(f"Validation f1-score increased ({self.best_score} --> {val_f1_score}).  Saving model ...")
-            self.best_score = val_f1_score
-            self.best_epoch = epoch
+                self.trace("Saving model ...")
             torch.save(self.model.state_dict(), self.weights_path)
             
     def record_performance(self):
@@ -192,7 +185,7 @@ class Trainer:
         metrics          = {}
         predictions      = {}
         probabilities    = {}
-        set_loaders      = {"train": self.train_loader, "val": self.val_loader, "test": self.test_loader}
+        set_loaders      = {"train": self.train_loader, "test": self.test_loader}
         for set in set_loaders:
             y_test, y_prob     = self.get_probabilities(set_loaders[set])
             metrics[set]       = compute_metrics(y_test, y_prob)
