@@ -7,10 +7,10 @@ from .focal_loss import BinaryFocalLoss
 from .logger import Logger
 
 LR          = 0.001 # learning rate
-WD          = 0.001 # weight decay
+WD          = 0.025 # weight decay
 # LOSS        = torch.nn.BCELoss(reduction = "mean")
 LOSS        = BinaryFocalLoss(alpha = .75, gamma = 2, reduction = "mean")
-STEP_SIZE   = 400
+STEP_SIZE   = 100
 EPOCHS      = 300
 OPTIMIZER   = torch.optim.Adam
 
@@ -49,7 +49,7 @@ class Trainer:
         '''
         TODO
         '''
-        train, test  = ct_loader.load_dataset()
+        train, test = ct_loader.load_dataset()
         self.train_loader = torch.utils.data.DataLoader(train, 
                                     batch_size  = self.batch_size, 
                                     num_workers = self.num_workers, 
@@ -61,6 +61,7 @@ class Trainer:
                                             
     def set_train_model(self, model):
         self.model = model.float()
+        self.model.init_weights(init_convs = False)
         if self.cuda:
             print("Using cuda device")
             self.model.cuda()
@@ -74,11 +75,11 @@ class Trainer:
             with open(os.path.join(model_name, "summary.txt"), "w") as f:
                 f.write( str(self.model) )
                 f.write("\n")
-                with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
-                    if model_name.startswith("Axial"):
-                        summary(self.model, (1,91*2,109*2,1))
-                    else:
-                        summary(self.model, (1,91*2,109*2,len(range(0,91*2,1))))
+                # with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
+                #     if model_name.startswith("Axial"):
+                #         summary(self.model, (1,91*2,109*2,1))
+                #     else:
+                #         summary(self.model, (1,91*2,109*2,len(range(0,91*2,1))))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
@@ -174,7 +175,8 @@ class Trainer:
                 round(metrics[set]["f1-score"]*100,2), round(metrics[set]["accuracy"]*100,2)))
                 
     def save_weights(self, epoch, verbose = True):
-        if epoch % 5 == 0:
+        # if epoch % 5 == 0:
+        if epoch  == EPOCHS-1:
             if verbose:
                 self.trace("Saving model ...")
             torch.save(self.model.state_dict(), self.weights_path)

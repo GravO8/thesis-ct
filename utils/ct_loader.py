@@ -1,6 +1,4 @@
-import os, torch, torchio
-import numpy as np
-import pandas as pd
+import os, torch, torchio, numpy as np, pandas as pd
 from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
 CT_TYPE = "CTA"
@@ -51,11 +49,7 @@ class CTLoader:
         for _, row in self.labels[self.labels["set"] == "train"].iterrows():
             patient_id = row[PATIENT_ID]
             for augmentation in self.augmentations[self.augmentations[PATIENT_ID] == patient_id][AUGMENTATION].values:
-                path    = os.path.join(self.data_dir, CT_TYPE, f"{patient_id}-{augmentation}.nii")
-                ct      = torchio.ScalarImage(path)
-                # ct.set_data( ct.data[:,:,:,[i for i in range(ct.shape[-1]) if torch.count_nonzero(ct.data[...,i] > 0) > 100]] )
-                if self.skip_slices > 0:
-                    ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
+                ct      = self.get_ct(f"{patient_id}-{augmentation}")
                 subject = torchio.Subject(
                     ct          = ct,
                     patient_id  = patient_id,
@@ -67,17 +61,9 @@ class CTLoader:
     def load_set(self, set_name: str):
         assert set_name in ("train", "test")
         set = []
-        first = True
         for _, row in self.labels[self.labels["set"] == set_name].iterrows():
             patient_id  = row[PATIENT_ID]
-            path        = os.path.join(self.data_dir, CT_TYPE, f"{patient_id}.nii")
-            ct          = torchio.ScalarImage(path)
-            if first:
-                print(ct.shape)
-                first = False
-            # ct.set_data( ct.data[:,:,:,[i for i in range(ct.shape[-1]) if torch.count_nonzero(ct.data[...,i] > 0) > 100]] )
-            if self.skip_slices > 0:
-                ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
+            ct          = self.get_ct(patient_id)
             subject     = torchio.Subject(
                 ct          = ct,
                 patient_id  = patient_id,
@@ -85,6 +71,14 @@ class CTLoader:
                 transform   = "original")
             set.append(subject)
         return set
+        
+    def get_ct(self, patient_id):
+        path = os.path.join(self.data_dir, CT_TYPE, f"{patient_id}.nii")
+        ct   = torchio.ScalarImage(path)
+        # ct.set_data( ct.data[:,:,:,[i for i in range(ct.shape[-1]) if torch.count_nonzero(ct.data[...,i] > 0) > 100]] )
+        if self.skip_slices > 0:
+            ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
+        return ct
         
         
 class CTLoader2D(CTLoader):
@@ -148,6 +142,18 @@ class CTLoader2D(CTLoader):
                 plt.show()
         return set
             
+
+class CTLoaderTensors(CTLoader):
+    def get_ct(self, patient_id):
+        path   = os.path.join(self.data_dir, f"{CT_TYPE}_tensors", f"{patient_id}.pt")
+        tensor = torch.load(path)
+        if self.skip_slices > 0:
+            tensor = tensor[range(0,len(tensor),self.skip_slices),:]
+        tensor = tensor.unsqueeze(dim = 0).unsqueeze(dim = 0)
+        return torchio.ScalarImage(tensor = tensor)
+
 if __name__ == "__main__":
-    ct_loader = CTLoader2D("A", data_dir = "../../../data/gravo")
+    # ct_loader = CTLoader2D("A", data_dir = "../../../data/gravo")
+    ct_loader = CTLoaderTensors(data_dir = "../../../data/gravo")
     ct_loader.load_dataset()
+    # 57217

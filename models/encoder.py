@@ -24,5 +24,8 @@ class Encoder(torch.nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.pooling(x).squeeze()
-        assert self.out_channels == x.shape[1], f"Encoder.forward: expected {self.out_channels} out features, got {x.shape[1]}."
+        if len(x.shape) > 1:
+            assert self.out_channels == x.shape[1], f"Encoder.forward: expected {self.out_channels} out features, got {x.shape[1]}."
+        else:
+            assert self.out_channels == x.shape[0], f"Encoder.forward: expected {self.out_channels} out features, got {x.shape[0]}."
         return x

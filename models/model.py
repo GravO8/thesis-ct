@@ -18,7 +18,7 @@ class Model(ABC, torch.nn.Module):
     def name_appendix():
         pass
         
-    def normalize_input(self, x, range_max: int = 100):
+    def normalize_input(self, x, range_max: int = 200):
         return x/range_max
     
     def forward(self, x):
@@ -28,6 +28,10 @@ class Model(ABC, torch.nn.Module):
         
     def get_name(self):
         return self.name_appendix() + "-" + self.encoder.get_name()
+        
+    def init_weights(self, init_convs: bool):
+        init_kaiming_normal(self.encoder, init_convs = init_convs)
+        init_xavier_normal(self.mlp)
 
 
 class Baseline3DCNN(Model):
@@ -71,3 +75,20 @@ class UnSup3DCNN(Model):
         return self.normalize_input(x)
     def name_appendix(self):
         return "UnSup"
+        
+        
+def init_xavier_normal(to_init):
+    def init_weight(module):
+        if isinstance(module, torch.nn.Linear):
+            torch.nn.init.xavier_normal_(module.weight.data)
+            if module.bias is not None:
+                torch.nn.init.constant_(module.bias.data, 0)
+    to_init.apply(init_weight)
+    
+def init_kaiming_normal(to_init, init_convs: bool, nonlinearity: str = "relu"):
+    def init_weight(module):
+        if isinstance(module, torch.nn.Linear) or (init_convs and  (isinstance(module, torch.nn.Conv2d) or isinstance(module, torch.nn.Conv3d))):
+            torch.nn.init.kaiming_normal_(module.weight.data, nonlinearity = nonlinearity)
+            if module.bias is not None:
+                torch.nn.init.constant_(module.bias.data, 0)
+    to_init.apply(init_weight)

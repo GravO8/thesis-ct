@@ -54,7 +54,10 @@ class MILEncoder(torch.nn.Module):
         self.encoder           = encoder # instance encoder
         self.mil_pooling       = mil_pooling
         self.feature_extractor = feature_extractor
-        self.out_channels      = self.encoder.out_channels
+        if self.feature_extractor is None:
+            self.out_channels  = self.encoder.out_channels
+        else:
+            self.out_channels  = self.feature_extractor.out_channels
     def get_name(self):
         return f"{self.encoder.get_name()}-{self.mil_pooling.get_name()}" + ("" if self.feature_extractor is None else "_"+self.feature_extractor.get_name())
     def forward(self, x):
@@ -94,6 +97,13 @@ class MILAfterAxial(MILNetAfter):
         return x
     def name_appendix(self):
         return super().name_appendix() + "-Axial"
+
+
+class MILTensorAxial(MILNetAfter):
+    def process_input(self, x):
+        return x
+    def name_appendix(self):
+        return super().name_appendix() + "-TensorAxial"
 
 
 def to_blocks(arr_in: torch.Tensor, block_shape: tuple):

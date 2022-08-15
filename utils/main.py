@@ -1,5 +1,5 @@
 import torch
-from .ct_loader import CTLoader, CTLoader2D
+from .ct_loader import CTLoader, CTLoader2D, CTLoaderTensors
 from .trainer import Trainer
 
 def set_home(device: int):
@@ -19,9 +19,11 @@ def train(to_test: list, N: int, trainer):
 
 
 def main(to_test: list, N: int = 3, device: int = 3, slice: str = None, 
-    slice_range: int = None, pad: int = None, **kwargs):
+    slice_range: int = None, pad: int = None, from_tensors = False, **kwargs):
     dir = set_home(device)
-    if slice_range is not None:
+    if from_tensors:
+        ct_loader = CTLoaderTensors(data_dir = dir, **kwargs)
+    elif slice_range is not None:
         assert slice is not None
         ct_loader = CTLoader2D(slice, slice_range = slice_range, data_dir = dir, 
                     pad = pad, **kwargs)
