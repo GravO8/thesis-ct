@@ -1,4 +1,4 @@
-import skopt
+import skopt, pandas as pd, joblib
 from .table_classifier import TableClassifier
 
 
@@ -28,12 +28,13 @@ class ClassicClassifier(TableClassifier):
             cv      = cv,
             scoring = scoring,
             verbose = 0,
+            random_state = 0,
             return_train_score = True)
         x_train, y_train = self.get_set("train")
         opt.fit(x_train, y_train)
-        # import pandas as pd
-        # pd.DataFrame(opt.cv_results_).to_csv("sapo.csv", index = False)
+        self.cv_results  = pd.DataFrame(opt.cv_results_)
         self.best_params = opt.best_params_
+        self.cv          = cv
         self.fit()
         if verbose:
             print("val score:", opt.best_score_)
@@ -55,9 +56,29 @@ class ClassicClassifier(TableClassifier):
                 best_param = params
         self.model = best_model
         self.best_params = best_param
+        
+    def record_performance(self, stage: str, missing_values: str):
+        model_name = self.model.__class__.__name__
+        best_row   = self.cv_results[self.cv_results["rank_test_score"] == 1].iloc[0]
+        assert best_row["params"] == self.best_params
+        with open("runs/performance.csv", "a") as f:
+            for i in range(self.cv):
+                train_score = best_row[f"split{i}_train_score"]
+                test_score  = best_row[f"split{i}_test_score"]
+                f.write(f"{stage},{missing_values},{model_name},train{i},{train_score},,,,\n")
+                f.write(f"{stage},{missing_values},{model_name},test{i},{test_score},,,,\n")
+            for set in ("train", "test"):
+                metrics = self.compute_metrics(set)
+                f.write(f"{stage},{missing_values},{model_name},{set}")
+                for metric in ("f1-score", "accuracy", "precision","recall","auc"):
+                    f.write(f",{metrics[metric]}")
+                f.write("\n")
+        joblib.dump(self.model, f"runs/models/{model_name}-{stage}.joblib")
+        with open(f"runs/models/{model_name}-{stage}-params.txt", "w") as f:
+            f.write(str(self.best_params))
 
 
-def knns(loader, **kwargs):
+def knns(loader, stage, missing_values, **kwargs):
     from sklearn.neighbors import KNeighborsClassifier as KNN
     knn = ClassicClassifier(model   = KNN(), 
                             loader  = loader,
@@ -67,12 +88,13 @@ def knns(loader, **kwargs):
                                 "metric": ["euclidean", "manhattan", "chebyshev", "jaccard"]
                             },
                             **kwargs)
-    print("train", knn.compute_metrics("train"))
-    print("test", knn.compute_metrics("test"))
-    print( knn.best_params )
+    # print("train", knn.compute_metrics("train"))
+    # print("test", knn.compute_metrics("test"))
+    # print( knn.best_params )
+    knn.record_performance(stage, missing_values)
 
 
-def decision_trees(loader, **kwargs):
+def decision_trees(loader, stage, missing_values, **kwargs):
     from sklearn.tree import DecisionTreeClassifier as DT
     dt = ClassicClassifier( model    = DT(),
                             loader   = loader,
@@ -89,12 +111,13 @@ def decision_trees(loader, **kwargs):
                            #      "random_state": [0]
                            # },
                            **kwargs)
-    print("train", dt.compute_metrics("train", verbose = True))
-    print("test", dt.compute_metrics("test", verbose = True))
-    print( dt.best_params )
+    # print("train", dt.compute_metrics("train", verbose = True))
+    # print("test", dt.compute_metrics("test", verbose = True))
+    # print( dt.best_params )
+    dt.record_performance(stage, missing_values)
 
 
-def random_forests(loader, **kwargs):
+def random_forests(loader, stage, missing_values, **kwargs):
     from sklearn.ensemble import RandomForestClassifier as RF
     rf = ClassicClassifier( model   = RF(),
                             loader  = loader,
@@ -106,12 +129,13 @@ def random_forests(loader, **kwargs):
                                 "random_state": [0]
                            },
                            **kwargs)
-    print("train", rf.compute_metrics("train"))
-    print("test", rf.compute_metrics("test"))
-    print( rf.best_params )
+    # print("train", rf.compute_metrics("train"))
+    # print("test", rf.compute_metrics("test"))
+    # print( rf.best_params )
+    rf.record_performance(stage, missing_values)
     
     
-def logistic_regression(loader, **kwargs):
+def logistic_regression(loader, stage, missing_values, **kwargs):
     from sklearn.linear_model import LogisticRegression as LR
     lr = ClassicClassifier( model   = LR(),
                             loader  = loader,
@@ -124,12 +148,13 @@ def logistic_regression(loader, **kwargs):
                                 "max_iter": [10000],
                            },
                            **kwargs)
-    print("train", lr.compute_metrics("train"))
-    print("test", lr.compute_metrics("test"))
-    print( lr.best_params )
+    # print("train", lr.compute_metrics("train"))
+    # print("test", lr.compute_metrics("test"))
+    # print( lr.best_params )
+    lr.record_performance(stage, missing_values)
     
     
-def gradient_boosting(loader, **kwargs):
+def gradient_boosting(loader, stage, missing_values, **kwargs):
     from sklearn.ensemble import GradientBoostingClassifier as GB
     gb = ClassicClassifier( model   = GB(),
                             loader  = loader,
@@ -140,6 +165,7 @@ def gradient_boosting(loader, **kwargs):
                                 "random_state": [0],
                            },
                            **kwargs)
-    print("train", gb.compute_metrics("train"))
-    print("test", gb.compute_metrics("test"))
-    print( gb.best_params )
+    # print("train", gb.compute_metrics("train"))
+    # print("test", gb.compute_metrics("test"))
+    # print( gb.best_params )
+    gb.record_performance(stage, missing_values)

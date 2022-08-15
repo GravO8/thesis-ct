@@ -1,23 +1,36 @@
 import sys
 sys.path.append("..")
-from utils.table_classifier import *
+from utils.classic_classifiers import *
+from utils.table_classifier import TableClassifier
 from table_loader import TableLoader
 from stages import *
 
+# stage   = STAGE_BASELINE
+# missing = "amputate"
+# loader  = TableLoader("table_data.csv",
+#                     keep_cols           = stage,
+#                     target_col          = "binary_rankin",
+#                     normalize           = True,
+#                     dirname             = "../../../data/gravo",
+#                     join_train_val      = True,
+#                     reshuffle           = False,
+#                     set_col             = "all",
+#                     filter_out_no_ncct  = False,
+#                     # empty_values_method = "impute")
+#                     empty_values_method = missing)
 
-loader = TableLoader("table_data.csv",
-                    keep_cols           = STAGE_24H,
-                    target_col          = "binary_rankin",
-                    normalize           = True,
-                    dirname             = "../../../data/gravo",
-                    join_train_val      = True,
-                    reshuffle           = False,
-                    set_col             = "all",
-                    filter_out_no_ncct  = False,
-                    # empty_values_method = "impute")
-                    empty_values_method = "amputate")
-# knns(loader)
-# decision_trees(loader)
-# random_forests(loader)
-# logistic_regression(loader)
-gradient_boosting(loader)
+for stage in STAGES:
+    for missing in ("amputate", "impute"):
+        loader  = TableLoader("table_data.csv",
+                            keep_cols           = stage,
+                            target_col          = "binary_rankin",
+                            normalize           = True,
+                            dirname             = "../../../data/gravo",
+                            join_train_val      = True,
+                            reshuffle           = False,
+                            set_col             = "all",
+                            filter_out_no_ncct  = False,
+                            # empty_values_method = "impute")
+                            empty_values_method = missing)
+        # for classifier in (knns, decision_trees, random_forests):
+        gradient_boosting(loader, stage, missing, n_iter = 50)
