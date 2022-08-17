@@ -1,7 +1,7 @@
 import pandas as pd, os, numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer
+from sklearn.impute import IterativeImputer, SimpleImputer
 from abc import ABC, abstractmethod
 
 SETS = ["train", "val", "test"]
@@ -37,6 +37,10 @@ class CSVLoader(ABC):
             self.amputate()
         elif method == "impute":
             self.impute()
+        elif method == "impute_mean":
+            self.simple_impute("mean")
+        elif method == "impute_constant":
+            self.simple_impute("constant")
         else:
             assert False
         
@@ -129,6 +133,16 @@ class CSVLoader(ABC):
 
     def impute(self):
         imp = IterativeImputer(max_iter = 40, random_state = 0)
+        imp.fit(self.sets["train"]["x"])
+        for s in self.available_sets():
+            self.sets[s]["x"] = pd.DataFrame(imp.transform(self.sets[s]["x"]), columns = self.sets[s]["x"].columns)
+            
+    def simple_impute(self, strategy: str):
+        if strategy == "constant":
+            imp = SimpleImputer(strategy, fill_value = -1)
+        elif strategy == "mean":
+            imp = SimpleImputer(strategy)
+        else: assert False
         imp.fit(self.sets["train"]["x"])
         for s in self.available_sets():
             self.sets[s]["x"] = pd.DataFrame(imp.transform(self.sets[s]["x"]), columns = self.sets[s]["x"].columns)

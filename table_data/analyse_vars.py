@@ -8,11 +8,13 @@ DIR = "../../../tese/table_data"
 
 def percentage(num, total):
     return num*100/total
-    
+
+
 def five_num_summary(data):
     min, max = data.min(), data.max()
     q1, median, q3 = np.percentile(data, [25, 50, 75])
     return np.array([min, q1, median, q3, max])
+
 
 def analyse_stage(cols: list, stage_info: pd.DataFrame):
     missing = []
@@ -68,13 +70,14 @@ if __name__ == "__main__":
                         set_col             = "all",
                         filter_out_no_ncct  = False,
                         empty_values_method = None)
-    
-    i = 0
+    a = loader.sets["train"]["x"]["hemat-4"].unique()
+    a.sort()
+    print( a )
+    exit(0)
+                         
     for stage in STAGES:
         stage_path = os.path.join(DIR, f"{stage}.csv")
         stage_info = pd.read_csv(stage_path)
         stage_info = analyse_stage(STAGES[stage], stage_info)
-        stage_info.to_csv("sapo.csv", index = False)
-        i += 1
-        if i == 6:
-            break
+        stage_path = stage_path.split(".csv")[0] + "-stats.csv"
+        stage_info.to_csv(stage_path, index = False)

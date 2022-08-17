@@ -73,32 +73,29 @@ class ClassicClassifier(TableClassifier):
                 for metric in ("f1-score", "accuracy", "precision","recall","auc"):
                     f.write(f",{metrics[metric]}")
                 f.write("\n")
-        joblib.dump(self.model, f"runs/models/{model_name}-{stage}.joblib")
-        with open(f"runs/models/{model_name}-{stage}-params.txt", "w") as f:
+        joblib.dump(self.model, f"runs/models/{model_name}-{stage}-{missing_values}.joblib")
+        with open(f"runs/models/{model_name}-{stage}-{missing_values}-params.txt", "w") as f:
             f.write(str(self.best_params))
 
 
-def knns(loader, stage, missing_values, **kwargs):
+def knns(loader, **kwargs):
     from sklearn.neighbors import KNeighborsClassifier as KNN
-    knn = ClassicClassifier(model   = KNN(), 
-                            loader  = loader,
-                            ranges  = {
+    return ClassicClassifier(model = KNN(), 
+                            loader = loader,
+                            ranges = {
                                 "n_neighbors": [3, 5, 7, 9, 11],
                                 "weights": ["uniform", "distance"],
-                                "metric": ["euclidean", "manhattan", "chebyshev", "jaccard"]
+                                "metric": ["euclidean", "manhattan", "chebyshev", "jaccard"],
+                                "random_state": [0]
                             },
                             **kwargs)
-    # print("train", knn.compute_metrics("train"))
-    # print("test", knn.compute_metrics("test"))
-    # print( knn.best_params )
-    knn.record_performance(stage, missing_values)
 
 
-def decision_trees(loader, stage, missing_values, **kwargs):
+def decision_trees(loader, **kwargs):
     from sklearn.tree import DecisionTreeClassifier as DT
-    dt = ClassicClassifier( model    = DT(),
-                            loader   = loader,
-                            ranges   = {
+    return ClassicClassifier(model = DT(),
+                            loader = loader,
+                            ranges = {
                                 "criterion": ["entropy", "gini"],
                                 "max_depth": skopt.space.space.Integer(2, 25),
                                 "min_impurity_decrease": skopt.space.space.Real(.001, .025),
@@ -111,17 +108,13 @@ def decision_trees(loader, stage, missing_values, **kwargs):
                            #      "random_state": [0]
                            # },
                            **kwargs)
-    # print("train", dt.compute_metrics("train", verbose = True))
-    # print("test", dt.compute_metrics("test", verbose = True))
-    # print( dt.best_params )
-    dt.record_performance(stage, missing_values)
 
 
-def random_forests(loader, stage, missing_values, **kwargs):
+def random_forests(loader, **kwargs):
     from sklearn.ensemble import RandomForestClassifier as RF
-    rf = ClassicClassifier( model   = RF(),
-                            loader  = loader,
-                            ranges  = {
+    return ClassicClassifier(model = RF(),
+                            loader = loader,
+                            ranges = {
                                 "criterion": ["entropy", "gini"],
                                 "max_depth": skopt.space.space.Integer(2, 25),
                                 "n_estimators": skopt.space.space.Integer(5, 300),
@@ -129,43 +122,46 @@ def random_forests(loader, stage, missing_values, **kwargs):
                                 "random_state": [0]
                            },
                            **kwargs)
-    # print("train", rf.compute_metrics("train"))
-    # print("test", rf.compute_metrics("test"))
-    # print( rf.best_params )
-    rf.record_performance(stage, missing_values)
     
     
-def logistic_regression(loader, stage, missing_values, **kwargs):
+def logistic_regression(loader, **kwargs):
     from sklearn.linear_model import LogisticRegression as LR
-    lr = ClassicClassifier( model   = LR(),
-                            loader  = loader,
-                            ranges  = {
+    return ClassicClassifier(model = LR(),
+                            loader = loader,
+                            ranges = {
                                 "C": skopt.space.space.Real(.001, 3),
                                 "tol": skopt.space.space.Real(1e-5, 1e-1),
                                 "penalty": ["l1", "l2"],
                                 "solver": ["saga"],
-                                "random_state": [0],
                                 "max_iter": [10000],
+                                "random_state": [0]
                            },
                            **kwargs)
-    # print("train", lr.compute_metrics("train"))
-    # print("test", lr.compute_metrics("test"))
-    # print( lr.best_params )
-    lr.record_performance(stage, missing_values)
     
     
-def gradient_boosting(loader, stage, missing_values, **kwargs):
+def gradient_boosting(loader, **kwargs):
     from sklearn.ensemble import GradientBoostingClassifier as GB
-    gb = ClassicClassifier( model   = GB(),
-                            loader  = loader,
-                            ranges  = {
+    return ClassicClassifier(model = GB(),
+                            loader = loader,
+                            ranges = {
                                 "n_estimators": skopt.space.space.Integer(5, 300),
                                 "max_depth": skopt.space.space.Integer(5, 25),
                                 "learning_rate": skopt.space.space.Real(.1, .9),
                                 "random_state": [0],
                            },
                            **kwargs)
-    # print("train", gb.compute_metrics("train"))
-    # print("test", gb.compute_metrics("test"))
-    # print( gb.best_params )
-    gb.record_performance(stage, missing_values)
+    
+    
+def svm(loader, **kwargs):
+    from sklearn.svm import SVC as SVM
+    return ClassicClassifier(model = SVM(),
+                            loader = loader,
+                            ranges = {
+                                "C": skopt.space.space.Real(.001, 3),
+                                "kernel": ["linear", "poly", "rbf", "sigmoid"],
+                                "degree": skopt.space.space.Integer(2, 5),
+                                "gamma": ["scale", "auto"],
+                                "random_state": [0],
+                            },
+                            **kwargs)
+    
