@@ -70,10 +70,10 @@ if __name__ == "__main__":
                         set_col             = "all",
                         filter_out_no_ncct  = False,
                         empty_values_method = None)
-    a = loader.sets["train"]["x"]["hemat-4"].unique()
-    a.sort()
-    print( a )
-    exit(0)
+    # a = loader.sets["train"]["x"]["hemat-4"].unique()
+    # a.sort()
+    # print( a )
+    # exit(0)
                          
     for stage in STAGES:
         stage_path = os.path.join(DIR, f"{stage}.csv")

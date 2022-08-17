@@ -16,6 +16,8 @@ class CSVLoader(ABC):
         csv_filename = os.path.join(dirname, csv_filename)
         self.table   = pd.read_csv(csv_filename)
         keep_cols    = self.preprocess(keep_cols, **kwargs)
+        self.table   = self.table.apply(lambda x: pd.to_numeric(x, errors = "coerce"))
+        self.remove_outliers()
         self.set_sets(keep_cols, target_col, set_col, normalize, empty_values_method, 
         join_train_val, join_train_test, reshuffle)
         
@@ -25,7 +27,6 @@ class CSVLoader(ABC):
         self.sets = {}
         self.split(set_col, join_train_val, join_train_test, reshuffle, target_col)
         self.filter(keep_cols, target_col)
-        self.to_numeric()
         self.empty_values(empty_values_method)
         if normalize:
             self.normalize()
@@ -46,6 +47,10 @@ class CSVLoader(ABC):
         
     @abstractmethod
     def preprocess(self):
+        pass
+        
+    @abstractmethod
+    def remove_outliers(self):
         pass
         
     def reshuffle(self, set_col: str, target_col: str):
@@ -157,10 +162,6 @@ class CSVLoader(ABC):
                     to_keep.append(True)
             self.sets[s]["x"] = self.sets[s]["x"].iloc[to_keep]
             self.sets[s]["y"] = self.sets[s]["y"][to_keep]
-            
-    def to_numeric(self):
-        for s in self.available_sets():
-            self.sets[s]["x"] = self.sets[s]["x"].apply(lambda x: pd.to_numeric(x, errors = "coerce"))
                 
     def available_sets(self):
         return [s for s in self.sets]

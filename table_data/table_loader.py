@@ -30,7 +30,6 @@ class TableLoader(CSVLoader):
         if isinstance(keep_cols, str):
             keep_cols = self.stage_cols(keep_cols)
         self.convert_boolean_sequences(keep_cols)
-        self.update_nan_entries()
         return keep_cols
             
     def stage_cols(self, stage):
@@ -78,12 +77,16 @@ class TableLoader(CSVLoader):
             onset_time = [onset_time[i] if self.table["instAVCpre-4"].values[i]=="1" else None for i in range(len(birthdate))]
         self.table["age"]              = age
         self.table["time_since_onset"] = onset_time
-        
-    def update_nan_entries(self):
-        for symbol in UNKNOWN_VARS:
-            for col in UNKNOWN_VARS[symbol]:
-                self.table[col].replace(symbol, np.nan, inplace = True)
-                self.table[col].replace(str(symbol), np.nan, inplace = True)
+                
+    def remove_outliers(self):
+        for col in VALID["intervals"]:
+            if col in self.table.columns:
+                min, max        = VALID["intervals"][col]
+                self.table[col] = [v if np.isnan(v) or (min < v < max) else np.nan for v in self.table[col].values]
+        for col in VALID["sets"]:
+            if col in self.table.columns:
+                set = VALID["sets"][col] + [np.nan]
+                self.table[col] = [v if v in set else np.nan for v in self.table[col].values]
         
 
 if __name__ == "__main__":
