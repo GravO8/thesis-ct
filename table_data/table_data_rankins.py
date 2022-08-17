@@ -33,4 +33,8 @@ for stage in STAGES:
                             # empty_values_method = "impute")
                             empty_values_method = missing)
         # for classifier in (knns, decision_trees, random_forests):
+        # TODO adicionar ao nome dos classifiers exportados o tipo de "empty_values_method" usado
+        
+        # Variaveis para remover:
+        # "disf-5", "disf-15", "disf-19", "recaTIC-11"
         gradient_boosting(loader, stage, missing, n_iter = 50)

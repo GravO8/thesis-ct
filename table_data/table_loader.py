@@ -1,8 +1,8 @@
-import sys
+import sys, numpy as np
 sys.path.append("..")
+from table_data.stages import *
 from utils.csv_loader import CSVLoader
 from datetime import datetime
-from stages import STAGES
 
 
 def str_to_datetime(date: str):
@@ -30,6 +30,7 @@ class TableLoader(CSVLoader):
         if isinstance(keep_cols, str):
             keep_cols = self.stage_cols(keep_cols)
         self.convert_boolean_sequences(keep_cols)
+        self.update_nan_entries()
         return keep_cols
             
     def stage_cols(self, stage):
@@ -48,12 +49,14 @@ class TableLoader(CSVLoader):
             for s in splitted:
                 if (s is None) or (len(s) != boolean_cols[col]):
                     for i in range(boolean_cols[col]):
-                        new_cols[f"{col}-{i+1}"].append(None)
+                        new_cols[f"{col}-{i+1}"].append(np.nan)
                 else:
                     for i in range(boolean_cols[col]):
-                        new_cols[f"{col}-{i+1}"].append(int(s[i].lower() == "true"))
+                        new_cols[f"{col}-{i+1}"].append(int(s[i].replace(" ", "").lower() == "true"))
             del self.table[col]
             for col in new_cols:
+                if np.isnan(new_cols[col]).any() and (len(np.unique(new_cols[col])) < 3):
+                    continue
                 self.table[col] = new_cols[col]
         self.table = self.table.copy()
         
@@ -76,3 +79,22 @@ class TableLoader(CSVLoader):
         self.table["age"]              = age
         self.table["time_since_onset"] = onset_time
         
+    def update_nan_entries(self):
+        for symbol in UNKNOWN_VARS:
+            for col in UNKNOWN_VARS[symbol]:
+                self.table[col].replace(symbol, np.nan, inplace = True)
+                self.table[col].replace(str(symbol), np.nan, inplace = True)
+        
+
+if __name__ == "__main__":
+    loader  = TableLoader("table_data.csv",
+                        keep_cols           = STAGE_DISCHARGE,
+                        target_col          = "binary_rankin",
+                        normalize           = True,
+                        dirname             = "../../../data/gravo",
+                        join_train_val      = True,
+                        join_train_test     = True,
+                        reshuffle           = False,
+                        set_col             = "all",
+                        filter_out_no_ncct  = False,
+                        empty_values_method = None)

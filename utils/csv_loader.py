@@ -7,9 +7,6 @@ from abc import ABC, abstractmethod
 SETS = ["train", "val", "test"]
 ALL  = "all"
 
-def convert_missing_to_nan(col):
-    return np.array([np.nan if (v == "None") or (v is None) else v for v in col]).astype("float")
-
 
 class CSVLoader(ABC):
     def __init__(self, csv_filename: str, keep_cols: list, target_col: str, 
@@ -28,7 +25,7 @@ class CSVLoader(ABC):
         self.sets = {}
         self.split(set_col, join_train_val, join_train_test, reshuffle, target_col)
         self.filter(keep_cols, target_col)
-        self.to_float()
+        self.to_numeric()
         self.empty_values(empty_values_method)
         if normalize:
             self.normalize()
@@ -98,6 +95,8 @@ class CSVLoader(ABC):
         if join_train_test:
             self.table.loc[self.table[set_col] == "test", set_col] = "train"
             del sets[sets.index("test")]
+        if join_train_val and join_train_test:
+            self.table.loc[self.table[set_col] != "train", set_col] = "train"
         if reshuffle:
             self.reshuffle(set_col, target_col)
         for s in sets:
@@ -106,8 +105,14 @@ class CSVLoader(ABC):
         
     def filter(self, keep_cols: list, target_col: str):
         assert self.table is None, "CSVLoader.filter: call split first"
+        to_keep = []
+        for col in keep_cols:
+            if col in self.sets["train"].columns:
+                to_keep.append(col)
+            else:
+                print(f"CSVLoader.filter: WARNING variable {col} is omitted")
         for s in self.available_sets():
-            x = self.sets[s][keep_cols]
+            x = self.sets[s][to_keep]
             y = self.sets[s][target_col].values
             self.sets[s] = {"x": x, "y": y}
             print(s, np.unique(y, return_counts = True)[1])
@@ -120,7 +125,7 @@ class CSVLoader(ABC):
         scaler = StandardScaler()
         scaler.fit(self.sets["train"]["x"])
         for s in self.available_sets():
-            self.sets[s]["x"] = scaler.transform(self.sets[s]["x"])
+            self.sets[s]["x"] = pd.DataFrame(scaler.transform(self.sets[s]["x"]), columns = self.sets[s]["x"].columns)
 
     def impute(self):
         imp = IterativeImputer(max_iter = 40, random_state = 0)
@@ -139,10 +144,9 @@ class CSVLoader(ABC):
             self.sets[s]["x"] = self.sets[s]["x"].iloc[to_keep]
             self.sets[s]["y"] = self.sets[s]["y"][to_keep]
             
-    def to_float(self):
+    def to_numeric(self):
         for s in self.available_sets():
-            for col in self.sets[s]["x"].columns:
-                self.sets[s]["x"][col] = convert_missing_to_nan(self.sets[s]["x"][col])
+            self.sets[s]["x"] = self.sets[s]["x"].apply(lambda x: pd.to_numeric(x, errors = "coerce"))
                 
     def available_sets(self):
         return [s for s in self.sets]
