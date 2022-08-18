@@ -3,7 +3,7 @@ from .table_classifier import TableClassifier
 
 
 class ClassicClassifier(TableClassifier):
-    def __init__(self, model, loader, ranges, metric = "f1_score", **kwargs):
+    def __init__(self, model, loader, ranges, metric = "f1", **kwargs):
         super().__init__(loader)
         self.model  = model
         self.metric = metric
@@ -20,13 +20,13 @@ class ClassicClassifier(TableClassifier):
         self.model.set_params(**(self.best_params if params is None else params))
         self.model.fit(x_train, y_train)
         
-    def hyperparam_tune(self, ranges, init_points = 5, n_iter = 20, cv = 5, scoring = "f1", verbose = True):
+    def hyperparam_tune(self, ranges, init_points = 5, n_iter = 20, cv = 5, verbose = True):
         opt = skopt.BayesSearchCV(
             self.model,
             ranges,
             n_iter  = n_iter,
             cv      = cv,
-            scoring = scoring,
+            scoring = self.metric,
             verbose = 0,
             random_state = 0,
             return_train_score = True)
@@ -70,7 +70,7 @@ class ClassicClassifier(TableClassifier):
             for set in ("train", "test"):
                 metrics = self.compute_metrics(set)
                 f.write(f"{stage},{missing_values},{model_name},{set}")
-                for metric in ("f1-score", "accuracy", "precision","recall","auc"):
+                for metric in ("auc", "accuracy", "precision","recall","f1-score"):
                     f.write(f",{metrics[metric]}")
                 f.write("\n")
         joblib.dump(self.model, f"runs/models/{model_name}-{stage}-{missing_values}.joblib")

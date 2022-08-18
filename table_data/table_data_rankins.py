@@ -35,5 +35,5 @@ for stage in STAGES:
                             empty_values_method = missing)
         print()
         for classifier in (knn, decision_tree, random_forest, logistic_regression, gradient_boosting, svm):
-            trained_classifier = classifier(loader, n_iter = 50)
+            trained_classifier = classifier(loader, n_iter = 50, metric = "roc_auc")
             trained_classifier.record_performance(stage, missing)

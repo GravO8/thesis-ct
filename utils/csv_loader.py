@@ -162,12 +162,13 @@ class CSVLoader(ABC):
             
     def simple_impute(self, strategy: str):
         if strategy == "constant":
-            self.sets["train"]["x"].fillna(-1, inplace = True)
-        elif strategy == "mean":
             for s in self.available_sets():
-                for col in self.sets[s]["x"].columns:
-                    mean = self.sets["train"]["x"][col].mean()
-                    self.sets["train"]["x"][col].fillna(mean, inplace = True)
+                self.sets[s]["x"].fillna(-1, inplace = True)
+        elif strategy == "mean":
+            for col in self.sets["train"]["x"].columns:
+                mean = self.sets["train"]["x"][col].mean()
+                for s in self.available_sets():
+                    self.sets[s]["x"][col].fillna(mean, inplace = True)
         
     def amputate(self):
         for s in self.available_sets():
