@@ -21,16 +21,19 @@ from stages import *
 
 for stage in STAGES:
     for missing in ("amputate", "impute", "impute_mean", "impute_constant"):
+        print(stage, missing)
         loader  = TableLoader("table_data.csv",
                             keep_cols           = stage,
                             target_col          = "binary_rankin",
                             normalize           = True,
                             dirname             = "../../../data/gravo",
                             join_train_val      = True,
-                            reshuffle           = False,
+                            join_train_test     = False,
+                            reshuffle           = True,
                             set_col             = "all",
                             filter_out_no_ncct  = False,
                             empty_values_method = missing)
-        for classifier in (knns, decision_trees, random_forests, logistic_regression, gradient_boosting, svm):
+        print()
+        for classifier in (knn, decision_tree, random_forest, logistic_regression, gradient_boosting, svm):
             trained_classifier = classifier(loader, n_iter = 50)
             trained_classifier.record_performance(stage, missing)

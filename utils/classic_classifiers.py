@@ -78,20 +78,19 @@ class ClassicClassifier(TableClassifier):
             f.write(str(self.best_params))
 
 
-def knns(loader, **kwargs):
+def knn(loader, **kwargs):
     from sklearn.neighbors import KNeighborsClassifier as KNN
     return ClassicClassifier(model = KNN(), 
                             loader = loader,
                             ranges = {
                                 "n_neighbors": [3, 5, 7, 9, 11],
                                 "weights": ["uniform", "distance"],
-                                "metric": ["euclidean", "manhattan", "chebyshev", "jaccard"],
-                                "random_state": [0]
+                                "metric": ["euclidean", "manhattan", "chebyshev", "jaccard"]
                             },
                             **kwargs)
 
 
-def decision_trees(loader, **kwargs):
+def decision_tree(loader, **kwargs):
     from sklearn.tree import DecisionTreeClassifier as DT
     return ClassicClassifier(model = DT(),
                             loader = loader,
@@ -110,7 +109,7 @@ def decision_trees(loader, **kwargs):
                            **kwargs)
 
 
-def random_forests(loader, **kwargs):
+def random_forest(loader, **kwargs):
     from sklearn.ensemble import RandomForestClassifier as RF
     return ClassicClassifier(model = RF(),
                             loader = loader,

@@ -91,13 +91,14 @@ class TableLoader(CSVLoader):
 
 if __name__ == "__main__":
     loader  = TableLoader("table_data.csv",
-                        keep_cols           = STAGE_DISCHARGE,
+                        keep_cols           = STAGE_BASELINE,
                         target_col          = "binary_rankin",
                         normalize           = True,
                         dirname             = "../../../data/gravo",
                         join_train_val      = True,
-                        join_train_test     = True,
-                        reshuffle           = False,
+                        join_train_test     = False,
+                        reshuffle           = True,
                         set_col             = "all",
                         filter_out_no_ncct  = False,
-                        empty_values_method = None)
+                        empty_values_method = "amputate")
+    loader.sets["train"]["x"].to_csv("sapo.csv")

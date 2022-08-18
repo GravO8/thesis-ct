@@ -16,7 +16,7 @@ class TableClassifier(ABC):
         set = self.loader.get_set(set)
         return set["x"], set["y"]
         
-    def compute_metrics(self, set: str, verbose = True):
+    def compute_metrics(self, set: str, verbose = False):
         x, y   = self.get_set(set) 
         y_prob = self.predict(x)
         if verbose:
