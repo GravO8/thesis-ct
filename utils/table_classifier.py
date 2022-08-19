@@ -11,6 +11,10 @@ class TableClassifier(ABC):
     @abstractmethod
     def predict(self, x):
         pass
+        
+    @abstractmethod    
+    def record_performance(self, stage: str, missing_values: str):
+        pass
     
     def get_set(self, set: str):
         set = self.loader.get_set(set)

@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
+from table_data.table_loader import TableLoader
 from utils.table_classifier import TableClassifier
-from table_loader import TableLoader
 
 class ASTRALClassifier(TableClassifier):
     def __init__(self, dataset_filename: str, **kwargs):
@@ -26,17 +26,28 @@ class ASTRALClassifier(TableClassifier):
     def predict(self, x):
         x = x.sum(axis = 1)
         x = x > 30
-        return x.astype(int)
+        return x.astype(int).values
+        
+    def record_performance(self, missing_values: str):
+        # missing_values,model,set,auc,accuracy,precision,recall,f1_score
+        with open("runs/clinic-performance.csv", "a") as f:
+            for set in self.loader.available_sets():
+                metrics = self.compute_metrics(set)
+                f.write(f"{missing_values},ASTRAL,{set}")
+                for metric in ("auc", "accuracy", "precision","recall","f1-score"):
+                    f.write(f",{metrics[metric]}")
+                f.write("\n")
+            
         
 
 if __name__ == "__main__":
-    astral = ASTRALClassifier("table_data.csv",
-                              dirname             = "../../../data/gravo",
-                              set_col             = "set",
-                              join_train_val      = True,
-                              join_train_test     = False,
-                              filter_out_no_ncct  = True,
-                              reshuffle           = False,
-                              # empty_values_method = "impute")
-                              empty_values_method = "amputate")
-    print(astral.compute_metrics("train"))
+    for missing in ("amputate", "impute", "impute_mean", "impute_constant"):
+        astral = ASTRALClassifier("table_data.csv",
+                                  dirname             = "../../../data/gravo",
+                                  set_col             = "all",
+                                  join_train_val      = True,
+                                  join_train_test     = True,
+                                  filter_out_no_ncct  = False,
+                                  reshuffle           = True,
+                                  empty_values_method = missing)
+        astral.record_performance(missing)
