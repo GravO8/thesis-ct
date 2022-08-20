@@ -50,7 +50,7 @@ class AttentionMILPooling(MILPoolingEncodings, torch.nn.Module):
 
 class MILEncoder(torch.nn.Module):
     def __init__(self, encoder: Encoder, mil_pooling: MILPooling, feature_extractor: Encoder = None):
-        torch.nn.Module.__init__(self)
+        super().__init__()
         self.encoder           = encoder # instance encoder
         self.mil_pooling       = mil_pooling
         self.feature_extractor = feature_extractor

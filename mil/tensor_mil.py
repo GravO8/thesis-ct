@@ -22,15 +22,17 @@ class TensorEncoder(torch.nn.Module):
 
 def mil_after_max(encoder):
     assert encoder.global_pool is not None
-    max_pooling = MaxMILPooling()
-    mil_encoder = MILEncoder(encoder = encoder, mil_pooling = max_pooling)
+    max_pooling       = MaxMILPooling()
+    feature_extractor = Encoder("1Linear", torch.nn.Sequential(torch.nn.Linear(512,128), torch.nn.ReLU(inplace = True)), out_channels = 128, dim = 1)
+    mil_encoder       = MILEncoder(encoder = encoder, mil_pooling = max_pooling, feature_extractor = feature_extractor)
     return MILTensorAxial(mil_encoder)
     
 def mil_after_mean(encoder):
     assert encoder.global_pool is not None
-    mean_pooling = MeanMILPooling()
+    mean_pooling      = MeanMILPooling()
     feature_extractor = Encoder("1Linear", torch.nn.Sequential(torch.nn.Linear(512,128), torch.nn.ReLU(inplace = True)), out_channels = 128, dim = 1)
-    mil_encoder  = MILEncoder(encoder = encoder, mil_pooling = mean_pooling, feature_extractor = feature_extractor)
+    # feature_extractor = None
+    mil_encoder       = MILEncoder(encoder = encoder, mil_pooling = mean_pooling, feature_extractor = feature_extractor)
     return MILTensorAxial(mil_encoder)
     
 def mil_after_attention(encoder):
@@ -41,8 +43,8 @@ def mil_after_attention(encoder):
 
 if __name__ == "__main__":
     to_test = [ 
-                # mil_after_max(TensorEncoder("resnet18", 512, "gap")),
-                # mil_after_mean(TensorEncoder("resnet18", 512, "gap")),
+                mil_after_max(TensorEncoder("resnet18", 512, "gap")),
+                mil_after_mean(TensorEncoder("resnet18", 512, "gap")),
                 mil_after_attention(TensorEncoder("resnet18", 512, "gap"))
                 ]
     main(to_test, from_tensors = True, skip_slices = 5)

@@ -10,7 +10,7 @@ LR          = 0.001 # learning rate
 WD          = 0.025 # weight decay
 # LOSS        = torch.nn.BCELoss(reduction = "mean")
 LOSS        = BinaryFocalLoss(alpha = .75, gamma = 2, reduction = "mean")
-STEP_SIZE   = 100
+STEP_SIZE   = 150
 EPOCHS      = 300
 OPTIMIZER   = torch.optim.Adam
 
@@ -58,6 +58,7 @@ class Trainer:
                                     batch_size  = self.batch_size, 
                                     num_workers = self.num_workers,
                                     pin_memory  = self.cuda)
+        self.skip_slices  = ct_loader.skip_slices
                                             
     def set_train_model(self, model):
         self.model = model.float()
@@ -75,11 +76,13 @@ class Trainer:
             with open(os.path.join(model_name, "summary.txt"), "w") as f:
                 f.write( str(self.model) )
                 f.write("\n")
-                # with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
-                #     if model_name.startswith("Axial"):
-                #         summary(self.model, (1,91*2,109*2,1))
-                #     else:
-                #         summary(self.model, (1,91*2,109*2,len(range(0,91*2,1))))
+                N = 2
+                with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
+                    if model_name.startswith("Axial"):
+                        summary(self.model, (1,91*N,109*N,1))
+                    else:
+                        # summary(self.model, (1,91*N,109*N,len(range(0,91*N,self.skip_slices))))
+                        summary(self.model, (len(range(0,91*N,self.skip_slices)),512))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")
@@ -157,7 +160,7 @@ class Trainer:
         
     def tensorboard_metrics(self, epoch: int, metrics: dict):
         set_names    = ("train", "test")
-        metric_names = ("loss", "f1-score", "accuracy")
+        metric_names = ("loss", "f1-score", "auc", "accuracy")
         for set in metrics:
             for metric in metric_names:
                 self.writer.add_scalar(f"{metric}/{set}", metrics[set][metric], epoch)
@@ -168,11 +171,15 @@ class Trainer:
         metrics = {"train": train_metrics, "test": test_metrics}
         self.tensorboard_metrics(epoch, metrics)
         if verbose:
-            row = "{:<10}"*4
-            self.trace(row.format("", "loss", "f1-score", "accuracy"))
+            row = "{:<10}"*5
+            self.trace(row.format("", "loss", "f1-score", "auc", "accuracy"))
             for set in metrics:
-                self.trace(row.format(set, round(metrics[set]["loss"],4), 
-                round(metrics[set]["f1-score"]*100,2), round(metrics[set]["accuracy"]*100,2)))
+                self.trace(row.format(set, 
+                    round(metrics[set]["loss"],4), 
+                    round(metrics[set]["f1-score"]*100,2), 
+                    round(metrics[set]["auc"]*100,2), 
+                    round(metrics[set]["accuracy"]*100,2))
+                )
                 
     def save_weights(self, epoch, verbose = True):
         # if epoch % 5 == 0:

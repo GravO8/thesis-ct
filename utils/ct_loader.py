@@ -1,7 +1,9 @@
 import os, torch, torchio, numpy as np, pandas as pd
 from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
-CT_TYPE = "CTA"
+CT_TYPE         = "NCCT"
+LABELS_FILENAME = "dataset_cta.csv" if CT_TYPE == "CTA" else "dataset_NCCT.csv"
+AUGMENTATIONS   = "augmentations_cta.csv" if CT_TYPE == "CTA" else "augmentations_NCCT_flip.csv"
 
 
 def add_pad(scan, pad: int):
@@ -18,8 +20,8 @@ def add_pad(scan, pad: int):
     
 
 class CTLoader:
-    def __init__(self, labels_filename: str = "dataset_cta.csv", 
-        augmentations_filename = "augmentations_cta.csv", data_dir: str = None,
+    def __init__(self, labels_filename: str = LABELS_FILENAME, 
+        augmentations_filename = AUGMENTATIONS, data_dir: str = None,
         binary_rankin: bool = True, augment_train: bool = True, skip_slices: int = 0):
         self.data_dir       = data_dir
         self.label_col      = BINARY_RANKIN if binary_rankin else RANKIN
@@ -144,8 +146,12 @@ class CTLoader2D(CTLoader):
             
 
 class CTLoaderTensors(CTLoader):
+    def __init__(self, encoder: str = "resnet18", **kwargs):
+        super().__init__(**kwargs)
+        self.encoder = encoder
+    
     def get_ct(self, patient_id):
-        path   = os.path.join(self.data_dir, f"{CT_TYPE}_tensors", f"{patient_id}.pt")
+        path   = os.path.join(self.data_dir, f"{CT_TYPE}_{self.encoder}", f"{patient_id}.pt")
         tensor = torch.load(path)
         if self.skip_slices > 0:
             tensor = tensor[range(0,len(tensor),self.skip_slices),:]
