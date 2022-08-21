@@ -4,14 +4,12 @@ from skimage import exposure
 '''
 Elastic Deformations for Data Augmentation in Breast Cancer Mass Detection 
 http://www.inescporto.pt/~jsc/publications/conferences/2018EMecaBHI.pdf
-
-Meter a correr no INESC
 '''
 
 
 CT_TYPE  = "NCCT"
-# DATA_DIR = "../../data/gravo/"
-DATA_DIR = "/media/avcstorage/gravo"
+DATA_DIR = "../../data/gravo/"
+# DATA_DIR = "/media/avcstorage/gravo"
 CT_DIR   = os.path.join(DATA_DIR, CT_TYPE)
 CT_OUT   = os.path.join(DATA_DIR, f"{CT_TYPE}_normalized")
 DATASET  = os.path.join(DATA_DIR, f"dataset_{CT_TYPE}.csv")
@@ -107,7 +105,7 @@ def histogram_vs_clahe():
     # augment(1, "test")
     cts = [load(ct)[0], load(ct, dir = CT_OUT)[0]]
     cts.append(histogram_equalization(cts[0]))
-    names = ["Original", "CLAHE", "Histogram\nNormalization"]
+    names = ["(a) Original", "(b) CLAHE", "(c) Histogram\nNormalization"]
     # cts.append(contrast_strect(cts[0]))
     fig, axs = plt.subplots(2, len(cts), gridspec_kw = {"height_ratios": [4, 1]}, figsize = (8,5))
     for i in range(len(cts)):
@@ -121,14 +119,17 @@ def histogram_vs_clahe():
     plt.show()
     
 def elastic_deformation_changes_color():
+    import torchio
     N   = 36
     ct  = 1
     # augment(1, "test")
     cts = [load(ct, dir = CT_OUT)[0]]
-    cts.append(elasticdeform.deform_random_grid(cts[0], sigma = 0.8, points = 7))
-    cts.append(exposure.match_histograms(normalize_01(cts[-1]),cts[0]))
-    cts.append(clahe(cts[1]))
-    names = ["CLAHE", "Elastic\nDeformation", "Elastic Deformation &\nHistogram Matching", "CLAHE after\nElastic Deformation"]
+    el  = elasticdeform.deform_random_grid(cts[0], sigma = .8, points = 7) 
+    cts.append(exposure.match_histograms(normalize_01(el),cts[0]))
+    cts.append(el)
+    cts.append(torchio.RandomElasticDeformation()(cts[0].reshape((1,)+cts[0].shape)).squeeze())
+    # cts.append(clahe(cts[2]))
+    names = ["(a) CLAHE", "(b) Elastic Deformation\n& Histogram Matching", "(c) Elastic\nDeformation", "(d) TorchIO Elastic\nDeformation"]
     fig, axs = plt.subplots(2, len(cts), gridspec_kw = {"height_ratios": [4, 1]}, figsize = (8,5))
     for i in range(len(cts)):
         axs[0,i].title.set_text(names[i])
@@ -143,10 +144,9 @@ def elastic_deformation_changes_color():
 
 if __name__ == "__main__":
     # elastic_deformation_changes_color()
-    # histogram_vs_clahe()
-    # elastic_deformation_changes_color
-    dataset = pd.read_csv(DATASET)
-    for _, row in dataset.iterrows():
-        set = row["set"]
-        patient_id = row["patient_id"]
-        augment(patient_id, set)
+    histogram_vs_clahe()
+    # dataset = pd.read_csv(DATASET)
+    # for _, row in dataset.iterrows():
+    #     set = row["set"]
+    #     patient_id = row["patient_id"]
+    #     augment(patient_id, set)

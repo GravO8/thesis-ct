@@ -19,6 +19,8 @@ class MILPoolingEncodings(MILPooling):
     @abstractmethod
     def forward(self, x):
         pass
+    def predict_attention(self, x):
+        assert False, "MILPoolingEncodings.predict_attention: not implemented"
     
 class MaxMILPooling(MILPoolingEncodings):
     def forward(self, x):
@@ -39,13 +41,18 @@ class AttentionMILPooling(MILPoolingEncodings, torch.nn.Module):
                             torch.nn.Linear(in_channels, bottleneck_dim),
                             torch.nn.Tanh(),
                             torch.nn.Linear(bottleneck_dim, 1))
-    def forward(self, x):
+    def attention_fn(self, x):
         a = self.attention(x)
         a = torch.nn.Softmax(dim = 0)(a).T
+        return a
+    def forward(self, x):
+        a = self.attention_fn(x)
         x = torch.mm(a,x)
         return x
     def get_name(self):
         return "AttentionPooling"
+    def predict_attention(self, x):
+        return self.forward(x), self.attention_fn(x)
 
 
 class MILEncoder(torch.nn.Module):
@@ -66,6 +73,12 @@ class MILEncoder(torch.nn.Module):
         if self.feature_extractor is not None:
             x = self.feature_extractor(x)
         return x
+    def predict_attention(self, x):
+        x    = self.encoder(x)
+        x, a = self.mil_pooling.predict_attention(x)
+        if self.feature_extractor is not None:
+            x = self.feature_extractor(x)
+        return x, a
         
         
 class MILNet(Model):
@@ -79,6 +92,9 @@ class MILNet(Model):
         return torch.stack(out, dim = 0)
     def name_appendix(self):
         return "MILNet"
+    def predict_attention(self, x):
+        x, a = self.encoder.predict_attention(x)
+        return self.mlp(x), a
         
 class MILNetAfter(MILNet):
     def __init__(self, encoder: MILEncoder):
