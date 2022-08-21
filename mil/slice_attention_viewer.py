@@ -5,7 +5,7 @@ CT_TYPE     = "CTA"
 NET         = "resnet18"
 SET         = "test"
 DATA_DIR    = "../../../data/gravo/"
-WEIGHT_PATH = "CTA/MILNet-after-TensorAxial-resnet18_gap_2D-AttentionPooling/MILNet-after-TensorAxial-resnet18_gap_2D-AttentionPooling-run3/weights.pt"
+WEIGHT_PATH = "CTA/MILNet-after-TensorAxial-resnet18_gap_2D-AttentionPooling/MILNet-after-TensorAxial-resnet18_gap_2D-AttentionPooling-run1/weights.pt"
 
 DATASET     = os.path.join(DATA_DIR, f"dataset_{CT_TYPE}.csv")
 TENSORS_DIR = os.path.join(DATA_DIR, f"{CT_TYPE}_{NET}")
@@ -18,7 +18,7 @@ model = mil_after_attention(TensorEncoder(NET, 512, "gap"))
 model.load_state_dict(torch.load(WEIGHT_PATH))
 model.eval()
 set  = pd.read_csv(DATASET)
-set  = test_set[test_set["set"] == SET]
+set  = set[set["set"] == SET]
 
 for _, row in set.iterrows():
     patient = row["patient_id"]
