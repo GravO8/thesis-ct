@@ -2,8 +2,8 @@ import os, torch, torchio, numpy as np, pandas as pd
 from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
 CT_TYPE         = "NCCT"
-LABELS_FILENAME = "dataset_cta.csv" if CT_TYPE == "CTA" else "dataset_NCCT.csv"
-AUGMENTATIONS   = "augmentations_cta.csv" if CT_TYPE == "CTA" else "augmentations_NCCT_flip.csv"
+LABELS_FILENAME = f"dataset_{CT_TYPE}.csv"
+AUGMENTATIONS   = f"augmentations_{CT_TYPE}_flip.csv"
 
 
 def add_pad(scan, pad: int):
