@@ -47,4 +47,4 @@ if __name__ == "__main__":
                 mil_after_mean(TensorEncoder("resnet18", 512, "gap")),
                 mil_after_attention(TensorEncoder("resnet18", 512, "gap"))
                 ]
-    main(to_test, from_tensors = True, skip_slices = 5)
+    main(to_test, from_tensors = True, skip_slices = 2)

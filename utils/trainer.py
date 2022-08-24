@@ -77,12 +77,12 @@ class Trainer:
                 f.write( str(self.model) )
                 f.write("\n")
                 N = 2
-                with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
-                    if model_name.startswith("Axial"):
-                        summary(self.model, (1,91*N,109*N,1))
-                    else:
-                        # summary(self.model, (1,91*N,109*N,len(range(0,91*N,self.skip_slices))))
-                        summary(self.model, (len(range(0,91*N,self.skip_slices)),512))
+                # with contextlib.redirect_stdout(f): # redirects print output to the summary.txt file
+                #     if model_name.startswith("Axial"):
+                #         summary(self.model, (1,91*N,109*N,1))
+                #     else:
+                #         # summary(self.model, (1,91*N,109*N,len(range(0,91*N,self.skip_slices))))
+                #         summary(self.model, (len(range(0,91*N,self.skip_slices)),512))
         prev_runs   = [f for f in os.listdir(model_name) if f.startswith(model_name)]
         self.run    = 1 + len(prev_runs)
         run_dir     = os.path.join(model_name, f"{model_name}-run{self.run}")

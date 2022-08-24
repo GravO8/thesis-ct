@@ -3,7 +3,7 @@ from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, S
 
 CT_TYPE         = "NCCT"
 LABELS_FILENAME = f"dataset_{CT_TYPE}.csv"
-AUGMENTATIONS   = f"augmentations_{CT_TYPE}_flip.csv"
+AUGMENTATIONS   = f"augmentations_{CT_TYPE}.csv"
 
 
 def add_pad(scan, pad: int):
@@ -151,8 +151,9 @@ class CTLoaderTensors(CTLoader):
         self.encoder = encoder
     
     def get_ct(self, patient_id):
-        path   = os.path.join(self.data_dir, f"{CT_TYPE}_{self.encoder}", f"{patient_id}.pt")
+        path   = os.path.join(self.data_dir, f"{CT_TYPE}_normalized/{CT_TYPE}_{self.encoder}", f"{patient_id}.pt")
         tensor = torch.load(path)
+        tensor = tensor[15:70,:]
         if self.skip_slices > 0:
             tensor = tensor[range(0,len(tensor),self.skip_slices),:]
         tensor = tensor.unsqueeze(dim = 0).unsqueeze(dim = 0)
