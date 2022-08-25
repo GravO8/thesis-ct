@@ -27,6 +27,8 @@ class MaxMILPooling(MILPoolingEncodings):
         return x.max(dim = 0).values
     def get_name(self):
         return "MaxPooling"
+    def predict_attention(self, x):
+        return self.forward(x), x.argmax(dim = 0)
         
 class MeanMILPooling(MILPoolingEncodings):
     def forward(self, x):

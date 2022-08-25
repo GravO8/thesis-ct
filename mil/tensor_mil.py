@@ -31,14 +31,14 @@ def mil_after_mean(encoder):
     assert encoder.global_pool is not None
     mean_pooling      = MeanMILPooling()
     feature_extractor = Encoder("1Linear", torch.nn.Sequential(torch.nn.Linear(512,128), torch.nn.ReLU(inplace = True)), out_channels = 128, dim = 1)
-    # feature_extractor = None
     mil_encoder       = MILEncoder(encoder = encoder, mil_pooling = mean_pooling, feature_extractor = feature_extractor)
     return MILTensorAxial(mil_encoder)
     
 def mil_after_attention(encoder):
     assert encoder.global_pool is not None
-    attn_pooling = AttentionMILPooling(in_channels = encoder.out_channels)
-    mil_encoder  = MILEncoder(encoder = encoder, mil_pooling = attn_pooling)
+    attn_pooling      = AttentionMILPooling(in_channels = encoder.out_channels)
+    feature_extractor = Encoder("1Linear", torch.nn.Sequential(torch.nn.Linear(512,128), torch.nn.ReLU(inplace = True)), out_channels = 128, dim = 1)
+    mil_encoder       = MILEncoder(encoder = encoder, mil_pooling = attn_pooling, feature_extractor = feature_extractor)
     return MILTensorAxial(mil_encoder)
 
 if __name__ == "__main__":

@@ -1,11 +1,19 @@
 import torch, pandas as pd, nibabel as nib, os, numpy as np, matplotlib.pyplot as plt
 from tensor_mil import mil_after_attention, TensorEncoder
 
+
+def max_important_slices(argmax):
+    slices, counts = np.unique(argmax, return_counts = True)
+    sorted_i = np.argsort(counts)[::-1]
+    return slices[sorted_i], counts[sorted_i]
+
+
 CT_TYPE     = "CTA"
 NET         = "resnet18"
 SET         = "test"
 DATA_DIR    = "../../../data/gravo/"
-WEIGHT_PATH = "CTA/MILNet-after-TensorAxial-resnet18_gap_2D-AttentionPooling/MILNet-after-TensorAxial-resnet18_gap_2D-AttentionPooling-run1/weights.pt"
+POOOLING    = "Attetion"
+WEIGHT_PATH = f"CTA/MILNet-after-TensorAxial-{NET}_gap_2D-{POOOLING}Pooling/MILNet-after-TensorAxial-{NET}_gap_2D-{POOOLING}Pooling-run1/weights.pt"
 
 DATASET     = os.path.join(DATA_DIR, f"dataset_{CT_TYPE}.csv")
 TENSORS_DIR = os.path.join(DATA_DIR, f"{CT_TYPE}_{NET}")
@@ -30,7 +38,10 @@ for _, row in set.iterrows():
     scan    = scan[...,i_range]
     pred, a = model.predict_attention(tensor)
     a       = a.detach().numpy().squeeze()
-    i_att   = np.argsort(a)[::-1]
+    if POOOLING == "Attetion":
+        i_att = np.argsort(a)[::-1]
+    elif POOOLING == "Max":
+        i_att, a = max_important_slices(a)
     print("patient:", patient)
     print(" y_true:", y_true)
     print(" y_pred:", pred)
