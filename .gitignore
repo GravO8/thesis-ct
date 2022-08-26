@@ -8,4 +8,4 @@ Table data.ipynb
 *.nii
 stages.py
 sapo.py
-MILNet*
+*MILNet*

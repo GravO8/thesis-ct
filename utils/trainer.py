@@ -7,7 +7,7 @@ from .focal_loss import BinaryFocalLoss
 from .logger import Logger
 
 LR          = 0.001 # learning rate
-WD          = 0.025 # weight decay
+WD          = 0.001 # weight decay
 # LOSS        = torch.nn.BCELoss(reduction = "mean")
 LOSS        = BinaryFocalLoss(alpha = .75, gamma = 2, reduction = "mean")
 STEP_SIZE   = 150
