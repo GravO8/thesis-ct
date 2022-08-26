@@ -60,7 +60,7 @@ def analyse_stage(cols: list, stage_info: pd.DataFrame):
 
 if __name__ == "__main__":
     loader  = TableLoader("table_data.csv",
-                        keep_cols           = STAGE_DISCHARGE,
+                        keep_cols           = STAGE_PRETREATMENT,
                         target_col          = "binary_rankin",
                         normalize           = False,
                         dirname             = "../../../data/gravo",
@@ -75,9 +75,9 @@ if __name__ == "__main__":
     # print( a )
     # exit(0)
                          
-    for stage in STAGES:
-        stage_path = os.path.join(DIR, f"{stage}.csv")
-        stage_info = pd.read_csv(stage_path)
-        stage_info = analyse_stage(STAGES[stage], stage_info)
-        stage_path = stage_path.split(".csv")[0] + "-stats.csv"
-        stage_info.to_csv(stage_path, index = False)
+    # for stage in STAGES:
+    #     stage_path = os.path.join(DIR, f"{stage}.csv")
+    #     stage_info = pd.read_csv(stage_path)
+    #     stage_info = analyse_stage(STAGES[stage], stage_info)
+    #     stage_path = stage_path.split(".csv")[0] + "-stats.csv"
+    #     stage_info.to_csv(stage_path, index = False)
