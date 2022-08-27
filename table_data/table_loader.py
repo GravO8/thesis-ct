@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 def str_to_datetime(date: str):
-    if (date is None) or (date == "None") or (date == "0") or (isinstance(date,np.float) and np.isnan(date)):
+    if (date is None) or (date == "None") or (date == "0"):
         return None
     return datetime.fromisoformat(date[:19])
     
@@ -18,7 +18,7 @@ def get_age(birthdate, day):
 def get_hour_delta(time1, time2):
     if (time1 is None) or (time2 is None) or (time2 < time1):
         return None
-    return (time2 - time1).total_seconds() // (60*60)
+    return (time2 - time1).seconds // (60*60)
     
 
 class TableLoader(CSVLoader):
@@ -26,34 +26,14 @@ class TableLoader(CSVLoader):
     filter_out_no_ncct: bool = True):
         if filter_out_no_ncct:
             self.filter_no_ncct()
-        stroke_date = self.add_vars(filter_non_witnessed)
+        self.add_vars(filter_non_witnessed)
         if isinstance(keep_cols, str):
-            keep_cols = self.stage_cols(keep_cols, stroke_date)
+            keep_cols = self.stage_cols(keep_cols)
         self.convert_boolean_sequences(keep_cols)
         return keep_cols
             
-    def stage_cols(self, stage, stroke_date):
+    def stage_cols(self, stage):
         assert stage in STAGES, f"TableLoader.stage_cols: the available are {[s for s in STAGES]}"
-        death_date = [str_to_datetime(date) for date in self.table["data-3"].values]
-        assert len(death_date) == len(stroke_date)
-        to_keep = []
-        stage_limit = [-1] * len(death_date)
-        if stage == STAGE_24H:
-            stage_limit = [24] * len(death_date)
-        elif stage == STAGE_DISCHARGE:
-            discharge_date = [str_to_datetime(date) for date in self.table["data-18"].values]
-            assert len(death_date) == len(discharge_date)
-            stage_limit    = [get_hour_delta(stroke_date[i],discharge_date[i]) for i in range(len(stroke_date))]
-        for i in range(len(death_date)):
-            if (stroke_date[i] is None) or (death_date[i] is None) or (stage_limit[i] is None):
-                to_keep.append(True)
-            else:
-                hours_to_death = get_hour_delta(stroke_date[i], death_date[i])
-                if (hours_to_death is None) or (hours_to_death >= stage_limit[i]):
-                    to_keep.append(True)
-                else:
-                    to_keep.append(False)
-        self.table = self.table.iloc[to_keep]
         return STAGES[stage]
         
     def convert_boolean_sequences(self, keep_cols):
@@ -97,7 +77,6 @@ class TableLoader(CSVLoader):
             onset_time = [onset_time[i] if self.table["instAVCpre-4"].values[i]=="1" else None for i in range(len(birthdate))]
         self.table["age"]              = age
         self.table["time_since_onset"] = onset_time
-        return stroke_date
                 
     def remove_outliers(self):
         for col in VALID["intervals"]:

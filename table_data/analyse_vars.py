@@ -60,7 +60,7 @@ def analyse_stage(cols: list, stage_info: pd.DataFrame):
 
 if __name__ == "__main__":
     loader  = TableLoader("table_data.csv",
-                        keep_cols           = STAGE_PRETREATMENT,
+                        keep_cols           = STAGE_DISCHARGE,
                         target_col          = "binary_rankin",
                         normalize           = False,
                         dirname             = "../../../data/gravo",
