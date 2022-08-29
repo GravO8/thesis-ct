@@ -83,15 +83,14 @@ class MILEncoder(torch.nn.Module):
         return x, a
     def init_weights(self, init_convs: bool):
         init_kaiming_normal(self.encoder, init_convs = init_convs)
-        # if isinstance(self.mil_pooling, AttentionMILPooling):
+        if isinstance(self.mil_pooling, AttentionMILPooling):
             # self.mil_pooling.load_state_dict(torch.load("attention_pooling_pretrained.pt"))
-        # else:
-        init_kaiming_normal(self.mil_pooling, init_convs = init_convs)
+            init_kaiming_normal(self.mil_pooling, init_convs = init_convs)
         if self.feature_extractor is not None:
-            # init_kaiming_normal(self.feature_extractor, init_convs = init_convs)
-            self.feature_extractor.load_state_dict(torch.load("mean_pooling_feature_extractor.pt"))
-            for param in self.feature_extractor.parameters():
-                param.requires_grad = False
+            init_kaiming_normal(self.feature_extractor, init_convs = init_convs)
+            # self.feature_extractor.load_state_dict(torch.load("mean_pooling_feature_extractor.pt"))
+            # for param in self.feature_extractor.parameters():
+                # param.requires_grad = False
         
         
 class MILNet(Model):
@@ -110,10 +109,10 @@ class MILNet(Model):
         return self.mlp(x), a
     def init_weights(self, init_convs: bool):
         self.encoder.init_weights(init_convs = init_convs)
-        # init_xavier_normal(self.mlp)
-        self.mlp.load_state_dict(torch.load("mean_pooling_mlp.pt"))
-        for param in self.mlp.parameters():
-            param.requires_grad = False
+        init_xavier_normal(self.mlp)
+        # self.mlp.load_state_dict(torch.load("mean_pooling_mlp.pt"))
+        # for param in self.mlp.parameters():
+        #     param.requires_grad = False
         
 class MILNetAfter(MILNet):
     def __init__(self, encoder: MILEncoder):
