@@ -3,6 +3,17 @@
  - Clip         True, False
  - Skip slices  0,1,2,3,4,5
  - Encoder      ResNet18,34,50 EfficientNet b0,b1,b2,b3
+ 
+ 
+### "Normal" Training settings
+ - LR          = 0.001
+ - WD          = 0.001
+ - STEP_SIZE   = 150
+ - EPOCHS      = 300
+ - Slice encoder pretrained frozen
+ - Attention pooling initialized with kaiming_normal (the other poolings don't have weights)
+ - Feature extractor initialized with kaiming_normal
+ - MLP initialized with xavier_normal
 
 
 

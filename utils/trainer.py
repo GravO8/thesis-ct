@@ -31,7 +31,7 @@ def compute_metrics(y_true, y_prob):
 
 
 class Trainer:
-    def __init__(self, ct_loader, batch_size: int = 32, epochs: int = EPOCHS):
+    def __init__(self, batch_size: int = 32, epochs: int = EPOCHS):
         if torch.cuda.is_available():
             self.cuda           = True
             self.num_workers    = 8
@@ -42,7 +42,6 @@ class Trainer:
             self.trace_fn       = "print"
         self.batch_size = batch_size
         self.epochs     = epochs
-        self.set_loaders(ct_loader)
         self.reset_model()
 
     def set_loaders(self, ct_loader):
@@ -104,7 +103,8 @@ class Trainer:
         self.writer       = None
         self.run          = None
 
-    def train(self, model):
+    def train(self, model, ct_loader):
+        self.set_loaders(ct_loader)
         self.set_train_model(model)
         self.train_optimizer = OPTIMIZER(self.model.parameters(), 
                                         lr = LR,

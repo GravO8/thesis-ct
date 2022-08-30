@@ -1,5 +1,5 @@
 import os, torch, torchio, numpy as np, pandas as pd
-from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
+from dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
 CT_TYPE         = "NCCT"
 LABELS_FILENAME = f"dataset_{CT_TYPE}.csv"
@@ -18,11 +18,12 @@ def add_pad(scan, pad: int):
     scan = zeros
     return scan
     
-
+       
 class CTLoader:
     def __init__(self, labels_filename: str = LABELS_FILENAME, 
         augmentations_filename = AUGMENTATIONS, data_dir: str = None,
-        binary_rankin: bool = True, augment_train: bool = True, skip_slices: int = 0):
+        binary_rankin: bool = True, augment_train: bool = True, 
+        skip_slices: int = 0, reshuffle: bool = False):
         self.data_dir       = data_dir
         self.label_col      = BINARY_RANKIN if binary_rankin else RANKIN
         self.augment_train  = augment_train
@@ -30,9 +31,35 @@ class CTLoader:
             labels_filename         = os.path.join(self.data_dir, labels_filename)
             augmentations_filename  = os.path.join(self.data_dir, augmentations_filename)
         self.labels         = pd.read_csv(labels_filename)
+        if reshuffle:
+            self.reshuffle()
         self.augmentations  = pd.read_csv(augmentations_filename)
         self.skip_slices    = skip_slices
         np.random.seed(0)
+        
+    def reshuffle(self, verbose = True):
+        if verbose:
+            print("before")
+            print(" - train", np.unique(self.labels[self.labels[SET] == "train"][BINARY_RANKIN].values, return_counts = True))
+            print(" - test", np.unique(self.labels[self.labels[SET] == "test"][BINARY_RANKIN].values, return_counts = True))
+            print(self.labels[self.labels[SET] == "test"][:5])
+        patients1   = self.labels[self.labels[BINARY_RANKIN] == 1]
+        patients0   = self.labels[self.labels[BINARY_RANKIN] == 0]
+        N1_ids      = list(patients1[PATIENT_ID].values)
+        N0_ids      = list(patients0[PATIENT_ID].values)
+        N1_test     = len(patients1[patients1[SET] == "test"].values)
+        N0_test     = len(patients0[patients0[SET] == "test"].values)
+        np.random.shuffle(N0_ids)
+        np.random.shuffle(N1_ids)
+        test_patients = N1_ids[:N1_test] + N0_ids[:N0_test]
+        new_set = ["test" if id in test_patients else "train" for id in self.labels["patient_id"].values]
+        self.labels[SET] = new_set
+        if verbose:
+            print("after")
+            print(" - train", np.unique(self.labels[self.labels[SET] == "train"][BINARY_RANKIN].values, return_counts = True))
+            print(" - test", np.unique(self.labels[self.labels[SET] == "test"][BINARY_RANKIN].values, return_counts = True))
+            print(self.labels[self.labels[SET] == "test"][:5])
+        exit(0)
             
     def load_dataset(self):
         train   = self.load_set("train")
@@ -81,7 +108,7 @@ class CTLoader:
         if self.skip_slices > 0:
             ct.set_data(ct.data[...,range(0,ct.shape[-1],self.skip_slices)])
         return ct
-        
+
         
 class CTLoader2D(CTLoader):
     def __init__(self, slice: str, slice_range: int = 2, pad: int = None,
@@ -143,7 +170,7 @@ class CTLoader2D(CTLoader):
                 plt.imshow(scan.squeeze().T.flip(0), cmap = "gray")
                 plt.show()
         return set
-            
+
 
 class CTLoaderTensors(CTLoader):
     def __init__(self, encoder: str = "resnet18", **kwargs):
@@ -159,8 +186,9 @@ class CTLoaderTensors(CTLoader):
         tensor = tensor.unsqueeze(dim = 0).unsqueeze(dim = 0)
         return torchio.ScalarImage(tensor = tensor)
 
+
 if __name__ == "__main__":
     # ct_loader = CTLoader2D("A", data_dir = "../../../data/gravo")
-    ct_loader = CTLoaderTensors(data_dir = "../../../data/gravo")
-    ct_loader.load_dataset()
+    ct_loader = CTLoaderTensors(data_dir = "../../../data/gravo", reshuffle = True)
+    # ct_loader.load_dataset()
     # 57217
