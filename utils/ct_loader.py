@@ -1,5 +1,5 @@
 import os, torch, torchio, numpy as np, pandas as pd
-from dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
+from .dataset_splitter import PATIENT_ID, RANKIN, BINARY_RANKIN, AUGMENTATION, SET
 
 CT_TYPE         = "NCCT"
 LABELS_FILENAME = f"dataset_{CT_TYPE}.csv"
@@ -23,7 +23,7 @@ class CTLoader:
     def __init__(self, labels_filename: str = LABELS_FILENAME, 
         augmentations_filename = AUGMENTATIONS, data_dir: str = None,
         binary_rankin: bool = True, augment_train: bool = True, 
-        skip_slices: int = 0, reshuffle: bool = False):
+        skip_slices: int = 0, reshuffle: bool = False, kfold: bool = False):
         self.data_dir       = data_dir
         self.label_col      = BINARY_RANKIN if binary_rankin else RANKIN
         self.augment_train  = augment_train
@@ -32,12 +32,48 @@ class CTLoader:
             augmentations_filename  = os.path.join(self.data_dir, augmentations_filename)
         self.labels         = pd.read_csv(labels_filename)
         if reshuffle:
-            self.reshuffle()
+            if kfold:
+                self.labels = self.labels.sample(frac = 1).reset_index(drop = True)
+            else:
+                self.reshuffle()
+        self.original_sets  = list(self.labels[SET].values)
         self.augmentations  = pd.read_csv(augmentations_filename)
         self.skip_slices    = skip_slices
+        self.kfold          = kfold
         np.random.seed(0)
         
-    def reshuffle(self, verbose = True):
+    def get_folds(self):
+        '''
+        5 folds and 1 test set
+        '''
+        self.labels[SET] = self.original_sets # ensures we use the same folds every time the get_folds method is called
+        patients1 = self.labels[self.labels[BINARY_RANKIN] == 1]
+        patients0 = self.labels[self.labels[BINARY_RANKIN] == 0]
+        N1_ids    = list(patients1[PATIENT_ID].values)
+        N0_ids    = list(patients0[PATIENT_ID].values)
+        N1_fold   = len(patients1) // 6
+        N0_fold   = len(patients0) // 6
+        N1_train  = N1_fold * 5
+        N0_train  = N0_fold * 5
+        for i in range(5):
+            test_patients   = N1_ids[i*N1_fold:(i+1)*N1_fold] + N0_ids[i*N0_fold:(i+1)*N0_fold]
+            train_patients  = N1_ids[:i*N1_fold] + N1_ids[(i+1)*N1_fold:N1_train]
+            train_patients += N0_ids[:i*N0_fold] + N0_ids[(i+1)*N0_fold:N0_train]
+            new_set = []
+            for id in self.labels["patient_id"].values:
+                if id in test_patients:
+                    new_set.append("test")
+                elif id in train_patients:
+                    new_set.append("train")
+                else:
+                    new_set.append(None)
+            self.labels[SET] = new_set
+            yield self.load_dataset()
+        train_patients = N1_ids[:N1_train] + N0_ids[:N0_train]
+        self.labels[SET] = ["train" if id in train_patients else "test" for id in self.labels["patient_id"].values]
+        yield self.load_dataset()
+        
+    def reshuffle(self, verbose = False):
         if verbose:
             print("before")
             print(" - train", np.unique(self.labels[self.labels[SET] == "train"][BINARY_RANKIN].values, return_counts = True))
@@ -52,16 +88,14 @@ class CTLoader:
         np.random.shuffle(N0_ids)
         np.random.shuffle(N1_ids)
         test_patients = N1_ids[:N1_test] + N0_ids[:N0_test]
-        new_set = ["test" if id in test_patients else "train" for id in self.labels["patient_id"].values]
-        self.labels[SET] = new_set
+        self.labels[SET] = ["test" if id in test_patients else "train" for id in self.labels["patient_id"].values]
         if verbose:
             print("after")
             print(" - train", np.unique(self.labels[self.labels[SET] == "train"][BINARY_RANKIN].values, return_counts = True))
             print(" - test", np.unique(self.labels[self.labels[SET] == "test"][BINARY_RANKIN].values, return_counts = True))
             print(self.labels[self.labels[SET] == "test"][:5])
-        exit(0)
             
-    def load_dataset(self):
+    def load_dataset(self, verbose = True):
         train   = self.load_set("train")
         test    = self.load_set("test")
         if self.augment_train:
@@ -69,7 +103,9 @@ class CTLoader:
             train.extend( train_augmentations )
         np.random.shuffle(train)
         np.random.shuffle(test)
-        print(len(train), len(test))
+        if verbose:
+            print("train", len(train), np.unique(self.labels[self.labels[SET] == "train"][BINARY_RANKIN].values, return_counts = True))
+            print("test", len(test), np.unique(self.labels[self.labels[SET] == "test"][BINARY_RANKIN].values, return_counts = True))
         return (torchio.SubjectsDataset(train),
                 torchio.SubjectsDataset(test))
                 
@@ -77,7 +113,7 @@ class CTLoader:
         augmentations_set = []
         for _, row in self.labels[self.labels["set"] == "train"].iterrows():
             patient_id = row[PATIENT_ID]
-            for augmentation in self.augmentations[self.augmentations[PATIENT_ID] == patient_id][AUGMENTATION].values:
+            for augmentation in ("flip", "elastic_deformation", "flip_elastic_deformation"):
                 ct      = self.get_ct(f"{patient_id}-{augmentation}")
                 subject = torchio.Subject(
                     ct          = ct,
@@ -189,6 +225,10 @@ class CTLoaderTensors(CTLoader):
 
 if __name__ == "__main__":
     # ct_loader = CTLoader2D("A", data_dir = "../../../data/gravo")
-    ct_loader = CTLoaderTensors(data_dir = "../../../data/gravo", reshuffle = True)
+    # data_dir = "../../../data/gravo"
+    data_dir = "/media/avcstorage/gravo"
+    ct_loader = CTLoaderTensors(data_dir = data_dir, reshuffle = True)
+    for train, test in ct_loader.get_folds():
+        pass
     # ct_loader.load_dataset()
     # 57217

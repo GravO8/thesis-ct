@@ -44,11 +44,10 @@ class Trainer:
         self.epochs     = epochs
         self.reset_model()
 
-    def set_loaders(self, ct_loader):
+    def set_loaders(self, train, test):
         '''
         TODO
         '''
-        train, test = ct_loader.load_dataset()
         self.train_loader = torch.utils.data.DataLoader(train, 
                                     batch_size  = self.batch_size, 
                                     num_workers = self.num_workers, 
@@ -57,7 +56,6 @@ class Trainer:
                                     batch_size  = self.batch_size, 
                                     num_workers = self.num_workers,
                                     pin_memory  = self.cuda)
-        self.skip_slices  = ct_loader.skip_slices
                                             
     def set_train_model(self, model):
         self.model = model.float()
@@ -103,8 +101,9 @@ class Trainer:
         self.writer       = None
         self.run          = None
 
-    def train(self, model, ct_loader):
-        self.set_loaders(ct_loader)
+    def train(self, model, train, test, skip_slices: int):
+        self.skip_slices = skip_slices
+        self.set_loaders(train, test)
         self.set_train_model(model)
         self.train_optimizer = OPTIMIZER(self.model.parameters(), 
                                         lr = LR,
