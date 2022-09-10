@@ -67,10 +67,10 @@ class ClassicClassifier(TableClassifier):
                 test_score  = best_row[f"split{i}_test_score"]
                 f.write(f"{stage},{missing_values},{model_name},train{i},{train_score},,,,\n")
                 f.write(f"{stage},{missing_values},{model_name},test{i},{test_score},,,,\n")
-            for set in ("train", "test"):
+            for set in self.loader.available_sets():
                 metrics = self.compute_metrics(set)
                 f.write(f"{stage},{missing_values},{model_name},{set}")
-                for metric in ("auc", "accuracy", "precision","recall","f1-score"):
+                for metric in ("f1-score", "accuracy", "precision","recall","auc"):
                     f.write(f",{metrics[metric]}")
                 f.write("\n")
         joblib.dump(self.model, f"runs/models/{model_name}-{stage}-{missing_values}.joblib")

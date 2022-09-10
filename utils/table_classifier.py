@@ -21,7 +21,7 @@ class TableClassifier(ABC):
         return set["x"], set["y"]
         
     def compute_metrics(self, set: str, verbose = False):
-        x, y   = self.get_set(set) 
+        x, y   = self.get_set(set)
         y_prob = self.predict(x)
         if verbose:
             l, c = np.unique(y, return_counts = True)

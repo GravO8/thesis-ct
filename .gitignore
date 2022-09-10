@@ -7,7 +7,7 @@ augmentations.csv
 Table data.ipynb
 *.nii
 stages.py
-runs
+runs*
 runs-f1_score
 sapo.py
 *MILNet*

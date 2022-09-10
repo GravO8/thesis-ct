@@ -13,9 +13,11 @@ class CSVLoader(ABC):
     set_col: str = "set", normalize: bool = True, 
     empty_values_method: str = "amputate", join_train_val: bool = False, 
     join_train_test: bool = False, dirname: str = "", reshuffle: int = False, 
-    sets_distr: dict = {"train": 4/6, "val": 1/6, "test": 1/6}, **kwargs):
+    sets_distr: dict = {"train": 4/6, "val": 1/6, "test": 1/6}, 
+    sep = ",", verbose = True, **kwargs):
+        self.verbose = verbose
         csv_filename = os.path.join(dirname, csv_filename)
-        self.table   = pd.read_csv(csv_filename)
+        self.table   = pd.read_csv(csv_filename, sep = sep)
         keep_cols    = self.preprocess(keep_cols, **kwargs)
         self.table   = self.table.apply(lambda x: pd.to_numeric(x, errors = "coerce"))
         self.remove_outliers()
@@ -29,10 +31,12 @@ class CSVLoader(ABC):
         self.split(set_col, join_train_val, join_train_test, reshuffle, target_col, sets_distr)
         self.filter(keep_cols, target_col)
         self.empty_values(empty_values_method)
+        self.feature_selection()
         if normalize:
             self.normalize()
-        for s in self.available_sets():
-            print(s, np.unique(self.sets[s]["y"], return_counts = True)[1])
+        if self.verbose:
+            for s in self.available_sets():
+                print(s, np.unique(self.sets[s]["y"], return_counts = True)[1], self.sets[s]["x"].shape)
             
     def empty_values(self, method):
         if method is None:
@@ -47,6 +51,9 @@ class CSVLoader(ABC):
             self.simple_impute("constant")
         else:
             assert False
+            
+    def feature_selection(self):
+        pass
         
     @abstractmethod
     def preprocess(self):
@@ -145,7 +152,7 @@ class CSVLoader(ABC):
             self.sets[s] = {"x": x, "y": y}
             
     def get_set(self, set: str):
-        assert set in self.available_sets(), f"CSVLoader.get_set: Unknown set {set}. Available sets are {self.loader.available_sets()}"
+        assert set in self.available_sets(), f"CSVLoader.get_set: Unknown set {set}. Available sets are {self.available_sets()}"
         return self.sets[set]
         
     def normalize(self):
@@ -185,9 +192,9 @@ class CSVLoader(ABC):
         return [s for s in self.sets]
         
     def get_col(self, set: str, col: str):
-        assert set in self.available_sets(), f"CSVLoader.get_col: Unknown set {set}. Available sets are {self.loader.available_sets()}"
+        assert set in self.available_sets(), f"CSVLoader.get_col: Unknown set {set}. Available sets are {self.available_sets()}"
         return self.sets[set]["x"][col].values
     
     def set_col(self, set: str, col: str, values):
-        assert set in self.available_sets(), f"CSVLoader.update_col: Unknown set {set}. Available sets are {self.loader.available_sets()}"
+        assert set in self.available_sets(), f"CSVLoader.update_col: Unknown set {set}. Available sets are {self.available_sets()}"
         self.sets[set]["x"][col] = values
