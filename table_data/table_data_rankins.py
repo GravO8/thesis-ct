@@ -37,6 +37,8 @@ for stage in STAGES:
                             filter_out_no_ncct  = False,
                             empty_values_method = missing)
         print()
+        loader.save_set_splits()
+        exit(0)
         for classifier in [logistic_regression]:
          # (knn, decision_tree, random_forest, logistic_regression, gradient_boosting):
             trained_classifier = classifier(loader, n_iter = 50, metric = "f1")

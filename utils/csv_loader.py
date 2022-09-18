@@ -149,7 +149,8 @@ class CSVLoader(ABC):
         for s in self.available_sets():
             x = self.sets[s][to_keep]
             y = self.sets[s][target_col].values
-            self.sets[s] = {"x": x, "y": y}
+            ids = self.sets[s]["idProcessoLocal"]
+            self.sets[s] = {"x": x, "y": y, "patient_ids": ids}
             
     def get_set(self, set: str):
         assert set in self.available_sets(), f"CSVLoader.get_set: Unknown set {set}. Available sets are {self.available_sets()}"
@@ -187,6 +188,7 @@ class CSVLoader(ABC):
                     to_keep.append(True)
             self.sets[s]["x"] = self.sets[s]["x"].iloc[to_keep]
             self.sets[s]["y"] = self.sets[s]["y"][to_keep]
+            self.sets[s]["patient_ids"] = self.sets[s]["patient_ids"][to_keep]
                 
     def available_sets(self):
         return [s for s in self.sets]
@@ -198,3 +200,13 @@ class CSVLoader(ABC):
     def set_col(self, set: str, col: str, values):
         assert set in self.available_sets(), f"CSVLoader.update_col: Unknown set {set}. Available sets are {self.available_sets()}"
         self.sets[set]["x"][col] = values
+        
+    def save_set_splits(self):
+        patient_ids = []
+        sets = []
+        for s in self.available_sets():
+            ids = self.sets[s]["patient_ids"]
+            patient_ids.extend(ids)
+            sets.extend([s] * len(ids))
+        out = {"patient_ids": np.array(patient_ids).astype(int), "set": sets}
+        pd.DataFrame(out).to_csv("set_splits.csv", index = False)
