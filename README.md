@@ -1,5 +1,13 @@
 [toc]
 
+
+## Experiment setup
+
+train test N vezes igual
+train test N vezes random shuffle
+-> k fold com test set
+k fold sem test set
+
 ## Number of experiments
 
 - 5 baseline

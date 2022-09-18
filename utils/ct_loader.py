@@ -23,7 +23,8 @@ class CTLoader:
     def __init__(self, labels_filename: str = LABELS_FILENAME, 
         augmentations_filename = AUGMENTATIONS, data_dir: str = None,
         binary_rankin: bool = True, augment_train: bool = True, 
-        skip_slices: int = 0, reshuffle: bool = False, kfold: bool = False):
+        skip_slices: int = 0, reshuffle: bool = False, kfold: bool = False, 
+        clip: bool = False):
         self.data_dir       = data_dir
         self.label_col      = BINARY_RANKIN if binary_rankin else RANKIN
         self.augment_train  = augment_train
@@ -40,6 +41,7 @@ class CTLoader:
         self.augmentations  = pd.read_csv(augmentations_filename)
         self.skip_slices    = skip_slices
         self.kfold          = kfold
+        self.clip           = clip
         np.random.seed(0)
         
     def get_folds(self):
@@ -216,8 +218,9 @@ class CTLoaderTensors(CTLoader):
     def get_ct(self, patient_id):
         path   = os.path.join(self.data_dir, f"{CT_TYPE}_normalized/{CT_TYPE}_{self.encoder}", f"{patient_id}.pt")
         tensor = torch.load(path)
-        tensor = tensor[15:70,:]
-        if self.skip_slices > 0:
+        if self.clip:
+            tensor = tensor[15:70,:]
+        if self.skip_slices > 1:
             tensor = tensor[range(0,len(tensor),self.skip_slices),:]
         tensor = tensor.unsqueeze(dim = 0).unsqueeze(dim = 0)
         return torchio.ScalarImage(tensor = tensor)

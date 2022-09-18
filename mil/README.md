@@ -1,8 +1,10 @@
 ### Experiments
 
  - Clip         True, False
- - Skip slices  0,1,2,3,4,5
- - Encoder      ResNet18,34,50 EfficientNet b0,b1,b2,b3
+ - Skip slices  1,2,3,4,5
+ - MIL pooling  Mean, Max, Attetion
+ - Encoder      ResNet18,34,50,custom_3D_cnn_v1
+ <!-- EfficientNet b0,b1,b2,b3 -->
  
  
 ### "Normal" Training settings
