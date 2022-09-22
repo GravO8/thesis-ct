@@ -3,11 +3,14 @@ from .table_classifier import TableClassifier
 
 
 class ClassicClassifier(TableClassifier):
-    def __init__(self, model, loader, ranges, metric = "f1", **kwargs):
+    def __init__(self, model, loader, ranges, metric = "f1", weights: str = None, **kwargs):
         super().__init__(loader)
         self.model  = model
         self.metric = metric
-        self.hyperparam_tune(ranges, **kwargs)
+        if weights is None:
+            self.hyperparam_tune(ranges, **kwargs)
+        else:
+            self.model = joblib.load(weights)
         
     def predict(self, x):
         try:
@@ -76,6 +79,16 @@ class ClassicClassifier(TableClassifier):
         joblib.dump(self.model, f"runs/models/{model_name}-{stage}-{missing_values}.joblib")
         with open(f"runs/models/{model_name}-{stage}-{missing_values}-params.txt", "w") as f:
             f.write(str(self.best_params))
+    
+    def record_pretrained_performance(self, stage: str, missing_values: str):
+        model_name = self.model.__class__.__name__
+        with open("runs/performance.csv", "a") as f:
+            for set in self.loader.available_sets():
+                metrics = self.compute_metrics(set)
+                f.write(f"{stage},{missing_values},{model_name},{set}")
+                for metric in ("f1-score", "accuracy", "precision","recall","auc"):
+                    f.write(f",{metrics[metric]}")
+                f.write("\n")
 
 
 def knn(loader, **kwargs):
