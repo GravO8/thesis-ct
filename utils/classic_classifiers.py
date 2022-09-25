@@ -60,11 +60,11 @@ class ClassicClassifier(TableClassifier):
         self.model = best_model
         self.best_params = best_param
         
-    def record_performance(self, stage: str, missing_values: str):
+    def record_performance(self, stage: str, missing_values: str, run_name: str = "runs"):
         model_name = self.model.__class__.__name__
         best_row   = self.cv_results[self.cv_results["rank_test_score"] == 1].iloc[0]
         assert best_row["params"] == self.best_params
-        with open("runs/performance.csv", "a") as f:
+        with open(f"{run_name}/performance.csv", "a") as f:
             for i in range(self.cv):
                 train_score = best_row[f"split{i}_train_score"]
                 test_score  = best_row[f"split{i}_test_score"]
@@ -76,13 +76,13 @@ class ClassicClassifier(TableClassifier):
                 for metric in ("f1-score", "accuracy", "precision","recall","auc"):
                     f.write(f",{metrics[metric]}")
                 f.write("\n")
-        joblib.dump(self.model, f"runs/models/{model_name}-{stage}-{missing_values}.joblib")
-        with open(f"runs/models/{model_name}-{stage}-{missing_values}-params.txt", "w") as f:
+        joblib.dump(self.model, f"{run_name}/models/{model_name}-{stage}-{missing_values}.joblib")
+        with open(f"{run_name}/models/{model_name}-{stage}-{missing_values}-params.txt", "w") as f:
             f.write(str(self.best_params))
     
-    def record_pretrained_performance(self, stage: str, missing_values: str):
+    def record_pretrained_performance(self, stage: str, missing_values: str, run_name: str = "runs"):
         model_name = self.model.__class__.__name__
-        with open("runs/performance.csv", "a") as f:
+        with open(f"{run_name}/performance.csv", "a") as f:
             for set in self.loader.available_sets():
                 metrics = self.compute_metrics(set)
                 f.write(f"{stage},{missing_values},{model_name},{set}")

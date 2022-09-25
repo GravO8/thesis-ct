@@ -22,15 +22,15 @@ table_data[NEW_COL] = preds
 table_data.to_csv(os.path.join(DIR,DATASET), index = False)
 
 
-for missing in ("amputate",):
-     # "impute", "impute_mean", "impute_constant"):
+for missing in ("impute",):
+     # "amputate", "impute", "impute_mean", "impute_constant"):
     print(missing)
     # stage,missing_values,model,set,f1_score,accuracy,precision,recall,auc
     loader  = TableLoader(DATASET,
                         keep_cols           = ["altura-1", "peso-1", "age", "hemoAd-4", "hemat-4",
-                                               "inrAd-4", "gliceAd-4", "totalNIHSS-5", "preArtSis-5", 
-                                               "preArtDia-5", "ocEst-10"],
-                                                # NEW_COL],
+                                               "inrAd-4", "gliceAd-4", "totalNIHSS-5", "preArtSis-5", "preArtDia-5", 
+                                               NEW_COL],
+                                                # ocEst-10 ], totalNIHSS-5
                         target_col          = "binary_rankin",
                         normalize           = True,
                         dirname             = DIR,
@@ -41,8 +41,11 @@ for missing in ("amputate",):
                         filter_out_no_ncct  = False,
                         empty_values_method = missing)
     print()
-    trained_classifier = logistic_regression(loader, 
-                                            n_iter = 50, 
-                                            metric = "f1", 
-                                            weights = f"../../../runs/table data/runs-important_features+occlusion/models/LogisticRegression-baseline-impute.joblib")
-    trained_classifier.record_pretrained_performance(NEW_COL, missing)
+    # trained_classifier = logistic_regression(loader, 
+    #                                         n_iter = 50, 
+    #                                         metric = "f1", 
+    #                                         # weights = "runs/models/LogisticRegression-ocEst-10-impute.joblib")
+    #                                         weights = f"../../../runs/table data/runs-important_features-orig/runs-important_features+occlusion_pred/models/LogisticRegression-occlusion-pred-impute.joblib")
+    # trained_classifier.record_pretrained_performance(NEW_COL, missing)
+    trained_classifier = logistic_regression(loader, n_iter = 50, metric = "f1")
+    trained_classifier.record_performance(NEW_COL, missing)

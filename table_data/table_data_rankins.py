@@ -20,7 +20,7 @@ from stages import *
 #                     empty_values_method = missing)
 
 for stage in STAGES:
-    for missing in ("amputate", "impute", "impute_mean", "impute_constant"):
+    for missing in ("impute", "impute_mean", "impute_constant"):
         print(stage, missing)
         # stage,missing_values,model,set,f1_score,accuracy,precision,recall,auc
         loader  = TableLoader("table_data.csv",
