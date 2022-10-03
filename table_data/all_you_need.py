@@ -15,17 +15,22 @@ NEW_COL         = "occlusion-pred2"
 table_data      = pd.read_csv(os.path.join(DIR,DATASET))
 occlusion_pred  = pd.read_csv("dataset-occlusion.csv")
 preds           = []
+paint           = []
 for _, row in table_data.iterrows():
     pred = occlusion_pred[occlusion_pred.patient_id.astype(str) == row.idProcessoLocal]["occlusion-pred"].values
     if len(pred) > 0:
         preds.append(int(pred[0] > .5))
+        paint.append(1)
     else:
         gt = row["ocEst-10"]
         if gt != "None":
             preds.append(gt)
+            paint.append(0)
         else:
             preds.append("")
+            paint.append(-1)
 table_data[NEW_COL] = preds
+table_data["paint"] = paint
 table_data.to_csv(os.path.join(DIR,DATASET), index = False)
 
 
@@ -46,9 +51,9 @@ for missing in ("amputate", "impute", "impute_mean"):
     loader  = TableLoader(DATASET,
                         keep_cols           = ["altura-1", "peso-1", "age", "hemoAd-4", "hemat-4",
                                                "inrAd-4", "gliceAd-4", "totalNIHSS-5", "preArtSis-5", "preArtDia-5", 
-                                               NEW_COL],
+                                               NEW_COL, "paint"],
                         target_col          = "binary_rankin",
-                        normalize           = True,
+                        normalize           = False,
                         dirname             = DIR,
                         join_train_val      = True,
                         join_train_test     = True,
@@ -58,6 +63,11 @@ for missing in ("amputate", "impute", "impute_mean"):
                         empty_values_method = missing)
     set  = loader.get_set("train")
     x, y = set["x"], set["y"]
+    paint = x["paint"]
+    import numpy as np
+    print(np.unique(paint, return_counts = 1))
+    print(np.unique(y, return_counts = 1))
+    exit()
     for i in range(100):
         print(i)
         x_train, x_test, y_train, y_test = train_test_split(x, y, 

@@ -4,12 +4,13 @@ from table_data.table_loader import TableLoader
 from utils.table_classifier import TableClassifier
 
 class ASTRALClassifier(TableClassifier):
-    def __init__(self, dataset_filename: str, **kwargs):
-        loader = TableLoader(csv_filename       = dataset_filename, 
-                            keep_cols           = ["age", "totalNIHSS-5", "time_since_onset", "altVis-5", "altCons-5", "gliceAd-4"],
-                            target_col          = "binary_rankin",
-                            normalize           = False,
-                            **kwargs)
+    def __init__(self, dataset_filename: str = None, loader = None, **kwargs):
+        if dataset_filename is not None:
+            loader = TableLoader(csv_filename       = dataset_filename, 
+                                keep_cols           = ["age", "totalNIHSS-5", "time_since_onset", "altVis-5", "altCons-5", "gliceAd-4"],
+                                target_col          = "binary_rankin",
+                                normalize           = False,
+                                **kwargs)
         super().__init__(loader)
         self.format_cols()
         
@@ -28,9 +29,9 @@ class ASTRALClassifier(TableClassifier):
         x = x > 30
         return x.astype(int).values
         
-    def record_performance(self, missing_values: str):
+    def record_performance(self, missing_values: str, run_name: str = "runs"):
         # missing_values,model,set,auc,accuracy,precision,recall,f1_score
-        with open("runs/clinic-performance.csv", "a") as f:
+        with open(f"{run_name}/clinic-performance.csv", "a") as f:
             for set in self.loader.available_sets():
                 metrics = self.compute_metrics(set)
                 f.write(f"{missing_values},ASTRAL,{set}")
