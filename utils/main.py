@@ -19,7 +19,7 @@ def train(to_test: list, N: int, trainer):
 
 
 def main(to_test: list, N: int = 3, device: int = 3, slice: str = None, 
-    slice_range: int = None, pad: int = None):
+    slice_range: int = None, pad: int = None, batch_size = 32):
     dir = set_home(device)
     if slice_range is not None:
         assert slice is not None
@@ -28,6 +28,6 @@ def main(to_test: list, N: int = 3, device: int = 3, slice: str = None,
             model.set_slice_info(slice_range, slice)
     else:
         ct_loader = CTLoader(data_dir = dir)
-    trainer = Trainer(ct_loader, batch_size = 32)
-    train(models, N, trainer)
+    trainer = Trainer(ct_loader, batch_size = batch_size)
+    train(to_test, N, trainer)
     

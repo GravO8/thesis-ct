@@ -19,6 +19,8 @@ class PerformanceAnalyser:
             out[f"{metric}_avg"] = []
             out[f"{metric}_std"] = []
         for model_type in list_dirs(self.runs_dir):
+            if model_type in ("vae", "unsup"):
+                continue
             models_dir = os.path.join(self.runs_dir, model_type)
             for model in list_dirs(models_dir):
                 model_performance = os.path.join(self.runs_dir, model_type, model, PERFORMANCE)

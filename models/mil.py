@@ -25,6 +25,8 @@ class MaxMILPooling(MILPoolingEncodings):
         return x.max(dim = 0).values
     def get_name(self):
         return "MaxPooling"
+    def predict_attention(self, x):
+        return self.forward(x), x.argmax(dim = 0)
         
 class MeanMILPooling(MILPoolingEncodings):
     def forward(self, x):
@@ -38,14 +40,19 @@ class AttentionMILPooling(MILPoolingEncodings, torch.nn.Module):
         self.attention = torch.nn.Sequential(
                             torch.nn.Linear(in_channels, bottleneck_dim),
                             torch.nn.Tanh(),
-                            torch.nn.Linear(bottleneck_dim, 1))
-    def forward(self, x):
+                            torch.nn.Linear(bottleneck_dim, 1))    
+    def attention_fn(self, x):
         a = self.attention(x)
         a = torch.nn.Softmax(dim = 0)(a).T
+        return a
+    def forward(self, x):
+        a = self.attention_fn(x)
         x = torch.mm(a,x)
         return x
     def get_name(self):
         return "AttentionPooling"
+    def predict_attention(self, x):
+        return self.forward(x), self.attention_fn(x)
 
 
 class MILEncoder(torch.nn.Module):
@@ -63,6 +70,12 @@ class MILEncoder(torch.nn.Module):
         if self.feature_extractor is not None:
             x = self.feature_extractor(x)
         return x
+    def predict_attention(self, x):
+        x    = self.encoder(x)
+        x, a = self.mil_pooling.predict_attention(x)
+        if self.feature_extractor is not None:
+            x = self.feature_extractor(x)
+        return x, a
         
         
 class MILNet(Model):
@@ -76,6 +89,9 @@ class MILNet(Model):
         return torch.stack(out, dim = 0)
     def name_appendix(self):
         return "MILNet"
+    def predict_attention(self, x):
+        x, a = self.encoder.predict_attention(x)
+        return self.mlp(x), a
         
 class MILNetAfter(MILNet):
     def __init__(self, encoder: MILEncoder):
@@ -92,6 +108,18 @@ class MILAfterAxial(MILNetAfter):
         x = x.permute((3,0,1,2)) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
         x = x[[i for i in range(x.shape[0]) if torch.count_nonzero(x[i,:,:,:] > 0) > 100]]
         return x
+    def process_input_eval(self, x):
+        x = self.normalize_input(x)
+        x = x.permute((3,0,1,2)) # (C,x,y,z) = (1,x,y,z) -> (z,C,x,y) = (B,1,x,y)
+        start = None
+        keep = []
+        for i in range(x.shape[0]):
+            if torch.count_nonzero(x[i,:,:,:] > 0) > 100:
+                if start is None:
+                    start = i
+                keep.append(i)
+        x = x[keep]
+        return start, x
     def name_appendix(self):
         return super().name_appendix() + "-Axial"
 
