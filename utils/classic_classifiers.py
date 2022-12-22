@@ -1,4 +1,4 @@
-import skopt, pandas as pd, joblib
+import skopt, pandas as pd, joblib, os
 from .table_classifier import TableClassifier
 
 
@@ -61,6 +61,7 @@ class ClassicClassifier(TableClassifier):
         self.best_params = best_param
         
     def record_performance(self, stage: str, missing_values: str, run_name: str = "runs"):
+        self.init_run_dir(run_name)
         model_name = self.model.__class__.__name__
         best_row   = self.cv_results[self.cv_results["rank_test_score"] == 1].iloc[0]
         assert best_row["params"] == self.best_params
@@ -73,7 +74,7 @@ class ClassicClassifier(TableClassifier):
             for set in self.loader.available_sets():
                 metrics = self.compute_metrics(set)
                 f.write(f"{stage},{missing_values},{model_name},{set}")
-                for metric in ("f1-score", "accuracy", "precision","recall","auc"):
+                for metric in ("f1-score", "accuracy", "precision","recall", "auc"):
                     f.write(f",{metrics[metric]}")
                 f.write("\n")
         joblib.dump(self.model, f"{run_name}/models/{model_name}-{stage}-{missing_values}.joblib")
@@ -86,7 +87,7 @@ class ClassicClassifier(TableClassifier):
             for set in self.loader.available_sets():
                 metrics = self.compute_metrics(set)
                 f.write(f"{stage},{missing_values},{model_name},{set}")
-                for metric in ("f1-score", "accuracy", "precision","recall","auc"):
+                for metric in self.METRICS:
                     f.write(f",{metrics[metric]}")
                 f.write("\n")
 
@@ -113,12 +114,6 @@ def decision_tree(loader, **kwargs):
                                 "min_impurity_decrease": skopt.space.space.Real(.001, .025),
                                 "random_state": [0]
                            },
-                           # ranges = {
-                           #      "criterion": ["entropy", "gini"],
-                           #      "max_depth": [2, 5, 10, 15, 20, 25],
-                           #      "min_impurity_decrease": [0.025, 0.01, 0.005, 0.0025, 0.001],
-                           #      "random_state": [0]
-                           # },
                            **kwargs)
 
 
@@ -145,7 +140,7 @@ def logistic_regression(loader, **kwargs):
                                 "tol": skopt.space.space.Real(1e-5, 1e-1),
                                 "penalty": ["l1", "l2"],
                                 "solver": ["saga"],
-                                "max_iter": [10000],
+                                "max_iter": [10],
                                 "random_state": [0]
                            },
                            **kwargs)

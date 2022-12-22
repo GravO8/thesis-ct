@@ -2,41 +2,38 @@ import os, numpy as np
 from table_loader import TableLoader
 from utils.classic_classifiers import *
 from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
 from clinic_classifiers import ASTRALClassifier
 
+TWO_VARS        = ["age", "totalNIHSS-5"]
+ASTRAL          = TWO_VARS + ["time_since_onset", "altVis-5", "altCons-5", "gliceAd-4"]
 
-DIR = "../../../data/gravo"
+LEUKOARAIOSIS   = ASTRAL + ["leucoa-7"]
+ASPECTS         = ASTRAL + ["aspects-7"]
+
+OCCLUSION       = ASTRAL + ["ocEst-10"]
+OCC_ASPECTS     = OCCLUSION + ["aspects-7"]
+ALL_BRAIN       = OCC_ASPECTS + ["leucoa-7"]
+
+OCCLUSION_PRED  = ASTRAL + ["occlusion-pred2"]
+OCC2_ASPECTS    = OCCLUSION_PRED + ["aspects-7"]
+ALL_BRAIN2      = OCCLUSION_PRED + ["aspects-7"]
+
+ALL             = ALL_BRAIN + ["occlusion-pred2"]
+
+
+DIR     = "../../../data/gravo"
 DATASET = "table_data.csv"
-N_ITER = 50
-CV     = 5
-METRIC = "f1"
-EXPS   = {"2vars": ["age","totalNIHSS-5"],
-          "occlusion": ["altura-1", "peso-1", "age", "hemoAd-4", "hemat-4",
-                        "inrAd-4", "gliceAd-4", "totalNIHSS-5", "preArtSis-5", "preArtDia-5", 
-                        "ocEst-10"],
-          "occlusion_pred": ["altura-1", "peso-1", "age", "hemoAd-4", "hemat-4",
-                        "inrAd-4", "gliceAd-4", "totalNIHSS-5", "preArtSis-5", "preArtDia-5", 
-                        "occlusion-pred2"]
-        }
-ASTRAL_COLS = ["age", "totalNIHSS-5", "time_since_onset", "altVis-5", "altCons-5", "gliceAd-4"]
-
-
-NEW_COL         = "occlusion-pred2"
-table_data      = pd.read_csv(os.path.join(DIR,DATASET))
-occlusion_pred  = pd.read_csv("dataset-occlusion.csv")
-preds           = []
-for _, row in table_data.iterrows():
-    pred = occlusion_pred[occlusion_pred.patient_id.astype(str) == row.idProcessoLocal]["occlusion-pred"].values
-    if len(pred) > 0:
-        preds.append(int(pred[0] > .5))
-    else:
-        gt = row["ocEst-10"]
-        if gt != "None":
-            preds.append(gt)
-        else:
-            preds.append("")
-table_data[NEW_COL] = preds
-table_data.to_csv(os.path.join(DIR,DATASET), index = False)
+MISSING = "amputate"
+N_ITER  = 40
+CV      = 5
+METRIC  = "f1"
+EXPS    = { "2vars":            TWO_VARS
+}
+            # "ASTRAL_vars":      ASTRAL,
+            # "leukoaraiosis":    LEUKOARAIOSIS,
+            # "occlusion":        OCCLUSION
+            # }
 
 
 class DummyLoader:
@@ -51,44 +48,47 @@ class DummyLoader:
         self.sets[set]["x"][col] = values
     def get_col(self, set: str, col: str):
         return self.sets[set]["x"][col].values
+        
+def normalize(train_x, test_x):
+    scaler = StandardScaler()
+    scaler.fit(train_x)
+    train_x = pd.DataFrame(scaler.transform(train_x), columns = train_x.columns)
+    test_x  = pd.DataFrame(scaler.transform(test_x),  columns = test_x.columns)
+    return train_x, test_x
 
-
-for missing in ("amputate", "impute", "impute_mean"):
-    # stage,missing_values,model,set,f1_score,accuracy,precision,recall,auc
-    loader  = TableLoader(DATASET,
-                        keep_cols           = ["altura-1", "peso-1", "age", "hemoAd-4", "hemat-4",
-                                               "inrAd-4", "gliceAd-4", "totalNIHSS-5", "preArtSis-5", "preArtDia-5", 
-                                               NEW_COL, "time_since_onset", "altVis-5", "altCons-5", "ocEst-10"],
-                        target_col          = "binary_rankin",
-                        normalize           = True,
-                        dirname             = DIR,
-                        join_train_val      = True,
-                        join_train_test     = True,
-                        reshuffle           = True,
-                        set_col             = "all",
-                        filter_out_no_ncct  = False,
-                        empty_values_method = missing)
-    set  = loader.get_set("train")
-    x, y = set["x"], np.array(set["y"])
-    i = 0
-    for train_index, test_index in StratifiedKFold(n_splits = 10, shuffle = False).split(x, y):
-        i += 1
-        print("fold", i)
-        x_train, x_test = x.iloc[train_index], x.iloc[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        for exp in EXPS:
-            cols = EXPS[exp]
-            name = f"ttest-{exp}"
-            x_train_exp, x_test_exp = x_train[cols], x_test[cols]
-            print("   ", missing, name, x_train_exp.shape, x_test_exp.shape)
-            loader     = DummyLoader(x_train_exp, x_test_exp, y_train, y_test)
-            classifier = logistic_regression(loader, n_iter = N_ITER, metric = METRIC, cv = CV)
-            classifier.record_performance(f"{name}-{i}", missing, run_name = f"runs-{name}")
-        name = "ttest-ASTRAL"
-        x_train_exp, x_test_exp = x_train[ASTRAL_COLS].copy(), x_test[ASTRAL_COLS].copy()
-        print("   ", missing, name, x_train_exp.shape, x_test_exp.shape)
-        loader = DummyLoader(x_train_exp, x_test_exp, y_train, y_test)
-        astral = ASTRALClassifier(dataset_filename = None, loader = loader)
-        astral.record_performance(missing, run_name = f"runs-{name}")
-        print()
-        print()
+loader = TableLoader(DATASET,
+                    keep_cols           = ALL,
+                    target_col          = "binary_rankin",
+                    normalize           = False,
+                    dirname             = DIR,
+                    join_train_val      = True,
+                    join_train_test     = True,
+                    reshuffle           = True,
+                    set_col             = "all",
+                    filter_out_no_ncct  = False,
+                    empty_values_method = "amputate")
+set  = loader.get_set("train")
+x, y = set["x"], np.array(set["y"])
+fold = 0
+for train_index, test_index in StratifiedKFold(n_splits = 10, shuffle = False).split(x, y):
+    fold += 1
+    print("fold", fold)
+    x_train, x_test = x.iloc[train_index], x.iloc[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+    x_train_norm, x_test_norm = normalize(x_train, x_test)
+    for exp in EXPS:
+        cols = EXPS[exp]
+        name = f"ttest-{exp}"
+        x_train_exp, x_test_exp = x_train_norm[cols], x_test_norm[cols]
+        print("   ", name, x_train_exp.shape, x_test_exp.shape)
+        loader     = DummyLoader(x_train_exp, x_test_exp, y_train, y_test)
+        classifier = logistic_regression(loader, n_iter = N_ITER, metric = METRIC, cv = CV)
+        classifier.record_performance(f"{name}-{fold}", MISSING, run_name = f"runs-{name}")
+    name = "ttest-ASTRAL"
+    x_train_exp, x_test_exp = x_train[ASTRAL].copy(), x_test[ASTRAL].copy()
+    print("   ", name, x_train_exp.shape, x_test_exp.shape)
+    loader = DummyLoader(x_train_exp, x_test_exp, y_train, y_test)
+    astral = ASTRALClassifier(dataset_filename = None, loader = loader)
+    astral.record_performance(MISSING, run_name = f"runs-{name}")
+    print()
+    print()

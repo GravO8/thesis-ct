@@ -1,4 +1,4 @@
-import sys
+import sys, numpy as np
 sys.path.append("..")
 from table_data.table_loader import TableLoader
 from utils.table_classifier import TableClassifier
@@ -25,17 +25,19 @@ class ASTRALClassifier(TableClassifier):
             self.loader.set_col(s, "gliceAd-4",           ((glucose > 131) | (glucose < 66)).astype(int))
         
     def predict(self, x):
-        x = x.sum(axis = 1)
-        x = x > 30
-        return x.astype(int).values
+        x = x.sum(axis = 1).values
+        a = 0.178
+        b = 30
+        x = 1/(1 + np.e**(-a*(x-b)))
+        return x
         
     def record_performance(self, missing_values: str, run_name: str = "runs"):
-        # missing_values,model,set,auc,accuracy,precision,recall,f1_score
-        with open(f"{run_name}/clinic-performance.csv", "a") as f:
+        self.init_run_dir(run_name)
+        with open(f"{run_name}/performance.csv", "a") as f:
             for set in self.loader.available_sets():
                 metrics = self.compute_metrics(set)
-                f.write(f"{missing_values},ASTRAL,{set}")
-                for metric in ("auc", "accuracy", "precision","recall","f1-score"):
+                f.write(f"NA,{missing_values},ASTRAL,{set}")
+                for metric in self.METRICS:
                     f.write(f",{metrics[metric]}")
                 f.write("\n")
             

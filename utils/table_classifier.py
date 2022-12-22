@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np, os
 from .csv_loader import CSVLoader, SETS
 from .trainer import compute_metrics
 from abc import ABC, abstractmethod
@@ -6,7 +6,8 @@ from abc import ABC, abstractmethod
 
 class TableClassifier(ABC):
     def __init__(self, loader: CSVLoader):
-        self.loader = loader
+        self.loader  = loader
+        self.METRICS = ("f1-score", "accuracy", "precision","recall", "auc")
         
     @abstractmethod
     def predict(self, x):
@@ -37,3 +38,13 @@ class TableClassifier(ABC):
         colors      = ["red" if el else "blue" for el in y]
         plt.scatter(x_2d[:,0], x_2d[:,1], c = colors)
         plt.show()
+        
+    def init_run_dir(self, run_name: str):
+        if not os.path.isdir(run_name):
+            os.system(f"mkdir {run_name}")
+            os.system(f"mkdir {run_name}/models")
+            with open(f"{run_name}/performance.csv", "w+") as f:
+                f.write("stage,missing_values,model,set")
+                for metric in self.METRICS:
+                    f.write(f",{metric}")
+                f.write("\n")
