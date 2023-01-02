@@ -140,7 +140,7 @@ def logistic_regression(loader, **kwargs):
                                 "tol": skopt.space.space.Real(1e-5, 1e-1),
                                 "penalty": ["l1", "l2"],
                                 "solver": ["saga"],
-                                "max_iter": [10],
+                                "max_iter": [100000],
                                 "random_state": [0]
                            },
                            **kwargs)
