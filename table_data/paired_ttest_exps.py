@@ -28,19 +28,13 @@ MISSING = "amputate"
 N_ITER  = 40
 CV      = 5
 METRIC  = "f1"
-EXPS    = { "2vars":                                TWO_VARS,
-            "ASTRAL_vars":                          ASTRAL,
-            
-            "leukoaraiosis":                        LEUKOARAIOSIS,
-            "aspects":                              ASPECTS,
-            
-            "occlusion":                            OCCLUSION,
-            "occlusion+aspects":                    OCC_ASPECTS,
-            "occlusion+aspects+leukoaraiosis":      ALL_BRAIN,
-            
-            "occlusion_pred":                       OCCLUSION_PRED,
-            "occlusion_pred+aspects":               OCC2_ASPECTS,
-            "occlusion_pred+aspects+leukoaraiosis": ALL_BRAIN2
+EXPS    = { "2vars+aspects":                    TWO_VARS + ["aspects-7"],
+            "2vars+occlusion":                  TWO_VARS + ["ocEst-10"],
+            "2vars+gliceAd":                    TWO_VARS + ["gliceAd-4"],
+            "2vars+gliceAd+aspects+occlusion":  TWO_VARS + ["gliceAd-4", "aspects-7", "ocEst-10"],
+            "2vars+aspects+occlusion":          TWO_VARS + ["aspects-7", "ocEst-10"],
+            "2vars+gliceAd+occlusion":          TWO_VARS + ["gliceAd-4", "ocEst-10"],
+            "2vars+gliceAd+aspects":            TWO_VARS + ["gliceAd-4", "aspects-7"]
             }
 
 
