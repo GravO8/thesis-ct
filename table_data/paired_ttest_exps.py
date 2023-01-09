@@ -28,13 +28,10 @@ MISSING = "amputate"
 N_ITER  = 40
 CV      = 5
 METRIC  = "f1"
-EXPS    = { "2vars+aspects":                    TWO_VARS + ["aspects-7"],
-            "2vars+occlusion":                  TWO_VARS + ["ocEst-10"],
-            "2vars+gliceAd":                    TWO_VARS + ["gliceAd-4"],
-            "2vars+gliceAd+aspects+occlusion":  TWO_VARS + ["gliceAd-4", "aspects-7", "ocEst-10"],
-            "2vars+aspects+occlusion":          TWO_VARS + ["aspects-7", "ocEst-10"],
-            "2vars+gliceAd+occlusion":          TWO_VARS + ["gliceAd-4", "ocEst-10"],
-            "2vars+gliceAd+aspects":            TWO_VARS + ["gliceAd-4", "aspects-7"]
+EXPS    = { "2vars+occlusion_pred":                  TWO_VARS + ["occlusion-pred2"],
+            "2vars+gliceAd+aspects+occlusion_pred":  TWO_VARS + ["gliceAd-4", "aspects-7", "occlusion-pred2"],
+            "2vars+aspects+occlusion_pred":          TWO_VARS + ["aspects-7", "occlusion-pred2"],
+            "2vars+gliceAd+occlusion_pred":          TWO_VARS + ["gliceAd-4", "occlusion-pred2"],
             }
 
 
